@@ -1,0 +1,58 @@
+.vc-boo-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    color: var(--interactive-normal);
+}
+
+#vc-boo-container {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    width: 48px;
+    min-height: 32px;
+    margin: 0 auto 8px;
+    border: 0;
+    border-radius: 999px;
+    background: var(--background-mod-subtle);
+    color: var(--interactive-normal);
+    cursor: pointer;
+    font-weight: 700;
+}
+
+#vc-boo-container:hover {
+    background: var(--background-mod-strong);
+    color: var(--interactive-hover);
+}
+
+.vc-boo-modal-content {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 8px 0;
+}
+
+.vc-boo-ghosted-entry {
+    display: grid;
+    grid-template-columns: 40px minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 12px;
+    padding: 10px;
+    border-radius: 8px;
+    cursor: pointer;
+}
+
+.vc-boo-ghosted-entry:hover {
+    background: var(--background-mod-subtle);
+}
+
+.vc-boo-user-info {
+    min-width: 0;
+}
+
+.vc-boo-modal-text {
+    color: var(--text-muted);
+}

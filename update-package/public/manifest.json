@@ -1,0 +1,16 @@
+﻿{
+    "version":  "1.3.8",
+    "hash":  "public-github-updater-1",
+    "author":  "o2cord",
+    "message":  "Enable GitHub public updater",
+    "notes":  [
+                  "Public o2cord update package",
+                  "ussro2 backgrounds are loaded from backgrounds.json beside this manifest"
+              ],
+    "files":  {
+                  "patcher.js":  "https://raw.githubusercontent.com/2VTA/o2cord/main/update-package/public/files/patcher.js",
+                  "preload.js":  "https://raw.githubusercontent.com/2VTA/o2cord/main/update-package/public/files/preload.js",
+                  "renderer.js":  "https://raw.githubusercontent.com/2VTA/o2cord/main/update-package/public/files/renderer.js",
+                  "renderer.css":  "https://raw.githubusercontent.com/2VTA/o2cord/main/update-package/public/files/renderer.css"
+              }
+}

@@ -1,0 +1,2344 @@
+﻿/*
+ * Vencord, a Discord client mod
+ * Copyright (c) 2026 Vendicated and contributors
+ * SPDX-License-Identifier: GPL-3.0-or-later
+ */
+
+import "./styles.css";
+
+import { BadgePosition, ProfileBadge } from "@api/Badges";
+import { addContextMenuPatch, NavContextMenuPatchCallback, removeContextMenuPatch } from "@api/ContextMenu";
+import { addHeaderBarButton, HeaderBarButton, removeHeaderBarButton } from "@api/HeaderBar";
+import { DataStore } from "@api/index";
+import { Devs } from "@utils/constants";
+import { ModalCloseButton, ModalContent, ModalFooter, ModalHeader, ModalRoot, openModal } from "@utils/modal";
+import definePlugin from "@utils/types";
+import { AuthenticationStore, Button, FluxDispatcher, IconUtils, Menu, React, Select, SnowflakeUtils, UserStore } from "@webpack/common";
+import { Settings } from "@api/Settings";
+import virtualMerge from "virtual-merge";
+
+import { PROFILE_EFFECTS, CustomProfileEffect } from "./profileEffects";
+
+const t = (text: string) => text;
+
+const DS_KEY = "customProfile_data";
+const DS_ENABLED = "customProfile_enabled";
+
+const FLAG = {
+    STAFF: 1,
+    PARTNER: 2,
+    HYPESQUAD: 4,
+    BUG_HUNTER_1: 8,
+    BRAVERY: 64,
+    BRILLIANCE: 128,
+    BALANCE: 256,
+    EARLY_SUPPORTER: 512,
+    BUG_HUNTER_2: 16384,
+    DEV_VERIFIED: 131072,
+    MOD_ALUMNI: 262144,
+    ACTIVE_DEVELOPER: 4194304,
+};
+
+const BADGES = [
+    { label: t("Staff Discord"), flag: FLAG.STAFF, icon: "https://cdn.discordapp.com/badge-icons/5e74e9b61934fc1f67c65515d1f7e60d.png" },
+    { label: t("Partenaire"), flag: FLAG.PARTNER, icon: "https://cdn.discordapp.com/badge-icons/3f9748e53446a137a052f3454e2de41e.png" },
+    { label: t("HypeSquad Events"), flag: FLAG.HYPESQUAD, icon: "https://cdn.discordapp.com/badge-icons/bf01d1073931f921909045f3a39fd264.png" },
+    { label: t("Bug Hunter Lvl 1"), flag: FLAG.BUG_HUNTER_1, icon: "https://cdn.discordapp.com/badge-icons/2717692c7dca7289b35297368a940dd0.png" },
+    { label: t("HypeSquad Bravery"), flag: FLAG.BRAVERY, icon: "https://cdn.discordapp.com/badge-icons/8a88d63823d8a71cd5e390baa45efa02.png" },
+    { label: t("HypeSquad Brilliance"), flag: FLAG.BRILLIANCE, icon: "https://cdn.discordapp.com/badge-icons/011940fd013da3f7fb926e4a1cd2e618.png" },
+    { label: t("HypeSquad Balance"), flag: FLAG.BALANCE, icon: "https://cdn.discordapp.com/badge-icons/3aa41de486fa12454c3761e8e223442e.png" },
+    { label: t("Early Supporter"), flag: FLAG.EARLY_SUPPORTER, icon: "https://cdn.discordapp.com/badge-icons/7060786766c9c840eb3019e725d2b358.png" },
+    { label: t("Former Moderator"), flag: FLAG.MOD_ALUMNI, icon: "https://cdn.discordapp.com/badge-icons/fee1624003e2fee35cb398e125dc479b.png" },
+    { label: t("Bug Hunter Lvl 2"), flag: FLAG.BUG_HUNTER_2, icon: "https://cdn.discordapp.com/badge-icons/848f79194d4be5ff5f81505cbd0ce1e6.png" },
+    { label: t("Verified Developer"), flag: FLAG.DEV_VERIFIED, icon: "https://cdn.discordapp.com/badge-icons/6df5892e0f35b051f8b61eace34f4967.png" },
+    { label: t("Active Developer"), flag: FLAG.ACTIVE_DEVELOPER, icon: "https://cdn.discordapp.com/badge-icons/6bdc42827a38498929a4920da12695d9.png" },
+];
+
+const OLD_NAME_BADGE_ICON = "https://cdn.discordapp.com/badge-icons/6de6d34650760ba5551a79732e98ed60.png";
+
+const NITRO_LEVELS = [
+    { label: t("Nitro (0 mois)"), icon: "https://cdn.discordapp.com/badge-icons/2ba85e8026a8614b640c2837bcdfe21b.png" },
+    { label: t("Bronze (1 mois)"), icon: "https://cdn.discordapp.com/badge-icons/4f33c4a9c64ce221936bd256c356f91f.png" },
+    { label: t("Argent (2 mois)"), icon: "https://cdn.discordapp.com/badge-icons/4514fab914bdbfb4ad2fa23df76121a6.png" },
+    { label: t("Or (3 mois)"), icon: "https://cdn.discordapp.com/badge-icons/2895086c18d5531d499862e41d1155a6.png" },
+    { label: t("Platine (6 mois)"), icon: "https://cdn.discordapp.com/badge-icons/0334688279c8359120922938dcb1d6f8.png" },
+    { label: t("Diamant (12 mois)"), icon: "https://cdn.discordapp.com/badge-icons/0d61871f72bb9a33a7ae568c1fb4f20a.png" },
+    { label: t("Émeraude (24 mois)"), icon: "https://cdn.discordapp.com/badge-icons/11e2d339068b55d3a506cff34d3780f3.png" },
+    { label: t("Rubis (36 mois)"), icon: "https://cdn.discordapp.com/badge-icons/cd5e2cfd9d7f27a8cdcd3e8a8d5dc9f4.png" },
+    { label: t("Opale (72 mois)"), icon: "https://cdn.discordapp.com/badge-icons/5b154df19c53dce2af92c9b61e6be5e2.png" },
+];
+
+const BOOST_LABELS_RAW = [
+    "1 Mois", "2 Mois", "3 Mois", "6 Mois",
+    "9 Mois", "12 Mois", "15 Mois", "18 Mois", "24 Mois"
+];
+const BOOST_LABELS = BOOST_LABELS_RAW.map(l => t(l));
+const BOOST_MONTHS = [1, 2, 3, 6, 9, 12, 15, 18, 24];
+const BOOST_ICONS = [
+    "https://cdn.discordapp.com/badge-icons/51040c70d4f20a921ad6674ff86fc95c.png", // 1 mois
+    "https://cdn.discordapp.com/badge-icons/0e4080d1d333bc7ad29ef6528b6f2fb7.png", // 2 mois
+    "https://cdn.discordapp.com/badge-icons/72bed924410c304dbe3d00a6e593ff59.png", // 3 mois
+    "https://cdn.discordapp.com/badge-icons/df199d2050d3ed4ebf84d64ae83989f8.png", // 6 mois
+    "https://cdn.discordapp.com/badge-icons/996b3e870e8a22ce519b3a50e6bdd52f.png", // 9 mois
+    "https://cdn.discordapp.com/badge-icons/991c9f39ee33d7537d9f408c3e53141e.png", // 12 mois
+    "https://cdn.discordapp.com/badge-icons/cb3ae83c15e970e8f3d410bc62cb8b99.png", // 15 mois
+    "https://cdn.discordapp.com/badge-icons/7142225d31238f6387d9f09efaa02759.png", // 18 mois
+    "https://cdn.discordapp.com/badge-icons/ec92202290b48d0879b7413d2dde3bab.png", // 24 mois
+];
+
+const AVATAR_DECORATIONS = [
+    { id: "1144307957425778779", label: "Hearts" },
+    { id: "1144308196723408958", label: "Hearts Animated" },
+    { id: "1212569433839636530", label: "Lofi Cafe" },
+    { id: "1481387347642810480", label: "Winter" },
+    { id: "1343751617362661526", label: "Magic Orb" },
+    { id: "1373015260465987705", label: "Dragon" },
+    { id: "1333866045303423026", label: "Ghost" },
+    { id: "1144308439720394944", label: "Sakura Drift" },
+    { id: "1432550258126229565", label: "Neon" },
+    { id: "1462116613632426014", label: "Cyber City" },
+    { id: "1462116613682757888", label: "Retro" },
+    { id: "1144307629225672846", label: "Fire" },
+    { id: "1341506443718688768", label: "Void" },
+    { id: "1447654090640330763", label: "Celestial" },
+    { id: "1483857762890022923", label: "Snowy" },
+    { id: "1479561706672885811", label: "Ice" },
+    { id: "1212569856189407352", label: "Cozy" },
+    { id: "1485784028710830242", label: "New Year" },
+    { id: "1341506444150702080", label: "Abyss" },
+    { id: "1232071712695386162", label: "Spring" },
+    { id: "1220514048068812901", label: "Summer" },
+    { id: "1427463138634109026", label: "Autumn" },
+    { id: "1341506443865489408", label: "Darkness" },
+];
+
+function getDecorationUrl(assetId: string, animated = false): string {
+    return `https://cdn.discordapp.com/media/v1/collectibles-shop/${assetId}/${animated ? "animated" : "static"}`;
+}
+
+interface CustomProfileData {
+    username?: string;
+    globalName?: string;
+    avatar?: string;
+    banner?: string;
+    bio?: string;
+    accentColor?: number;
+    accentColor2?: number;
+    pronouns?: string;
+    badgeFlags?: number;
+    createdAt?: string;
+    nitro?: boolean;
+    nitroLevel?: number;
+    boostMonths?: number;
+    email?: string;
+    phone?: string;
+    customBadgeIds?: string[];
+    oldName?: string;
+    decorationAsset?: string;
+    profileEffectId?: string;
+    copiedUserId?: string;
+}
+
+function clampColorChannel(value: number) {
+    return Math.max(0, Math.min(255, Math.round(value)));
+}
+
+function colorToRgb(color: number) {
+    return {
+        r: (color >> 16) & 255,
+        g: (color >> 8) & 255,
+        b: color & 255
+    };
+}
+
+function rgbToColor(r: number, g: number, b: number) {
+    return (clampColorChannel(r) << 16) | (clampColorChannel(g) << 8) | clampColorChannel(b);
+}
+
+function deriveProfileAccentColor(primary: number) {
+    const { r, g, b } = colorToRgb(primary);
+    return rgbToColor(r * 0.58, g * 0.72 + 18, b * 0.78 + 28);
+}
+
+function getProfileThemeColors(primary?: number, accent?: number) {
+    if (primary == null) return undefined;
+    const secondary = accent ?? deriveProfileAccentColor(primary);
+    return [primary, secondary] as [number, number];
+}
+
+function findProfileEffect(id?: string) {
+    if (!id) return undefined;
+    return PROFILE_EFFECTS.find(effect => effect.id === id || effect.skuId === id);
+}
+
+function normalizeProfileEffect(effect: CustomProfileEffect) {
+    return {
+        ...effect,
+        id: effect.id,
+        skuId: effect.skuId,
+        title: effect.title,
+        description: effect.description,
+        accessibilityLabel: effect.accessibilityLabel ?? effect.title,
+        type: effect.type ?? 1,
+        animationType: effect.animationType ?? 2,
+        thumbnailPreviewSrc: effect.thumbnailPreviewSrc,
+        reducedMotionSrc: effect.reducedMotionSrc,
+        staticFrameSrc: effect.staticFrameSrc,
+        effects: effect.effects ?? []
+    };
+}
+
+function applyProfileEffectPatch(target: any, profileEffectId?: string) {
+    const effect = findProfileEffect(profileEffectId);
+    if (!effect) return;
+
+    const normalized = normalizeProfileEffect(effect);
+    target.profileEffectId = normalized.id;
+    target.profileEffect = normalized;
+    target.profileEffectExpiresAt = undefined;
+    target.collectibles = [
+        normalized,
+        ...((Array.isArray(target.collectibles) ? target.collectibles : []).filter((item: any) => item?.id !== normalized.id && item?.skuId !== normalized.skuId))
+    ];
+}
+
+const PROFILE_BADGE_STYLE = { borderRadius: "50%", width: "22px", height: "22px", objectFit: "contain" };
+
+function makeProfileBadge(id: string, description: string, iconSrc: string): ProfileBadge {
+    return {
+        id: `custom_profile_${id}`,
+        key: `custom_profile_${id}`,
+        description,
+        iconSrc,
+        position: BadgePosition.START,
+        props: { style: PROFILE_BADGE_STYLE }
+    };
+}
+
+function getCustomProfileBadges(data: CustomProfileData): ProfileBadge[] {
+    const badges: ProfileBadge[] = [];
+    const wantedFlags = data.badgeFlags ?? 0;
+
+    for (const badge of BADGES) {
+        if (wantedFlags & badge.flag) {
+            badges.push(makeProfileBadge(`flag_${badge.flag}`, badge.label, badge.icon));
+        }
+    }
+
+    const nl = data.nitroLevel ?? -1;
+    if (nl >= 0 && nl < NITRO_LEVELS.length) {
+        badges.push(makeProfileBadge(`nitro_${nl}`, "Nitro", NITRO_LEVELS[nl].icon));
+    }
+
+    const bm = data.boostMonths ?? -1;
+    if (bm >= 0 && bm < BOOST_ICONS.length) {
+        badges.push(makeProfileBadge(`boost_${bm}`, `Server Booster - ${BOOST_LABELS[bm]}`, BOOST_ICONS[bm]));
+    }
+
+    const customIds = data.customBadgeIds ?? [];
+    if (customIds.includes("quest")) {
+        badges.push(makeProfileBadge("quest", "Completed a quest", "https://cdn.discordapp.com/badge-icons/7d9ae358c8c5e118768335dbe68b4fb8.png"));
+    }
+    if (customIds.includes("orbs")) {
+        badges.push(makeProfileBadge("orbs", "Orbs - Apprentice", "https://cdn.discordapp.com/badge-icons/83d8a1eb09a8d64e59233eec5d4d5c2d.png"));
+    }
+    if (customIds.includes("oldname")) {
+        const oldNameText = data.oldName ? `Old username: ${data.oldName}` : "Old username";
+        badges.push(makeProfileBadge("oldname", oldNameText, OLD_NAME_BADGE_ICON));
+    }
+
+    return badges;
+}
+
+function shouldHideNativeBadge(nativeBadge: ProfileBadge, data: CustomProfileData) {
+    const desc = (nativeBadge.description || "").toLowerCase();
+    const icon = (nativeBadge.iconSrc || "").toLowerCase();
+    const nl = data.nitroLevel ?? -1;
+    const bm = data.boostMonths ?? -1;
+    const wantedFlags = data.badgeFlags ?? 0;
+
+    if (nl >= 0 && (["nitro", "subscriber", "abonn", "premium", "inscrit"].some(k => desc.includes(k)) || icon.includes("nitro") || icon.includes("premium"))) {
+        return true;
+    }
+
+    if (bm >= 0 && (["booster", "boost"].some(k => desc.includes(k)) || icon.includes("boost") || icon.includes("leveling"))) {
+        return true;
+    }
+
+    for (const badge of BADGES) {
+        if (!(wantedFlags & badge.flag)) continue;
+        const iconHash = badge.icon.split("/").pop()?.replace(".png", "").toLowerCase();
+        if (iconHash && icon.includes(iconHash)) return true;
+        const keywords = badge.label.toLowerCase().split(/\s+/);
+        if (keywords.some(k => k.length > 3 && desc.includes(k))) return true;
+    }
+
+    return false;
+}
+
+const LS_KEY_DATA = "NightcordCP_data";
+const LS_KEY_ENABLED = "NightcordCP_enabled";
+const DS_ALL_DATA = "customProfile_allData";
+const DS_ALL_ENABLED = "customProfile_allEnabled";
+const LS_ALL_DATA = "NightcordCP_allData";
+const LS_ALL_ENABLED = "NightcordCP_allEnabled";
+
+let storedData: CustomProfileData = {};
+let isEnabled = false;
+let domObserver: MutationObserver | null = null;
+
+const publicProfilesCache = new Map<string, { fetched: boolean, data: CustomProfileData | null, timestamp: number }>();
+const PUBLIC_CACHE_TTL = 1000 * 30; // 30 seconds — fast enough to see updates without hammering the API
+
+async function getPublicCustomProfile(_userId: string): Promise<CustomProfileData | null> {
+    return null;
+}
+
+// Watch for seeAllCustomProfile being toggled off — flush the cache immediately
+let _lastSeeAll = false;
+function checkSeeAllSettingChange() {
+    const current = !!Settings.seeAllCustomProfile;
+    if (_lastSeeAll && !current) {
+        // Turned off — wipe all public profile data so everyone shows their real profile
+        publicProfilesCache.clear();
+    }
+    _lastSeeAll = current;
+}
+
+async function fetchPublicProfileIfNeeded(userId: string) {
+    checkSeeAllSettingChange();
+    if (!Settings.seeAllCustomProfile) return;
+    const existing = publicProfilesCache.get(userId);
+    if (existing?.fetched && (Date.now() - existing.timestamp) < PUBLIC_CACHE_TTL) return;
+
+    publicProfilesCache.set(userId, { fetched: false, data: null, timestamp: 0 });
+
+    const dataToSave = await getPublicCustomProfile(userId);
+    if (dataToSave) {
+        delete dataToSave.username;
+        delete dataToSave.globalName;
+        delete dataToSave.avatar;
+        delete dataToSave.bio;
+        delete dataToSave.pronouns;
+        delete dataToSave.email;
+        delete dataToSave.phone;
+        delete dataToSave.copiedUserId;
+    }
+    publicProfilesCache.set(userId, { fetched: true, data: dataToSave, timestamp: Date.now() });
+
+    try {
+        const UPS = (Vencord as any).Webpack?.findByProps?.("getUserProfile", "getGuildMemberProfile");
+        if (UPS && UPS.emitChange) UPS.emitChange();
+
+        const US = (Vencord as any).Webpack?.findByStoreName("UserStore");
+        if (US && US.emitChange) US.emitChange();
+    } catch {}
+}
+
+let cachedOriginalUser: any = null;
+let cachedFakeUser: any = null;
+let cachedDataHash: number = 0;
+let _trueOriginalUser: any = null;
+let _dataVersion: number = 0;
+let allAccountsData: Record<string, CustomProfileData> = {};
+let allAccountsEnabled: Record<string, boolean> = {};
+
+function saveDataSync(data: CustomProfileData, enabled: boolean) {
+    try {
+        localStorage.setItem(LS_KEY_DATA, JSON.stringify(data));
+        localStorage.setItem(LS_KEY_ENABLED, enabled ? "1" : "0");
+    } catch { }
+}
+
+function saveAllDataSync() {
+    try {
+        localStorage.setItem(LS_ALL_DATA, JSON.stringify(allAccountsData));
+        localStorage.setItem(LS_ALL_ENABLED, JSON.stringify(allAccountsEnabled));
+    } catch { }
+}
+
+function syncCurrentUserData() {
+    const myId = _cachedMyId || AuthenticationStore?.getId?.();
+    if (myId) {
+        _cachedMyId = myId;
+        storedData = allAccountsData[myId] || {};
+        isEnabled = allAccountsEnabled[myId] || false;
+    }
+}
+
+function loadDataSync() {
+    try {
+        const rawAll = localStorage.getItem(LS_ALL_DATA);
+        if (rawAll) {
+            try { allAccountsData = JSON.parse(rawAll); } catch { allAccountsData = {}; }
+            const rawEnabled = localStorage.getItem(LS_ALL_ENABLED);
+            try { allAccountsEnabled = rawEnabled ? JSON.parse(rawEnabled) : {}; } catch { allAccountsEnabled = {}; }
+            syncCurrentUserData();
+            if (!storedData || Object.keys(storedData).length === 0) {
+                const rawOld = localStorage.getItem(LS_KEY_DATA);
+                const enOld = localStorage.getItem(LS_KEY_ENABLED);
+                if (rawOld) {
+                    try { storedData = JSON.parse(rawOld); } catch { storedData = {}; }
+                    isEnabled = enOld === "1";
+                }
+            }
+            return;
+        }
+        const raw = localStorage.getItem(LS_KEY_DATA);
+        const en = localStorage.getItem(LS_KEY_ENABLED);
+        if (raw) {
+            try { storedData = JSON.parse(raw); } catch { storedData = {}; }
+        } else { storedData = {}; }
+        isEnabled = en === "1";
+    } catch {
+        storedData = {};
+        isEnabled = false;
+    }
+}
+
+function onAccountSwitch() {
+    updateCachedRealData();
+    syncCurrentUserData();
+    cachedFakeUser = null;
+    cachedOriginalUser = null;
+    _trueOriginalUser = null;
+    _dataVersion++;
+    _realUsername = "";
+    _realGlobalName = "";
+    if (isEnabled) startDomObserver();
+    else stopDomObserver();
+    forceAccountPanelRerender();
+}
+
+loadDataSync();
+
+const HIDE_STYLE_ID = "cp-hide-during-load";
+function injectHideStyle() {
+    if (!isEnabled) return;
+    if (document.getElementById(HIDE_STYLE_ID)) return;
+    const style = document.createElement("style");
+    style.id = HIDE_STYLE_ID;
+    style.textContent = `
+        [class*='nameTag'] [class*='username'],
+        [class*='nameTag'] [class*='discriminator'],
+        [class*='nameTag'] [class*='panelSubtitle']
+        { color: transparent !important; }
+        [class*='accountProfilePopout'] [class*='avatarWrap'] img,
+        [class*='accountProfilePopout'] [class*='avatarWrap'] svg
+        { opacity: 0 !important; }
+    `;
+    const inject = () => {
+        if (!document.head) { requestAnimationFrame(inject); return; }
+        document.head.appendChild(style);
+    };
+    inject();
+}
+function removeHideStyle() {
+    document.getElementById(HIDE_STYLE_ID)?.remove();
+}
+if (isEnabled) injectHideStyle();
+
+let _avatarPatchApplied = false;
+let _avatarPatchOrig: any = null;
+function applyAvatarPatchEarly() {
+    if (_avatarPatchApplied) return;
+    try {
+        // findByProps is more reliable than the imported IconUtils as it returns
+        // the actual live webpack module object — patching it affects all consumers.
+        const IU = (window as any).Vencord?.Webpack?.findByProps?.("getUserAvatarURL", "getDefaultAvatarURL")
+            ?? (window as any).Vencord?.Webpack?.findByProps?.("getUserAvatarURL")
+            ?? IconUtils;
+        if (!IU?.getUserAvatarURL) return;
+        _avatarPatchOrig = IU.getUserAvatarURL;
+        const orig = _avatarPatchOrig;
+        // The patch reads storedData/isEnabled at call-time, not at install-time
+        // so it works even if called before loadData() finishes.
+        IU.getUserAvatarURL = function (user: any, ...args: any[]) {
+            if (!user) return orig(user, ...args);
+            const uid = user.id ?? user.userId;
+            if (!uid) return orig(user, ...args);
+            // Own user
+            if (isEnabled && storedData.avatar && isMe(uid)) {
+                return storedData.avatar;
+            }
+            // Other users via public cache
+            checkSeeAllSettingChange();
+            if (Settings.seeAllCustomProfile && !isMe(uid)) {
+                const cached = publicProfilesCache.get(uid);
+                if (cached?.fetched && cached.data?.avatar) {
+                    return cached.data.avatar;
+                }
+                fetchPublicProfileIfNeeded(uid);
+            }
+            return orig(user, ...args);
+        };
+        _avatarPatchApplied = true;
+    } catch { }
+}
+
+async function loadData() {
+    try {
+        const allData = await DataStore.get(DS_ALL_DATA) as Record<string, CustomProfileData> | null;
+        const allEnabled = await DataStore.get(DS_ALL_ENABLED) as Record<string, boolean> | null;
+        if (allData && typeof allData === "object" && Object.keys(allData).length > 0) {
+            allAccountsData = allData;
+            allAccountsEnabled = allEnabled || {};
+            syncCurrentUserData();
+            saveAllDataSync();
+            saveDataSync(storedData, isEnabled);
+            return;
+        }
+        const d = await DataStore.get(DS_KEY) as CustomProfileData | null;
+        const e = await DataStore.get(DS_ENABLED) as boolean | null;
+        if (d !== null) storedData = d;
+        if (e !== null) isEnabled = e === true;
+        const myId = AuthenticationStore?.getId?.();
+        if (myId && storedData && Object.keys(storedData).length > 0) {
+            allAccountsData[myId] = storedData;
+            allAccountsEnabled[myId] = isEnabled;
+            DataStore.set(DS_ALL_DATA, allAccountsData).catch(() => { });
+            DataStore.set(DS_ALL_ENABLED, allAccountsEnabled).catch(() => { });
+            saveAllDataSync();
+        }
+        saveDataSync(storedData, isEnabled);
+    } catch (err) { }
+}
+
+async function copyUserProfile(userId: string) {
+    try {
+        const user = UserStore.getUser(userId) as any;
+        if (!user) return;
+
+        const { findByProps } = await import("@webpack") as any;
+        const UserProfileStore = findByProps("getUserProfile", "getGuildMemberProfile") as any;
+        const IU = IconUtils as any;
+        const profile = UserProfileStore?.getUserProfile?.(userId) ?? {};
+
+        const newData: CustomProfileData = {
+            username: user.username || "",
+            globalName: user.globalName || "",
+            pronouns: "",
+            bio: "",
+            accentColor: undefined,
+            accentColor2: undefined,
+            banner: "",
+            avatar: "",
+            badgeFlags: 0,
+            customBadgeIds: [],
+            nitro: false,
+            nitroLevel: -1,
+            boostMonths: -1,
+            decorationAsset: undefined,
+            profileEffectId: undefined,
+            createdAt: undefined,
+            copiedUserId: userId
+        };
+
+        if (user.bio !== undefined) newData.bio = user.bio || "";
+        if (profile.bio !== undefined) newData.bio = profile.bio || "";
+
+        try {
+            const avatarUrl = IU?.getUserAvatarURL?.(user, false, 512)
+                ?? (user.avatar ? `https://cdn.discordapp.com/avatars/${userId}/${user.avatar}.${user.avatar.startsWith("a_") ? "gif" : "png"}?size=512` : null);
+            if (avatarUrl) newData.avatar = avatarUrl;
+        } catch { }
+
+        const hasNitro = (profile.premiumType ?? 0) > 0;
+        newData.nitro = hasNitro;
+
+        if (hasNitro) {
+            const premiumSince = profile.premiumSince ?? user.premiumSince ?? null;
+            if (premiumSince) {
+                const months = Math.floor((Date.now() - new Date(premiumSince).getTime()) / (1000 * 60 * 60 * 24 * 30));
+                if (months >= 72) newData.nitroLevel = 7;
+                else if (months >= 36) newData.nitroLevel = 6;
+                else if (months >= 24) newData.nitroLevel = 5;
+                else if (months >= 12) newData.nitroLevel = 4;
+                else if (months >= 6) newData.nitroLevel = 3;
+                else if (months >= 3) newData.nitroLevel = 2;
+                else if (months >= 2) newData.nitroLevel = 1;
+                else newData.nitroLevel = 0;
+            } else {
+                newData.nitroLevel = 0;
+            }
+        }
+
+        const boostSince = profile.premiumGuildSince ?? null;
+        if (boostSince) {
+            const bMonths = Math.floor((Date.now() - new Date(boostSince).getTime()) / (1000 * 60 * 60 * 24 * 30));
+            if (bMonths >= 24) newData.boostMonths = 8;
+            else if (bMonths >= 18) newData.boostMonths = 7;
+            else if (bMonths >= 15) newData.boostMonths = 6;
+            else if (bMonths >= 12) newData.boostMonths = 5;
+            else if (bMonths >= 9) newData.boostMonths = 4;
+            else if (bMonths >= 6) newData.boostMonths = 3;
+            else if (bMonths >= 3) newData.boostMonths = 2;
+            else if (bMonths >= 2) newData.boostMonths = 1;
+            else newData.boostMonths = 0;
+        }
+
+        const bannerId = profile.banner ?? user.banner ?? null;
+        if (bannerId) newData.banner = `https://cdn.discordapp.com/banners/${userId}/${bannerId}.${bannerId.startsWith("a_") ? "gif" : "png"}?size=512`;
+
+        if (Array.isArray(profile.themeColors) && profile.themeColors.length >= 2) {
+            newData.accentColor = profile.themeColors[0];
+            newData.accentColor2 = profile.themeColors[1];
+        } else if (profile.accentColor !== undefined) {
+            newData.accentColor = profile.accentColor;
+            newData.accentColor2 = deriveProfileAccentColor(profile.accentColor);
+        } else if (user.accentColor !== undefined) {
+            newData.accentColor = user.accentColor;
+            newData.accentColor2 = deriveProfileAccentColor(user.accentColor);
+        }
+
+        try {
+            const ms = Number(BigInt(userId) >> 22n) + 1420070400000;
+            newData.createdAt = new Date(ms).toISOString().slice(0, 10);
+        } catch { }
+
+        try {
+            const flags = user.publicFlags ?? 0;
+            let badgeFlags = 0;
+            for (const { flag } of BADGES) { if (flags & flag) badgeFlags |= flag; }
+            newData.badgeFlags = badgeFlags;
+            if (user.avatarDecorationData?.asset) newData.decorationAsset = user.avatarDecorationData.asset;
+            const copiedEffect = findProfileEffect(profile.profileEffectId ?? profile.profileEffect?.id ?? profile.profileEffect?.skuId);
+            if (copiedEffect) newData.profileEffectId = copiedEffect.id;
+        } catch { }
+
+        newData.copiedUserId = userId;
+        storedData = newData;
+        isEnabled = true;
+        saveDataSync(newData, true);
+        DataStore.set(DS_ALL_DATA, allAccountsData).catch(() => { });
+        DataStore.set(DS_ALL_ENABLED, allAccountsEnabled).catch(() => { });
+
+        forceAccountPanelRerender();
+    } catch (err) {
+        console.error("[CustomProfile] copyUserProfile error:", err);
+    }
+}
+
+const userContextMenuPatch: NavContextMenuPatchCallback = (children, { user }: any) => {
+    if (!children || !Array.isArray(children) || !user || !user.id) return;
+    try {
+        const me = UserStore.getCurrentUser();
+        if (!me || user.id === me.id) return;
+        const isCopied = isEnabled && storedData.copiedUserId === user.id;
+
+        children.push(
+            <Menu.MenuGroup>
+                {isCopied ? (
+                    <Menu.MenuItem
+                        id="remove-copy-profile"
+                        label={t("Remove copy profile")}
+                        color="danger"
+                        action={() => {
+                            try {
+                                const myId = AuthenticationStore?.getId?.();
+                                if (myId) {
+                                    delete allAccountsData[myId];
+                                    delete allAccountsEnabled[myId];
+                                }
+                                storedData = {};
+                                isEnabled = false;
+                                saveDataSync({}, false);
+                                cachedFakeUser = null;
+                                cachedOriginalUser = null;
+                                _trueOriginalUser = null;
+                                _dataVersion++;
+                                saveAllDataSync();
+                                DataStore.set(DS_ALL_DATA, allAccountsData).catch(() => { });
+                                DataStore.set(DS_ALL_ENABLED, allAccountsEnabled).catch(() => { });
+                                forceAccountPanelRerender();
+                            } catch (e) {
+                                console.error("[CustomProfile] Error removing copy:", e);
+                            }
+                        }}
+                    />
+                ) : (
+                    <Menu.MenuItem
+                        id="copy-user-profile"
+                        label={t("Copy this profile")}
+                        action={() => copyUserProfile(user.id)}
+                    />
+                )}
+            </Menu.MenuGroup>
+        );
+    } catch (err) {
+        console.error("[CustomProfile] Context menu patch error:", err);
+    }
+};
+
+function getRealNames(): { username: string | null; globalName: string | null; } {
+    try {
+        const u = UserStore.getCurrentUser();
+        return { username: u?.username ?? null, globalName: u?.globalName ?? null };
+    } catch { return { username: null, globalName: null }; }
+}
+
+function getRealDateVariants(): string[] {
+    try {
+        const u = UserStore.getCurrentUser();
+        if (!u?.id) return [];
+        const ms = Number(BigInt(u.id) >> 22n) + 1420070400000;
+        const d = new Date(ms);
+        const variants = new Set<string>();
+        const locales = ["en-US", "en-GB", "fr-FR", "de-DE", "it-IT", navigator.language];
+        const fmtSpecs: Intl.DateTimeFormatOptions[] = [
+            { day: "numeric", month: "short", year: "numeric" },
+            { day: "numeric", month: "long", year: "numeric" },
+            { month: "short", day: "numeric", year: "numeric" },
+            { month: "long", day: "numeric", year: "numeric" },
+            { day: "2-digit", month: "2-digit", year: "numeric" },
+        ];
+        for (const loc of locales) {
+            for (const fmt of fmtSpecs) {
+                try {
+                    const s = new Intl.DateTimeFormat(loc, fmt).format(d);
+                    variants.add(s); variants.add(s.replace(/\s/g, " ")); variants.add(s.replace(/\s/g, "\u00a0"));
+                } catch { }
+            }
+        }
+        const day = d.getDate(); const year = d.getFullYear(); const monthsShort = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+        const monthsLong = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+        const mS = monthsShort[d.getMonth()]; const mL = monthsLong[d.getMonth()];
+        const patterns = [`${day} ${mS} ${year}`, `${day} ${mL} ${year}`, `${mS} ${day}, ${year}`, `${mL} ${day}, ${year}`, d.toISOString().slice(0, 10)];
+        for (const p of patterns) { variants.add(p); variants.add(p.replace(/ /g, "\u00a0")); variants.add(p.replace(/\u00a0/g, " ")); }
+        variants.add(year.toString()); return [...variants].filter(v => v.length >= 4);
+    } catch { return []; }
+}
+
+function getFakeDateVariants(isoDate: string): string[] {
+    try {
+        const d = new Date(isoDate + "T12:00:00Z");
+        const variants = new Set<string>();
+        const fmtSpecs: Intl.DateTimeFormatOptions[] = [
+            { day: "numeric", month: "short", year: "numeric" },
+            { day: "numeric", month: "long", year: "numeric" },
+            { month: "short", day: "numeric", year: "numeric" },
+            { month: "long", day: "numeric", year: "numeric" },
+        ];
+        for (const fmt of fmtSpecs) { try { variants.add(new Intl.DateTimeFormat(navigator.language, fmt).format(d)); } catch { } }
+        return [...variants];
+    } catch { return []; }
+}
+
+let _cachedMyId: string | null = null;
+let _realUsername = "";
+let _realGlobalName = "";
+
+function updateCachedRealData() {
+    try { const myId = AuthenticationStore?.getId?.(); if (myId) _cachedMyId = myId; } catch { }
+}
+
+let _domQueued = false;
+let _domMutations: MutationRecord[] = [];
+
+function scanTextNode(node: Text) {
+    if (!isEnabled || !node.nodeValue) return;
+    const val = (node as any).__cp_orig || node.nodeValue;
+    let result = val;
+    try { if (_trueOriginalUser) { _realUsername = _trueOriginalUser.username || _realUsername; _realGlobalName = _trueOriginalUser.globalName || _realGlobalName; } } catch { }
+    let replaced = false;
+    if (storedData.createdAt) {
+        const realDates = getRealDateVariants(); const fakeDates = getFakeDateVariants(storedData.createdAt);
+        if (realDates.length > 0 && fakeDates.length > 0) {
+            for (let i = 0; i < realDates.length; i++) {
+                const realDate = realDates[i];
+                if (realDate.length >= 4 && (val.includes(realDate) || val.toLowerCase().includes(realDate.toLowerCase()))) {
+                    result = result.split(realDate).join(fakeDates[0]); replaced = true;
+                }
+            }
+        }
+    }
+    if (_realUsername && storedData.username && result.includes(_realUsername)) { result = result.split(_realUsername).join(storedData.username); replaced = true; }
+    if (_realGlobalName && storedData.globalName && result.includes(_realGlobalName)) { result = result.split(_realGlobalName).join(storedData.globalName); replaced = true; }
+    if (replaced && result !== node.nodeValue) { if ((node as any).__cp_orig === undefined) (node as any).__cp_orig = val; node.nodeValue = result; }
+}
+
+function scanNode(node: Node) {
+    if (node.nodeType === Node.TEXT_NODE) { scanTextNode(node as Text); return; }
+    const walker = document.createTreeWalker(node, NodeFilter.SHOW_TEXT);
+    let n: Node | null;
+    while ((n = walker.nextNode())) scanTextNode(n as Text);
+}
+
+function processDomBatch() {
+    _domQueued = false;
+    if (!isEnabled) { _domMutations = []; return; }
+    const batch = _domMutations; _domMutations = [];
+    for (const m of batch) { if (m.type === "characterData") scanTextNode(m.target as Text); else for (const n of m.addedNodes) scanNode(n); }
+}
+
+function startDomObserver() {
+    stopDomObserver(); if (!isEnabled) return;
+    scanNode(document.body);
+    domObserver = new MutationObserver(mutations => {
+        if (!isEnabled || !mutations.length) return;
+        _domMutations.push(...mutations);
+        if (!_domQueued) { _domQueued = true; setTimeout(() => requestAnimationFrame(processDomBatch), 10); }
+    });
+    domObserver.observe(document.body, { childList: true, subtree: true, characterData: true });
+}
+
+function stopDomObserver() {
+    domObserver?.disconnect(); domObserver = null;
+    const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+    let n: Node | null;
+    while ((n = walker.nextNode())) { if ((n as any).__cp_orig !== undefined) { n.nodeValue = (n as any).__cp_orig; delete (n as any).__cp_orig; } }
+}
+
+function isMe(userId: string | null | undefined): boolean {
+    if (!userId) return false;
+    if (_cachedMyId) return _cachedMyId === userId;
+    try { const myId = AuthenticationStore?.getId?.(); if (myId) { _cachedMyId = myId; return myId === userId; } } catch { }
+    return false;
+}
+
+function EditIcon({ size = 18 }: { size?: number; }) {
+    return <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z" /></svg>;
+}
+
+function CustomProfileIcon({ width = 20, height = 20, color = "currentColor" }: { width?: number | string; height?: number | string; color?: string; }) {
+    return (
+        <svg width={width} height={height} viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path
+                d="M12 12.25a4.25 4.25 0 1 0 0-8.5 4.25 4.25 0 0 0 0 8.5Z"
+                stroke={color}
+                strokeWidth="2"
+            />
+            <path
+                d="M4.5 20.25c.9-3.1 3.55-5 7.5-5 1.5 0 2.8.27 3.88.78"
+                stroke={color}
+                strokeWidth="2"
+                strokeLinecap="round"
+            />
+            <path
+                d="m16.35 19.8 3.85-3.85a1.2 1.2 0 0 1 1.7 1.7l-3.85 3.85-2.25.55.55-2.25Z"
+                fill={color}
+            />
+        </svg>
+    );
+}
+function FolderIcon() {
+    return <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M10 4H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-8l-2-2Z" /></svg>;
+}
+function CloseIcon() {
+    return <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M18 6 6 18M6 6l12 12" /></svg>;
+}
+function TrashIcon() {
+    return <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M7 4a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v2h4a1 1 0 1 1 0 2h-1.1l-.9 12.1A3 3 0 0 1 17 23H7a3 3 0 0 1-3-2.9L3.1 8H2a1 1 0 0 1 0-2h4V4Zm2 0v2h6V4H9ZM5.1 8l.9 11.9a1 1 0 0 0 1 .1h6a1 1 0 0 0 1-.1L14.9 8H5.1Z" /></svg>;
+}
+function SaveIcon() {
+    return <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M17 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V7l-4-4Zm-5 16a3 3 0 1 1 0-6 3 3 0 0 1 0 6Zm3-10H5V5h10v4Z" /></svg>;
+}
+
+function SectionLabel({ children, style }: { children: React.ReactNode; style?: React.CSSProperties; }) {
+    return <div className="cp-section-label" style={style}>{children}</div>;
+}
+
+function Field({ label, value, placeholder, onChange, type = "text" }: {
+    label: string; value: string; placeholder?: string; onChange: (v: string) => void; type?: string;
+}) {
+    return (
+        <div className="cp-field">
+            <SectionLabel>{label}</SectionLabel>
+            <input className="cp-input" type={type} value={value} placeholder={placeholder} onChange={e => onChange(e.target.value)} />
+        </div>
+    );
+}
+
+function cropImageToDataUrl(src: string, zoom: number, offsetX: number, offsetY: number, aspect = 1): Promise<string> {
+    return new Promise((resolve, reject) => {
+        const img = new Image();
+        img.onload = () => {
+            const width = aspect >= 1 ? 512 : Math.round(512 * aspect);
+            const height = aspect >= 1 ? Math.round(512 / aspect) : 512;
+            const canvas = document.createElement("canvas");
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext("2d");
+            if (!ctx) return reject(new Error("Canvas is unavailable"));
+
+            const baseScale = Math.max(width / img.width, height / img.height);
+            const scale = baseScale * zoom;
+            const drawWidth = img.width * scale;
+            const drawHeight = img.height * scale;
+            const drawX = (width - drawWidth) / 2 + offsetX;
+            const drawY = (height - drawHeight) / 2 + offsetY;
+
+            ctx.clearRect(0, 0, width, height);
+            ctx.drawImage(img, drawX, drawY, drawWidth, drawHeight);
+            resolve(canvas.toDataURL("image/png"));
+        };
+        img.onerror = () => reject(new Error("Failed to load image"));
+        img.src = src;
+    });
+}
+
+function EditImageModal({ rootProps, src, circular = true, onApply }: {
+    rootProps: any;
+    src: string;
+    circular?: boolean;
+    onApply: (value: string) => void;
+}) {
+    const [zoom, setZoom] = React.useState(1);
+    const [offset, setOffset] = React.useState({ x: 0, y: 0 });
+    const [drag, setDrag] = React.useState<{ x: number; y: number; ox: number; oy: number; } | null>(null);
+    const [applying, setApplying] = React.useState(false);
+
+    const onPointerMove = (event: React.PointerEvent<HTMLDivElement>) => {
+        if (!drag) return;
+        setOffset({
+            x: drag.ox + event.clientX - drag.x,
+            y: drag.oy + event.clientY - drag.y
+        });
+    };
+
+    async function apply() {
+        try {
+            setApplying(true);
+            const cropped = await cropImageToDataUrl(src, zoom, offset.x, offset.y, 1);
+            onApply(cropped);
+            rootProps.onClose();
+        } finally {
+            setApplying(false);
+        }
+    }
+
+    return (
+        <ModalRoot {...rootProps} size="small" className="cp-edit-image-modal">
+            <ModalHeader separator={false}>
+                <div className="cp-edit-image-title">{t("Edit Image")}</div>
+                <ModalCloseButton onClick={rootProps.onClose} />
+            </ModalHeader>
+            <ModalContent className="cp-edit-image-content">
+                <div
+                    className="cp-edit-image-stage"
+                    onPointerDown={e => {
+                        e.currentTarget.setPointerCapture(e.pointerId);
+                        setDrag({ x: e.clientX, y: e.clientY, ox: offset.x, oy: offset.y });
+                    }}
+                    onPointerMove={onPointerMove}
+                    onPointerUp={() => setDrag(null)}
+                    onPointerCancel={() => setDrag(null)}
+                >
+                    <div className={`cp-edit-image-crop ${circular ? "cp-edit-image-crop--circle" : ""}`}>
+                        <img
+                            src={src}
+                            alt=""
+                            className="cp-edit-image-preview"
+                            style={{
+                                transform: `translate(${offset.x}px, ${offset.y}px) scale(${zoom})`
+                            }}
+                        />
+                    </div>
+                </div>
+                <div className="cp-edit-image-controls">
+                    <span className="cp-edit-image-side-icon">▧</span>
+                    <input
+                        className="cp-edit-image-slider"
+                        type="range"
+                        min="1"
+                        max="3"
+                        step="0.01"
+                        value={zoom}
+                        onChange={e => setZoom(Number(e.target.value))}
+                    />
+                    <span className="cp-edit-image-side-icon cp-edit-image-side-icon--large">▧</span>
+                    <button className="cp-edit-image-rotate" onClick={() => setOffset({ x: 0, y: 0 })} title={t("Center image")}>↪</button>
+                </div>
+            </ModalContent>
+            <ModalFooter>
+                <button className="cp-edit-image-reset" onClick={() => { setZoom(1); setOffset({ x: 0, y: 0 }); }}>{t("Reset")}</button>
+                <div className="cp-edit-image-footer-spacer" />
+                <button className="cp-btn cp-btn-ghost" onClick={rootProps.onClose}>{t("Cancel")}</button>
+                <button className="cp-btn cp-btn-primary" onClick={apply} disabled={applying}>{applying ? t("Applying...") : t("Apply")}</button>
+            </ModalFooter>
+        </ModalRoot>
+    );
+}
+
+function ImageUpload({ label, value, onChange, editOnFile = false }: { label: string; value: string; onChange: (v: string) => void; editOnFile?: boolean; }) {
+    const fileRef = React.useRef<HTMLInputElement>(null);
+    function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = ev => {
+            const result = ev.target?.result;
+            if (!result) return;
+            const src = result as string;
+            if (editOnFile) {
+                openModal(props => <EditImageModal rootProps={props} src={src} circular onApply={onChange} />);
+            } else {
+                onChange(src);
+            }
+            e.currentTarget.value = "";
+        };
+        reader.readAsDataURL(file);
+    }
+    return (
+        <div className="cp-field">
+            <SectionLabel>{label}</SectionLabel>
+            <div className="cp-image-row">
+                <input className="cp-input cp-url-input" placeholder={t("Image URL...")} value={value.startsWith("data:") ? "" : value} onChange={e => onChange(e.target.value)} />
+                <button className="cp-file-btn" onClick={() => fileRef.current?.click()} title={t("Choose a file")}><FolderIcon /></button>
+                <input ref={fileRef} type="file" accept="image/*" style={{ display: "none" }} onChange={handleFile} />
+                {value && <>
+                    <img src={value} alt="" className="cp-preview-avatar" />
+                    <button className="cp-clear-btn" onClick={() => onChange("")} title={t("Delete")}><CloseIcon /></button>
+                </>}
+            </div>
+        </div>
+    );
+}
+
+function Toggle({ label, checked, onChange, sublabel }: { label: string; checked: boolean; onChange: (v: boolean) => void; sublabel?: string; }) {
+    return (
+        <div className="cp-toggle-row" onClick={() => onChange(!checked)}>
+            <div className="cp-toggle-text">
+                <span className="cp-toggle-label">{label}</span>
+                {sublabel && <span className="cp-toggle-sub">{sublabel}</span>}
+            </div>
+            <div className={`cp-toggle ${checked ? "cp-toggle--on" : ""}`}><div className="cp-toggle-thumb" /></div>
+        </div>
+    );
+}
+
+function BadgeBtn({ label, icon, active, onClick }: { label: string; icon?: string; active: boolean; onClick: () => void; }) {
+    return (
+        <button onClick={onClick} className={`cp-badge ${active ? "cp-badge--on" : ""}`}
+            style={{ display: "flex", alignItems: "center", gap: 5 }}>
+            {icon && <img src={icon} alt="" style={{ width: 16, height: 16, objectFit: "contain", flexShrink: 0 }} />}
+            <span>{label}</span>
+        </button>
+    );
+}
+
+function BadgePicker({ selected, onChange, nitroType, onNitroType, boostLevel, onBoostLevel, customIds, onCustomIds, oldName, onOldName }: {
+    selected: number; onChange: (v: number) => void;
+    nitroType: number; onNitroType: (v: number) => void;
+    boostLevel: number; onBoostLevel: (v: number) => void;
+    customIds: string[]; onCustomIds: (v: string[]) => void;
+    oldName: string; onOldName: (v: string) => void;
+}) {
+    const hasOldName = customIds.includes("oldname");
+    return (
+        <div className="cp-field">
+            <SectionLabel>{t("Badges")}</SectionLabel>
+            <div className="cp-badges">
+                {BADGES.map(b => (
+                    <BadgeBtn key={b.flag} label={b.label} icon={b.icon}
+                        active={!!(selected & b.flag)} onClick={() => onChange(selected ^ b.flag)} />
+                ))}
+            </div>
+            <SectionLabel style={{ marginTop: 8 }}>{t("Evolving Nitro Badge")}</SectionLabel>
+            <div className="cp-badges">
+                <BadgeBtn label={t("None")} active={nitroType === -1} onClick={() => onNitroType(-1)} />
+                {NITRO_LEVELS.map((n, i) => (
+                    <BadgeBtn key={i} label={n.label} icon={n.icon} active={nitroType === i} onClick={() => {
+                        onNitroType(i);
+                        // Reset boost when selecting nitro type manually if desired,
+                        // but usually these are separate.
+                    }} />
+                ))}
+            </div>
+            <SectionLabel style={{ marginTop: 8 }}>{t("Special Badges")}</SectionLabel>
+            <div className="cp-badges">
+                <BadgeBtn label={t("Completed a quest")}
+                    icon="https://cdn.discordapp.com/badge-icons/7d9ae358c8c5e118768335dbe68b4fb8.png"
+                    active={customIds.includes("quest")}
+                    onClick={() => onCustomIds(customIds.includes("quest") ? customIds.filter(x => x !== "quest") : [...customIds, "quest"])} />
+                <BadgeBtn label={t("Orbs — Apprentice")}
+                    icon="https://cdn.discordapp.com/badge-icons/83d8a1eb09a8d64e59233eec5d4d5c2d.png"
+                    active={customIds.includes("orbs")}
+                    onClick={() => onCustomIds(customIds.includes("orbs") ? customIds.filter(x => x !== "orbs") : [...customIds, "orbs"])} />
+                <BadgeBtn label={t("Old username")} icon={OLD_NAME_BADGE_ICON} active={hasOldName}
+                    onClick={() => onCustomIds(hasOldName ? customIds.filter(x => x !== "oldname") : [...customIds, "oldname"])} />
+            </div>
+            {hasOldName && (
+                <div className="cp-field" style={{ marginTop: 6 }}>
+                    <SectionLabel style={{ marginTop: 0 }}>{t("Old username displayed in tooltip")}</SectionLabel>
+                    <input className="cp-input" value={oldName} placeholder="OldUser#0000"
+                        onChange={e => onOldName(e.target.value)} />
+                    <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 3 }}>
+                        {t('Ex : Triggerr#5954 — will appear as "Old username: Triggerr#5954" when hovering the badge.')}
+                    </div>
+                </div>
+            )}
+            <SectionLabel style={{ marginTop: 8 }}>{t("Boost Badge (Server Booster)")}</SectionLabel>
+            <div className="cp-badges">
+                <BadgeBtn label={t("None")} active={boostLevel === -1} onClick={() => onBoostLevel(-1)} />
+                {BOOST_LABELS.map((lbl, i) => (
+                    <BadgeBtn key={i} label={lbl} icon={BOOST_ICONS[i]} active={boostLevel === i} onClick={() => onBoostLevel(i)} />
+                ))}
+            </div>
+        </div>
+    );
+}
+
+function ProfileEffectPicker({ selected, onChange }: { selected?: string; onChange: (v: string | undefined) => void; }) {
+    return (
+        <div className="cp-field">
+            <SectionLabel>{t("Profile Effects")}</SectionLabel>
+            <div className="cp-profile-effects-grid">
+                <button
+                    type="button"
+                    className={`cp-profile-effect-card ${!selected ? "cp-profile-effect-card--on" : ""}`}
+                    onClick={() => onChange(undefined)}
+                >
+                    <span className="cp-profile-effect-none">{t("None")}</span>
+                </button>
+                {PROFILE_EFFECTS.map(effect => (
+                    <button
+                        type="button"
+                        key={effect.id}
+                        title={effect.title}
+                        className={`cp-profile-effect-card ${selected === effect.id || selected === effect.skuId ? "cp-profile-effect-card--on" : ""}`}
+                        onClick={() => onChange(selected === effect.id ? undefined : effect.id)}
+                    >
+                        {effect.thumbnailPreviewSrc || effect.staticFrameSrc || effect.reducedMotionSrc ? (
+                            <img
+                                src={effect.thumbnailPreviewSrc ?? effect.staticFrameSrc ?? effect.reducedMotionSrc}
+                                alt={effect.title}
+                                className="cp-profile-effect-thumb"
+                            />
+                        ) : (
+                            <span className="cp-profile-effect-none">{effect.title}</span>
+                        )}
+                        <span className="cp-profile-effect-name">{effect.title}</span>
+                    </button>
+                ))}
+            </div>
+        </div>
+    );
+}
+
+function forceAccountPanelRerender() {
+    try {
+        const WP = (Vencord as any).Webpack;
+        const UserStore = WP?.findByStoreName("UserStore");
+        if (UserStore && UserStore.emitChange) UserStore.emitChange();
+
+        // Force UserProfileStore (side profile panel and popouts)
+        const UPS = WP?.findByStoreName("UserProfileStore");
+        if (UPS && UPS.emitChange) UPS.emitChange();
+
+        // Force MultiAccountStore to re-notify the "Switch Account" switcher
+        const MAS = WP?.findByProps?.("getUsers", "getValidUsers", "getHasLoggedInAccounts");
+        if (MAS && MAS.emitChange) MAS.emitChange();
+
+        // Dispatch local update without corrupting global store
+        // Forces React to re-calculate useCurrentUser hooks
+        FluxDispatcher.dispatch({ type: "USER_SETTINGS_PROTO_UPDATE", settings: { type: 1, proto: {} } });
+
+        // Restart full DOM scan
+        if (isEnabled) startDomObserver();
+        else stopDomObserver();
+    } catch { }
+}
+
+function CustomProfileModal({ rootProps }: { rootProps: any; }) {
+    const myId = AuthenticationStore?.getId?.() || "";
+    const [selectedAccountId, setSelectedAccountId] = React.useState(myId);
+    const [data, setData] = React.useState<CustomProfileData>(() => ({ ...(allAccountsData[myId] || storedData || {}) }));
+    const [saving, setSaving] = React.useState(false);
+    const nitroLevel = data.nitroLevel ?? -1;
+    const boostLevel = data.boostMonths ?? -1;
+    const customIds = data.customBadgeIds ?? [];
+    const oldName = data.oldName ?? "";
+
+    // Retrieve all connected accounts
+    const accounts = React.useMemo(() => {
+        try {
+            // Tentative 1: via MultiAccountStore global
+            const MAS = (window as any).Vencord?.Webpack?.findByProps?.("getUsers", "getValidUsers");
+            if (MAS?.getUsers) {
+                const users = MAS.getUsers();
+                if (Array.isArray(users) && users.length > 0) return users;
+            }
+
+            // Tentative 2: via le store interne
+            const internalStore = (window as any).Vencord?.Webpack?.findStore?.("MultiAccountStore");
+            if (internalStore?.getUsers) {
+                const users = internalStore.getUsers();
+                if (Array.isArray(users) && users.length > 0) return users;
+            }
+        } catch (e) { console.error("[CustomProfile] Failed to fetch accounts:", e); }
+
+        const me = UserStore.getCurrentUser();
+        // Pour debug: si on ne trouve qu'un compte, on simule quand même pour voir si la barre s'affiche
+        return me ? [me, { ...me, id: "debug-placeholder", username: "Second Account?", globalName: "Simulation" }] : [];
+    }, []);
+
+    // When changing selected account, load its data
+    React.useEffect(() => {
+        const newData = allAccountsData[selectedAccountId] || {};
+        setData({ ...newData });
+    }, [selectedAccountId]);
+
+    function set<K extends keyof CustomProfileData>(key: K, val: CustomProfileData[K]) {
+        setData(d => ({ ...d, [key]: val }));
+    }
+
+    async function save() {
+        try {
+            setSaving(true);
+            const savedData = { ...data };
+
+            // Save in multi-accounts storage
+            allAccountsData[selectedAccountId] = savedData;
+            allAccountsEnabled[selectedAccountId] = true;
+
+            // If it's the active account, update globals
+            if (selectedAccountId === myId) {
+                storedData = savedData;
+                isEnabled = true;
+                saveDataSync(storedData, true);
+                cachedFakeUser = null;
+                cachedOriginalUser = null;
+                _dataVersion++;
+
+                publicProfilesCache.delete(myId);
+            }
+
+            // Save all in localStorage + IndexedDB
+            saveAllDataSync();
+            DataStore.set(DS_ALL_DATA, allAccountsData).catch(() => { });
+            DataStore.set(DS_ALL_ENABLED, allAccountsEnabled).catch(() => { });
+
+            updateCachedRealData();
+            forceAccountPanelRerender();
+        } catch (err) {
+            console.error("[CustomProfile] save error:", err);
+        } finally {
+            setSaving(false);
+            rootProps.onClose();
+        }
+    }
+
+    async function reset() {
+        delete allAccountsData[selectedAccountId];
+        delete allAccountsEnabled[selectedAccountId];
+
+        if (selectedAccountId === myId) {
+            storedData = {};
+            isEnabled = false;
+            saveDataSync({}, false);
+            cachedFakeUser = null;
+            cachedOriginalUser = null;
+            _trueOriginalUser = null;
+            _dataVersion++;
+
+            publicProfilesCache.delete(myId);
+        }
+
+        saveAllDataSync();
+        DataStore.set(DS_ALL_DATA, allAccountsData).catch(() => { });
+        DataStore.set(DS_ALL_ENABLED, allAccountsEnabled).catch(() => { });
+        DataStore.set(DS_KEY, {}).catch(() => { });
+        DataStore.set(DS_ENABLED, false).catch(() => { });
+
+        forceAccountPanelRerender();
+        rootProps.onClose();
+    }
+
+    const accentHex = data.accentColor != null ? "#" + data.accentColor.toString(16).padStart(6, "0") : "";
+    const accentHex2 = data.accentColor2 != null ? "#" + data.accentColor2.toString(16).padStart(6, "0") : "";
+
+    return (
+        <ModalRoot {...rootProps} size="medium">
+            <ModalHeader separator={false}>
+                <div className="cp-header">
+                    <EditIcon size={16} />
+                    <span className="cp-header-title">{t("Custom Profile")}</span>
+                </div>
+                <div style={{ marginLeft: "auto", marginRight: 8, minWidth: 200 }}>
+                    <Select
+                        options={accounts.map((acc: any) => ({
+                            value: acc.id,
+                            label: acc.globalName || acc.username,
+                        }))}
+                        isSelected={(v: string) => v === selectedAccountId}
+                        select={(v: string) => setSelectedAccountId(v)}
+                        serialize={(v: string) => v}
+                        renderOptionLabel={(o: any) => (
+                            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                                <img
+                                    src={IconUtils.getUserAvatarURL(accounts.find((a: any) => a.id === o.value), false, 20)}
+                                    style={{ borderRadius: "50%", width: 20, height: 20 }}
+                                />
+                                {o.label}
+                            </div>
+                        )}
+                        renderOptionValue={(selected: any[]) => {
+                            const option = selected[0];
+                            if (!option) return "Select Account";
+                            return (
+                                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                                    <img
+                                        src={IconUtils.getUserAvatarURL(accounts.find((a: any) => a.id === option.value), false, 20)}
+                                        style={{ borderRadius: "50%", width: 20, height: 20 }}
+                                    />
+                                    {option.label}
+                                </div>
+                            );
+                        }}
+                    />
+                </div>
+                <ModalCloseButton onClick={rootProps.onClose} />
+            </ModalHeader>
+            <ModalContent className="cp-content">
+                {/* Account selector bar removed since it's now a Select in the header */}
+                <Field label={t("Username")} value={data.username ?? ""} placeholder="my_username_00" onChange={v => set("username", v)} />
+                <Field label={t("Display name")} value={data.globalName ?? ""} placeholder="My Name" onChange={v => set("globalName", v)} />
+                <ImageUpload label={t("Profile picture")} value={data.avatar ?? ""} onChange={v => set("avatar", v)} editOnFile />
+                <Toggle label={t("Simulate Nitro")} sublabel={t("Enables banner and profile color")} checked={data.nitro ?? false} onChange={v => set("nitro", v)} />
+                {data.nitro && <ImageUpload label={t("Banner")} value={data.banner ?? ""} onChange={v => set("banner", v)} />}
+                <div className="cp-divider" />
+                <Field label={t("Bio")} value={data.bio ?? ""} placeholder={t("My description...")} onChange={v => set("bio", v)} />
+                <Field label={t("Pronouns")} value={data.pronouns ?? ""} placeholder={t("he/him")} onChange={v => set("pronouns", v)} />
+                <div className="cp-field">
+                    <SectionLabel>{t("Profile Theme")}</SectionLabel>
+                    <div className="cp-color-row" style={{ marginBottom: 6 }}>
+                        <span style={{ fontSize: 11, color: "var(--text-muted)", marginRight: 6 }}>{t("Primary")}</span>
+                        <input type="color" value={accentHex || "#5865f2"} onChange={e => {
+                            const n = parseInt(e.target.value.replace("#", ""), 16);
+                            if (!isNaN(n)) {
+                                set("accentColor", n);
+                                if (data.accentColor2 == null) set("accentColor2", deriveProfileAccentColor(n));
+                            }
+                        }} className="cp-color-swatch" />
+                        <input value={accentHex} placeholder="#5865f2" onChange={e => {
+                            const h = e.target.value.replace("#", "");
+                            const n = parseInt(h, 16);
+                            if (!isNaN(n) && h.length === 6) {
+                                set("accentColor", n);
+                                if (data.accentColor2 == null) set("accentColor2", deriveProfileAccentColor(n));
+                            } else if (!e.target.value || e.target.value === "#") {
+                                set("accentColor", undefined);
+                                set("accentColor2", undefined);
+                            }
+                        }} className="cp-input cp-color-input" />
+                        {data.accentColor != null && <button className="cp-clear-btn" onClick={() => { set("accentColor", undefined); set("accentColor2", undefined); }}><CloseIcon /></button>}
+                    </div>
+                    <div className="cp-color-row">
+                        <span style={{ fontSize: 11, color: "var(--text-muted)", marginRight: 6 }}>{t("Accent")}</span>
+                        <input type="color" value={accentHex2 || (data.accentColor != null ? "#" + deriveProfileAccentColor(data.accentColor).toString(16).padStart(6, "0") : "#1d3557")} onChange={e => { const n = parseInt(e.target.value.replace("#", ""), 16); if (!isNaN(n)) set("accentColor2", n); }} className="cp-color-swatch" />
+                        <input value={accentHex2} placeholder="#1d3557" onChange={e => { const h = e.target.value.replace("#", ""); const n = parseInt(h, 16); if (!isNaN(n) && h.length === 6) set("accentColor2", n); else if (!e.target.value || e.target.value === "#") set("accentColor2", undefined); }} className="cp-input cp-color-input" />
+                        {data.accentColor2 != null && <button className="cp-clear-btn" onClick={() => set("accentColor2", undefined)}><CloseIcon /></button>}
+                    </div>
+                </div>
+                <Field label={t("Account creation date")} value={data.createdAt ?? ""} placeholder="2010-06-29" type="date" onChange={v => set("createdAt", v)} />
+                <Field label={t("Email address (local display)")} value={data.email ?? ""} placeholder="exemple@mail.com" onChange={v => set("email", v)} />
+                <Field label={t("Phone (local display)")} value={data.phone ?? ""} placeholder="+33 6 00 00 00 00" onChange={v => set("phone", v)} />
+                <div className="cp-divider" />
+                <BadgePicker
+                    selected={data.badgeFlags ?? 0} onChange={v => set("badgeFlags", v)}
+                    nitroType={nitroLevel} onNitroType={v => {
+                        set("nitroLevel", v as any);
+                        // Levels 1+ (Bronze to Opal) automatically enable Simulate Nitro
+                        // Level 0 (Nitro without months) and None (-1) do not enable it
+                        if (v >= 1) set("nitro", true);
+                    }}
+                    boostLevel={boostLevel} onBoostLevel={v => set("boostMonths", v)}
+                    customIds={customIds} onCustomIds={v => set("customBadgeIds", v)}
+                    oldName={oldName} onOldName={v => set("oldName", v)}
+                />
+                <div className="cp-divider" />
+                <ProfileEffectPicker
+                    selected={data.profileEffectId}
+                    onChange={v => set("profileEffectId", v)}
+                />
+                <div className="cp-divider" />
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <SectionLabel>{t("Avatar decoration")}</SectionLabel>
+                </div>
+                <div className="cp-badges" style={{ flexWrap: "wrap", gap: 6 }}>
+                    <button onClick={() => set("decorationAsset", undefined)}
+                        className={`cp-badge ${!data.decorationAsset ? "cp-badge--on" : ""}`} style={{ minWidth: 60 }}>
+                        {t("None")}
+                    </button>
+                    {AVATAR_DECORATIONS.map(dec => (
+                        <button key={dec.id}
+                            onClick={() => set("decorationAsset", data.decorationAsset === dec.id ? undefined : dec.id)}
+                            className={`cp-badge ${data.decorationAsset === dec.id ? "cp-badge--on" : ""}`}
+                            title={dec.label} style={{ padding: 3, lineHeight: 0, width: 52, height: 52, borderRadius: 6 }}>
+                            <img src={getDecorationUrl(dec.id)} alt={dec.label}
+                                style={{ width: 46, height: 46, objectFit: "contain", display: "block" }} />
+                        </button>
+                    ))}
+                </div>
+            </ModalContent>
+            <ModalFooter className="cp-footer">
+                <button className="cp-btn cp-btn-ghost" onClick={rootProps.onClose}>{t("Cancel")}</button>
+                <button className="cp-btn cp-btn-danger" onClick={reset}><TrashIcon /><span>{t("Reset")}</span></button>
+                <button className="cp-btn cp-btn-primary" onClick={save} disabled={saving}><SaveIcon /><span>{saving ? t("Saving...") : t("Save")}</span></button>
+            </ModalFooter>
+        </ModalRoot>
+    );
+}
+
+function CustomProfileButton() {
+    return <HeaderBarButton icon={CustomProfileIcon} iconSize={20} tooltip="Custom Profile" onClick={() => openModal(props => <CustomProfileModal rootProps={props} />)} />;
+}
+
+function CPDMNotice({ userId }: { userId: string; }) {
+    const cached = publicProfilesCache.get(userId);
+
+    // Only show if the user has actually modified something visible in their profile
+    const data = cached?.fetched ? cached?.data : null;
+    const hasRealModifications = data && (
+        data.username || data.globalName || data.avatar || data.banner ||
+        data.bio || data.pronouns || data.accentColor != null ||
+        data.badgeFlags || data.nitro || data.decorationAsset || data.profileEffectId ||
+        (data.customBadgeIds && data.customBadgeIds.length > 0) ||
+        data.createdAt
+    );
+
+    const [showRaw, setShowRaw] = React.useState(false);
+
+    if (!Settings.seeAllCustomProfile || !hasRealModifications) return null;
+
+    return (
+        <div style={{
+            margin: "8px 0 12px 0",
+            padding: "10px 14px",
+            background: "rgba(250, 166, 26, 0.1)",
+            border: "1px solid rgba(250, 166, 26, 0.4)",
+            borderRadius: 6,
+            display: "flex",
+            alignItems: "flex-start",
+            gap: 10,
+        }}>
+            <span style={{ fontSize: 18, flexShrink: 0 }}>⚠️</span>
+            <div style={{ flex: 1 }}>
+                <span style={{ color: "var(--text-warning, #faa61a)", fontWeight: 600, fontSize: 13 }}>
+                    WARNING — This user has CustomProfile enabled. Their profile has been modified.
+                </span>
+                <br />
+                <span
+                    role="button"
+                    style={{ color: "var(--text-link)", fontSize: 12, cursor: "pointer", marginTop: 2, display: "inline-block" }}
+                    onClick={() => setShowRaw(r => !r)}
+                >
+                    {showRaw ? "Hide raw profile" : "View raw profile"}
+                </span>
+                {showRaw && (() => {
+                    const data = cached!.data!;
+                    const fields: [string, string][] = [];
+                    if (data.username) fields.push(["Username", data.username]);
+                    if (data.globalName) fields.push(["Display name", data.globalName]);
+                    if (data.bio) fields.push(["Bio", data.bio]);
+                    if (data.pronouns) fields.push(["Pronouns", data.pronouns]);
+                    if (data.createdAt) fields.push(["Account created", data.createdAt]);
+                    if (data.nitro) fields.push(["Nitro", "Simulated"]);
+                    return (
+                        <div style={{ marginTop: 6, fontSize: 12, color: "var(--text-muted)", display: "flex", flexDirection: "column", gap: 2 }}>
+                            {fields.map(([k, v]) => (
+                                <span key={k}><strong>{k}:</strong> {v}</span>
+                            ))}
+                        </div>
+                    );
+                })()}
+            </div>
+        </div>
+    );
+}
+
+function fakeUser(user: any): any {
+    if (!user) return user;
+    try {
+        const uid = user?.id ?? user?.userId;
+        if (!isMe(uid)) return user;
+        return this.fakeCurrentUser(user);
+    } catch { return user; }
+}
+
+export default definePlugin({
+    name: "CustomProfile",
+    enabledByDefault: true,
+    description: t("Visually customize your Discord profile (username, PFP, banner, badges, bio...) — persistent, only visible to you."),
+    authors: [Devs.Ryder],
+    dependencies: ["HeaderBarAPI", "ContextMenuAPI"],
+
+    patches: [
+        {
+            // Inject the CustomProfile warning notice into DM welcome screens
+            find: "getRecipientId()",
+            noWarn: true,
+            replacement: {
+                match: /(children:\[)(\i\.isDM\(\).{0,300})/,
+                replace: "$1$self.renderDMNotice(this.props),$2"
+            }
+        },
+        {
+            find: '"SHOULD_LOAD");',
+            replacement: {
+                match: /\i(?:\?)?.getPreviewBanner\(\i,\i,\i\)(?=.{0,100}"COMPLETE")/,
+                replace: "$self.patchBannerUrl(arguments[0])||$&"
+            }
+        },
+        // UserProfileStore patch removed — caused invisible channels for members
+        // with high permissions. getUserProfile is called by Discord to calculate
+        // VIEW_CHANNEL and other permissions. virtualMerge with premiumType:2 corrupted
+        // these calculations even with isMe() guard. DomObserver + fakeCurrentUser are enough.
+        {
+            find: ".WIDGETS_RTC_UPSELL_COACHMARK)",
+            replacement: {
+                match: /currentUser:(\i)(?=.{0,200}voiceDb)/,
+                replace: "currentUser:$self.fakeCurrentUser($1)"
+            }
+        },
+        {
+            find: "DISPLAY_NAME",
+            noWarn: true,
+            replacement: {
+                match: /(?<=currentUser:\i,user:)(\i)/,
+                replace: "$self.fakeCurrentUser($1)"
+            }
+        },
+        {
+            find: "obfuscatedEmail",
+            noWarn: true,
+            replacement: [
+                {
+                    match: /obfuscatedEmail:(\i)/,
+                    replace: "obfuscatedEmail:$self.fakeObfuscatedEmail($1)"
+                },
+                {
+                    match: /obfuscatedPhone:(\i)/,
+                    replace: "obfuscatedPhone:$self.fakeObfuscatedPhone($1)"
+                }
+            ]
+        },
+        {
+            find: "isHoveringOrFocusing",
+            replacement: [
+                {
+                    noWarn: true,
+                    match: /user:([A-Za-z_$][\w$]*),displayProfile:([A-Za-z_$][\w$]*),themeType/,
+                    replace: "user:$self.fakeCurrentUser($1),displayProfile:$2,themeType"
+                }
+            ]
+        },
+        {
+            find: "AccountPanel",
+            replacement: [
+                {
+                    match: /user:([a-zA-Z0-9_]+),/,
+                    replace: "user:$self.fakeCurrentUser($1),"
+                }
+            ]
+        },
+        {
+            find: "UserAccountSettings",
+            replacement: [
+                {
+                    match: /user:([a-zA-Z0-9_]+),/,
+                    replace: "user:$self.fakeCurrentUser($1),"
+                },
+                {
+                    match: /email:([^,}]+),/,
+                    replace: "email:$self.fakeObfuscatedEmail($1),"
+                }
+            ]
+        },
+        {
+            find: "getObfuscatedEmail",
+            replacement: [
+                {
+                    match: /obfuscatedEmail:([^,}]+)/g,
+                    replace: "obfuscatedEmail:$self.fakeObfuscatedEmail($1)"
+                },
+                {
+                    match: /obfuscatedPhone:([^,}]+)/g,
+                    replace: "obfuscatedPhone:$self.fakeObfuscatedPhone($1)"
+                }
+            ]
+        }
+    ],
+
+    _copiedUserId: null as string | null,
+
+    isCopiedUser(userId: string | null | undefined): boolean {
+        if (!isEnabled || !userId || !this._copiedUserId) return false;
+        return userId === this._copiedUserId;
+    },
+
+    fakeCurrentUser(user: any) {
+        if (!user || (!isEnabled && this._forceNative !== true) || !isMe(user.id)) return user;
+
+        // Fast cache: if same user + same data, return existing clone
+        if (cachedOriginalUser === user && cachedFakeUser && cachedDataHash === _dataVersion) {
+            return cachedFakeUser;
+        }
+
+        // Retrieve real original user (never a clone)
+        const realUser = (user as any).__cp_isClone ? _trueOriginalUser || user : user;
+        if (!realUser.__cp_isClone) _trueOriginalUser = realUser;
+
+        // Read real values once
+        const realUsername = realUser.__cp_isClone ? (realUser._realUsername || realUser.username) : realUser.username;
+        const realGlobalName = realUser.__cp_isClone ? (realUser._realGlobalName ?? realUser.globalName) : realUser.globalName;
+        const realDisplayName = realUser.__cp_isClone ? (realUser._realDisplayName ?? realUser.displayName) : realUser.displayName;
+
+        const clone = Object.create(Object.getPrototypeOf(realUser));
+
+        // Copy properties except username/globalName/displayName
+        for (const key of Reflect.ownKeys(realUser)) {
+            if (key === "username" || key === "globalName" || key === "displayName" || key === "__cp_isClone") continue;
+            const desc = Object.getOwnPropertyDescriptor(realUser, key);
+            if (desc) Object.defineProperty(clone, key, desc);
+        }
+        Object.defineProperty(clone, "__cp_isClone", { value: true, enumerable: false, configurable: true });
+        // Store real values on clone for next cycles
+        clone._realUsername = realUsername;
+        clone._realGlobalName = realGlobalName;
+        clone._realDisplayName = realDisplayName;
+
+        if (!isEnabled) {
+            clone.username = realUsername;
+            clone.globalName = realGlobalName;
+            clone.displayName = realDisplayName;
+            cachedOriginalUser = user;
+            cachedFakeUser = clone;
+            cachedDataHash = _dataVersion;
+            return clone;
+        }
+
+        const fakeUser = storedData.username || realUsername;
+        const hasCustomGlobalName = !!storedData.globalName;
+        const fakeGlobal = hasCustomGlobalName ? storedData.globalName : realGlobalName;
+        const origDisplay = realGlobalName || realDisplayName || realUsername;
+        const fakeDisplay = hasCustomGlobalName ? (storedData.globalName || origDisplay) : origDisplay;
+
+        Object.defineProperty(clone, "username", {
+            get: () => isEnabled ? fakeUser : realUsername,
+            set: () => { }, configurable: true, enumerable: true
+        });
+        Object.defineProperty(clone, "globalName", {
+            get: () => isEnabled ? fakeGlobal : realGlobalName,
+            set: () => { }, configurable: true, enumerable: true
+        });
+        Object.defineProperty(clone, "displayName", {
+            get: () => isEnabled ? fakeDisplay : (realDisplayName || realGlobalName || realUsername),
+            set: () => { }, configurable: true, enumerable: true
+        });
+
+        if (storedData.email) clone.email = storedData.email;
+        if (storedData.phone) clone.phone = storedData.phone;
+
+        clone.getTag = () => (storedData.username || realUsername) + "#0000";
+        clone.getGlobalName = () => isEnabled ? fakeGlobal : realGlobalName;
+        clone.toString = () => fakeDisplay;
+
+        // Override createdAt: Discord calculates it from the Snowflake ID via a prototype getter
+        // We redefine it directly on the clone so Discord displays the fake date
+        // without needing to scan the DOM.
+        if (storedData.createdAt) {
+            const fakeCreatedAt = new Date(storedData.createdAt + "T12:00:00Z");
+            Object.defineProperty(clone, "createdAt", {
+                get: () => fakeCreatedAt,
+                configurable: true,
+                enumerable: true
+            });
+        }
+
+        if (storedData.decorationAsset) {
+            const decoData = {
+                asset: storedData.decorationAsset,
+                skuId: storedData.decorationAsset
+            };
+            clone.avatarDecoration = null;
+            clone.avatarDecorationData = decoData;
+        }
+
+        applyProfileEffectPatch(clone, storedData.profileEffectId);
+
+        // Override flags/nitro/boost so Discord doesn't show real native badges
+        const wantedFlags = (isEnabled && storedData.badgeFlags != null) ? storedData.badgeFlags : realUser.publicFlags;
+        clone.publicFlags = wantedFlags;
+        clone.flags = wantedFlags;
+
+        if (isEnabled && storedData.nitro) {
+            clone.premiumType = 2;
+            const LEVEL_MONTHS = [1, 2, 3, 6, 12, 24, 36, 72];
+            const since = new Date();
+            since.setMonth(since.getMonth() - (LEVEL_MONTHS[storedData.nitroLevel!] ?? 1));
+            clone.premiumSince = since;
+
+            const bm = storedData.boostMonths ?? -1;
+            if (bm >= 0) {
+                const BOOST_M = [1, 2, 3, 6, 9, 12, 15, 18, 24];
+                const boostSince = new Date();
+                boostSince.setMonth(boostSince.getMonth() - (BOOST_M[bm] ?? 1));
+                clone.premiumGuildSince = boostSince;
+            } else {
+                clone.premiumGuildSince = null;
+            }
+        } else if (isEnabled) {
+            // Si le plugin est activé mais Nitro simulation OFF
+            // On force la suppression des badges Nitro/Boost si demandés ou si simulés par erreur
+            if (storedData.nitro === false) {
+                clone.premiumType = 0;
+                clone.premiumSince = null;
+                clone.premiumGuildSince = null;
+            }
+        }
+
+        // Save real values for next cloning cycle
+        if (!realUser.__cp_isClone) {
+            clone._realPremiumType = realUser.premiumType;
+            clone._realPremiumSince = realUser.premiumSince;
+            clone._realPremiumGuildSince = realUser.premiumGuildSince;
+        }
+
+        cachedOriginalUser = user;
+        cachedFakeUser = clone;
+        cachedDataHash = _dataVersion;
+
+        return clone;
+    },
+
+    fakeOtherUser(realUser: any, data: CustomProfileData) {
+        if (!realUser || !realUser.id) return realUser;
+        const clone = Object.create(realUser);
+
+        // Username / display name
+        if (data.username) clone.username = data.username;
+        if (data.globalName) clone.globalName = data.globalName;
+
+        // Avatar — override directly on the clone object
+        if (data.avatar) clone.avatar = data.avatar;
+
+        if (data.email) clone.email = data.email;
+        if (data.phone) clone.phone = data.phone;
+
+        // Account creation date — must override createdAt AND store the id
+        // so SnowflakeUtils.extractTimestamp gets intercepted per-user
+        if (data.createdAt) {
+            const fakeCreatedAt = new Date(data.createdAt + "T12:00:00Z");
+            Object.defineProperty(clone, "createdAt", {
+                get: () => fakeCreatedAt,
+                configurable: true,
+                enumerable: true
+            });
+            // Tag this clone so extractTimestamp can return the fake timestamp
+            clone.__cp_fakeCreatedAt = fakeCreatedAt.getTime();
+        }
+
+        if (data.decorationAsset) {
+            const decoData = {
+                asset: data.decorationAsset,
+                skuId: data.decorationAsset
+            };
+            clone.avatarDecoration = null;
+            clone.avatarDecorationData = decoData;
+        }
+
+        applyProfileEffectPatch(clone, data.profileEffectId);
+
+        const wantedFlags = data.badgeFlags != null ? data.badgeFlags : realUser.publicFlags;
+        clone.publicFlags = wantedFlags;
+        clone.flags = wantedFlags;
+
+        if (data.nitro) {
+            clone.premiumType = 2;
+            const LEVEL_MONTHS = [1, 2, 3, 6, 12, 24, 36, 72];
+            const since = new Date();
+            since.setMonth(since.getMonth() - (LEVEL_MONTHS[data.nitroLevel!] ?? 1));
+            clone.premiumSince = since;
+
+            const bm = data.boostMonths ?? -1;
+            if (bm >= 0) {
+                const BOOST_M = [1, 2, 3, 6, 9, 12, 15, 18, 24];
+                const boostSince = new Date();
+                boostSince.setMonth(boostSince.getMonth() - (BOOST_M[bm] ?? 1));
+                clone.premiumGuildSince = boostSince;
+            } else {
+                clone.premiumGuildSince = null;
+            }
+        } else if (data.nitro === false) {
+            clone.premiumType = 0;
+            clone.premiumSince = null;
+            clone.premiumGuildSince = null;
+        }
+
+        clone.__cp_fake_other = true;
+        return clone;
+    },
+
+    hookOtherUserProfile(profile: any, data: CustomProfileData) {
+        if (!profile) return profile;
+        try {
+            const merged: any = {};
+
+            if (data.bio) merged.bio = data.bio;
+            if (data.pronouns) merged.pronouns = data.pronouns;
+            if (data.accentColor != null) merged.accentColor = data.accentColor;
+            if (data.banner) merged.banner = data.banner;
+
+            if (data.decorationAsset) {
+                const decoData = {
+                    asset: data.decorationAsset,
+                    skuId: data.decorationAsset
+                };
+                merged.avatarDecoration = null;
+                merged.avatarDecorationData = decoData;
+            }
+
+            applyProfileEffectPatch(merged, data.profileEffectId);
+
+            if (data.nitro || data.badgeFlags != null) {
+                merged.premiumType = data.nitro ? 2 : 0;
+
+                if (data.nitro) {
+                    const themeColors = getProfileThemeColors(data.accentColor, data.accentColor2);
+                    if (themeColors) merged.themeColors = themeColors;
+                    const nl = data.nitroLevel ?? 0;
+                    const LEVEL_MONTHS = [1, 2, 3, 6, 12, 24, 36, 72];
+                    const since = new Date();
+                    since.setMonth(since.getMonth() - (LEVEL_MONTHS[nl] ?? 1));
+                    merged.premiumSince = since;
+
+                    const bm = data.boostMonths ?? -1;
+                    if (bm >= 0) {
+                        const BOOST_M = [1, 2, 3, 6, 9, 12, 15, 18, 24];
+                        const boostSince = new Date();
+                        boostSince.setMonth(boostSince.getMonth() - (BOOST_M[bm] ?? 1));
+                        merged.premiumGuildSince = boostSince;
+                    } else {
+                        merged.premiumGuildSince = null;
+                    }
+                } else {
+                    merged.premiumSince = null;
+                    merged.premiumGuildSince = null;
+                }
+
+                merged.publicFlags = (data.badgeFlags != null) ? data.badgeFlags : profile.publicFlags;
+                merged.badges = [];
+            } else if (data.nitro === false) {
+                merged.premiumType = profile.premiumType ?? 0;
+                merged.premiumSince = null;
+                merged.premiumGuildSince = null;
+            }
+
+            const badgesArr = Array.isArray(profile.badges) ? [...profile.badges] : [];
+            const customIds = data.customBadgeIds ?? [];
+            if (customIds.includes("quest")) badgesArr.push({ id: "quest", icon: "7d9ae358c8c5e118768335dbe68b4fb8", description: "Completed a quest" });
+            if (customIds.includes("orbs")) badgesArr.push({ id: "orbs", icon: "83d8a1eb09a8d64e59233eec5d4d5c2d", description: "Orbs — Apprentice" });
+            if (customIds.includes("oldname")) {
+                const dText = data.oldName ? "Originally known as " + data.oldName : "Originally known as ...";
+                badgesArr.push({ id: "legacy_username", icon: "6de6d34650760ba5551a79732e98ed60", description: dText });
+            }
+            if (badgesArr.length > 0) merged.badges = badgesArr;
+
+            return virtualMerge(profile, merged);
+        } catch (e) {
+            return profile;
+        }
+    },
+
+    _cachedProfile: null as any,
+    _cachedProfileInput: null as any,
+    _cachedProfileVersion: 0,
+
+    hookUserProfile(profile: any) {
+        if (!profile || !isEnabled) return profile;
+        // Cache: if same profile + same data version
+        if (this._cachedProfileInput === profile && this._cachedProfile && this._cachedProfileVersion === _dataVersion) {
+            return this._cachedProfile;
+        }
+        try {
+            const merged: any = {};
+
+            if (storedData.bio) merged.bio = storedData.bio;
+            if (storedData.pronouns) merged.pronouns = storedData.pronouns;
+            if (storedData.accentColor != null) merged.accentColor = storedData.accentColor;
+            if (storedData.banner) merged.banner = storedData.banner;
+
+            if (storedData.decorationAsset) {
+                const decoData = {
+                    asset: storedData.decorationAsset,
+                    skuId: storedData.decorationAsset
+                };
+                merged.avatarDecoration = null;
+                merged.avatarDecorationData = decoData;
+            }
+
+            applyProfileEffectPatch(merged, storedData.profileEffectId);
+
+            if (isEnabled && (storedData.nitro || storedData.badgeFlags != null)) {
+                merged.premiumType = storedData.nitro ? 2 : 0;
+
+                if (storedData.nitro) {
+                    const themeColors = getProfileThemeColors(storedData.accentColor, storedData.accentColor2);
+                    if (themeColors) merged.themeColors = themeColors;
+                    const nl = storedData.nitroLevel ?? 0;
+                    const LEVEL_MONTHS = [1, 2, 3, 6, 12, 24, 36, 72];
+                    const since = new Date();
+                    since.setMonth(since.getMonth() - (LEVEL_MONTHS[nl] ?? 1));
+                    merged.premiumSince = since;
+
+                    const bm = storedData.boostMonths ?? -1;
+                    if (bm >= 0) {
+                        const BOOST_M = [1, 2, 3, 6, 9, 12, 15, 18, 24];
+                        const boostSince = new Date();
+                        boostSince.setMonth(boostSince.getMonth() - (BOOST_M[bm] ?? 1));
+                        merged.premiumGuildSince = boostSince;
+                    } else {
+                        merged.premiumGuildSince = null;
+                    }
+                } else {
+                    merged.premiumSince = null;
+                    merged.premiumGuildSince = null;
+                }
+
+                // On s'assure que les badges originaux sont écrasés dans le profil
+                merged.publicFlags = (storedData.badgeFlags != null) ? storedData.badgeFlags : profile.publicFlags;
+                merged.badges = []; // Force Discord à recalculer la liste à partir de publicFlags et premiumType
+            } else if (isEnabled && storedData.nitro === false) {
+                // Si Nitro simulation est OFF, on force la suppression des badges simulés
+                merged.premiumType = profile.premiumType ?? 0;
+                merged.premiumSince = profile.premiumSince ?? null;
+                merged.premiumGuildSince = profile.premiumGuildSince ?? null;
+            } else {
+                // BACKPORT FIX : Never force to 0 or null if Nitro is not simulated.
+                if (profile.premiumType) merged.premiumType = profile.premiumType;
+                if (profile.premiumSince) merged.premiumSince = profile.premiumSince;
+                if (profile.premiumGuildSince) merged.premiumGuildSince = profile.premiumGuildSince;
+            }
+
+            const result = virtualMerge(profile, merged);
+            this._cachedProfileInput = profile;
+            this._cachedProfile = result;
+            this._cachedProfileVersion = _dataVersion;
+            return result;
+        } catch {
+            return profile;
+        }
+    },
+
+    fakeObfuscatedEmail(real: string | null) {
+        if (!isEnabled || !storedData.email || !real) return real;
+        // Discord often expects to see s***@d***.com format
+        const fake = storedData.email;
+        const atIdx = fake.indexOf("@");
+        if (atIdx <= 1) return fake;
+        return fake[0] + "***" + fake.slice(atIdx - 1);
+    },
+
+    fakeObfuscatedPhone(real: string | null) {
+        if (!isEnabled || !storedData.phone || !real) return real;
+        const fake = storedData.phone;
+        if (fake.length < 4) return fake;
+        return "***-***-" + fake.slice(-4);
+    },
+
+    renderDMNotice(props: any) {
+        try {
+            if (!Settings.seeAllCustomProfile) return null;
+            const channel = props?.channel;
+            if (!channel?.isDM?.()) return null;
+            const recipientId = channel.recipients?.[0];
+            if (!recipientId) return null;
+            fetchPublicProfileIfNeeded(recipientId);
+            const cached = publicProfilesCache.get(recipientId);
+            if (!cached?.fetched || !cached?.data) return null;
+            const d = cached.data;
+            const hasRealModifications = d.username || d.globalName || d.avatar || d.banner ||
+                d.bio || d.pronouns || d.accentColor != null || d.badgeFlags ||
+                d.nitro || d.decorationAsset || d.profileEffectId || (d.customBadgeIds && d.customBadgeIds.length > 0) || d.createdAt;
+            if (!hasRealModifications) return null;
+            return <CPDMNotice userId={recipientId} />;
+        } catch { return null; }
+    },
+
+    patchBannerUrl({ displayProfile }: any) {
+        try {
+            const uid = displayProfile?.userId;
+            if (!uid) return null;
+
+            // Own user
+            if (isEnabled && storedData.nitro && storedData.banner && isMe(uid)) {
+                return storedData.banner;
+            }
+
+            // Other users via public cache
+            checkSeeAllSettingChange();
+            if (Settings.seeAllCustomProfile) {
+                const cached = publicProfilesCache.get(uid);
+                if (cached?.fetched && cached.data?.banner && cached.data?.nitro) {
+                    return cached.data.banner;
+                }
+            }
+            return null;
+        } catch { return null; }
+    },
+
+    toolboxActions: {
+        [t("Open Custom Profile")]() { openModal(props => <CustomProfileModal rootProps={props} />); },
+    },
+
+    _origGetUserAvatarURL: null as any,
+    _origExtractTimestamp: null as any,
+    _forceNative: false, // Tool variable for local reset
+
+    async start() {
+        applyAvatarPatchEarly();
+        addHeaderBarButton("custom-profile-btn", () => <CustomProfileButton />, 10);
+        addContextMenuPatch("user-context", userContextMenuPatch);
+
+        loadData().catch(() => {});
+
+        // Listen for account changes to sync data
+        FluxDispatcher.subscribe("CONNECTION_OPEN", onAccountSwitch);
+
+        // PERFECT AND SECURE NATIVE INTERCEPTION ON USER STORE.
+        try {
+            const US = (Vencord as any).Webpack?.findByProps?.("getCurrentUser", "getUser");
+            if (US && !US._cp_perfect_hook) {
+                const origCurrent = US.getCurrentUser.bind(US);
+
+                // Fast-path cache: skip clone work if user object + data version are unchanged
+                let _lastRealUser: any = null;
+                let _lastFakeResult: any = null;
+                let _lastCacheVersion = -1;
+
+                US.getCurrentUser = () => {
+                    const realUser = origCurrent();
+                    if (realUser) {
+                        // Update name cache only when the user object itself changes
+                        if (realUser !== _lastRealUser) {
+                            if (realUser.username) _realUsername = realUser.username;
+                            if (realUser.globalName) _realGlobalName = realUser.globalName;
+                        }
+                        // Return cached clone if nothing changed
+                        if (realUser === _lastRealUser && _lastCacheVersion === _dataVersion && _lastFakeResult) {
+                            return _lastFakeResult;
+                        }
+                        _lastRealUser = realUser;
+                        _lastCacheVersion = _dataVersion;
+                        _lastFakeResult = this.fakeCurrentUser(realUser);
+                        return _lastFakeResult;
+                    }
+                    return this.fakeCurrentUser(realUser);
+                };
+
+                const origGet = US.getUser.bind(US);
+                US.getUser = (id: string) => {
+                    const user = origGet(id);
+                    if (!user) return user;
+                    
+                    if (isEnabled && isMe(id)) {
+                        return this.fakeCurrentUser(user);
+                    }
+                    
+                    // Check if seeAll was just turned off and clear cache if needed
+                    checkSeeAllSettingChange();
+                    
+                    if (Settings.seeAllCustomProfile) {
+                        const cached = publicProfilesCache.get(id);
+                        if (cached?.fetched && cached.data) {
+                            return this.fakeOtherUser(user, cached.data);
+                        }
+                    }
+                    
+                    return user;
+                };
+                US._cp_perfect_hook = true;
+            }
+        } catch { }
+
+        // INTERCEPTION ON GuildMemberStore (for server member list nickname + avatar)
+        try {
+            const GMS = (Vencord as any).Webpack?.findByProps?.("getMember", "getMembers", "getMemberIds");
+            if (GMS && !GMS._cp_member_hook) {
+                const origGetMember = GMS.getMember.bind(GMS);
+                GMS.getMember = (guildId: string, userId: string) => {
+                    const member = origGetMember(guildId, userId);
+                    if (!member) return member;
+
+                    // Only patch own user — never expose custom nick to other users' views
+                    if (isEnabled && isMe(userId)) {
+                        const patched = { ...member };
+                        if (storedData.username) patched.nick = storedData.globalName || storedData.username;
+                        return patched;
+                    }
+
+                    return member;
+                };
+                GMS._cp_member_hook = true;
+            }
+        } catch { }
+
+        // INTERCEPTION ON UserProfileStore (for native Nitro/Boost badges in popout/modal profile)
+        try {
+            const UPS = (Vencord as any).Webpack?.findByProps?.("getUserProfile", "getGuildMemberProfile");
+            if (UPS && !UPS._cp_profile_hook) {
+                const origGetProfile = UPS.getUserProfile.bind(UPS);
+                UPS.getUserProfile = (userId: string) => {
+                    try {
+                        const profile = origGetProfile(userId);
+                        if (!userId) return profile;
+                        
+                        if (isEnabled && isMe(userId) && profile) {
+                            return this.hookUserProfile(profile);
+                        }
+                        
+                        if (Settings.seeAllCustomProfile) {
+                            fetchPublicProfileIfNeeded(userId);
+                            const cached = publicProfilesCache.get(userId);
+                            if (cached?.fetched && cached.data && profile) {
+                                return this.hookOtherUserProfile(profile, cached.data);
+                            }
+                        }
+                        
+                        return profile;
+                    } catch (e) {
+                        console.error("[CustomProfile] Error in getUserProfile hook:", e);
+                        return origGetProfile(userId);
+                    }
+                };
+                const origGetGuild = UPS.getGuildMemberProfile.bind(UPS);
+                UPS.getGuildMemberProfile = (userId: string, guildId: string) => {
+                    try {
+                        const profile = origGetGuild(userId, guildId);
+                        if (!userId) return profile;
+                        
+                        if (isEnabled && isMe(userId) && profile) {
+                            return this.hookUserProfile(profile);
+                        }
+                        
+                        if (Settings.seeAllCustomProfile) {
+                            fetchPublicProfileIfNeeded(userId);
+                            const cached = publicProfilesCache.get(userId);
+                            if (cached?.fetched && cached.data && profile) {
+                                return this.hookOtherUserProfile(profile, cached.data);
+                            }
+                        }
+                        
+                        return profile;
+                    } catch (e) {
+                        console.error("[CustomProfile] Error in getGuildMemberProfile hook:", e);
+                        return origGetGuild(userId, guildId);
+                    }
+                };
+                UPS._cp_profile_hook = true;
+            }
+        } catch { }
+
+        // INTERCEPTION ON MULTI ACCOUNT STORE (For the "Switch Account" menu)
+        // Applies custom usernames for ALL accounts in the switcher
+        try {
+            const WP = (Vencord as any).Webpack;
+            const MAS = WP?.findByProps?.("getUsers", "getValidUsers", "getHasLoggedInAccounts");
+            if (MAS && !MAS._cp_perfect_hook) {
+                function patchAccountUser(u: any) {
+                    if (!u?.id) return u;
+                    const acctData = allAccountsData[u.id];
+                    const acctEnabled = allAccountsEnabled[u.id];
+                    if (!acctData || !acctEnabled) return u;
+                    const patched: any = { ...u };
+                    if (acctData.username) patched.username = acctData.username;
+                    if (acctData.globalName) patched.globalName = acctData.globalName;
+                    return patched;
+                }
+
+                if (MAS.getUsers) {
+                    const origGetUsers = MAS.getUsers.bind(MAS);
+                    MAS.getUsers = () => {
+                        const users = origGetUsers();
+                        if (!users || !Array.isArray(users)) return users;
+                        return users.map(patchAccountUser);
+                    };
+                }
+
+                if (MAS.getValidUsers) {
+                    const origGetValid = MAS.getValidUsers.bind(MAS);
+                    MAS.getValidUsers = () => {
+                        const users = origGetValid();
+                        if (!users || !Array.isArray(users)) return users;
+                        return users.map(patchAccountUser);
+                    };
+                }
+
+                MAS._cp_perfect_hook = true;
+                try { MAS.emitChange?.(); } catch { }
+            }
+        } catch { }
+
+        // Patch SnowflakeUtils.extractTimestamp pour faker la date de création
+        try {
+            if (SnowflakeUtils?.extractTimestamp && !this._origExtractTimestamp) {
+                this._origExtractTimestamp = SnowflakeUtils.extractTimestamp;
+                const origExtract = this._origExtractTimestamp;
+                (SnowflakeUtils as any).extractTimestamp = (snowflake: string) => {
+                    // Own user
+                    if (isEnabled && storedData.createdAt && isMe(snowflake)) {
+                        return new Date(storedData.createdAt + "T12:00:00Z").getTime();
+                    }
+                    // Other users via public cache
+                    if (Settings.seeAllCustomProfile) {
+                        const cached = publicProfilesCache.get(snowflake);
+                        if (cached?.fetched && cached.data?.createdAt) {
+                            return new Date(cached.data.createdAt + "T12:00:00Z").getTime();
+                        }
+                    }
+                    return origExtract(snowflake);
+                };
+            }
+        } catch { }
+
+        loadData().then(() => {
+            updateCachedRealData();
+            // Retry avatar patch — may have failed at early boot if module wasn't ready yet
+            if (!_avatarPatchApplied) {
+                applyAvatarPatchEarly();
+            } else {
+                // Module already patched but storedData was empty at patch time — the patch
+                // reads storedData at call-time so no re-patch needed, just rerender.
+            }
+            if (isEnabled) {
+                forceAccountPanelRerender();
+                requestAnimationFrame(() => removeHideStyle());
+            } else {
+                removeHideStyle();
+            }
+        });
+
+        // Patch getAvatarDecorationURL pour injecter notre déco uniquement sur notre user
+        try {
+            const decoMod = (Vencord as any).Webpack?.findByProps?.("getAvatarDecorationURL");
+            if (decoMod?.getAvatarDecorationURL) {
+                const origDeco = decoMod.getAvatarDecorationURL.bind(decoMod);
+                decoMod.getAvatarDecorationURL = (opts: any) => {
+                    try {
+                        const { avatarDecoration, userId, canAnimate } = opts ?? {};
+
+                        // Own user decoration
+                        if (isEnabled && storedData.decorationAsset) {
+                            const myId = UserStore.getCurrentUser()?.id;
+                            const isOurs = (avatarDecoration?.skuId === "__fake__")
+                                || (avatarDecoration?.asset === storedData.decorationAsset)
+                                || (userId && userId === myId);
+                            if (isOurs) {
+                                const asset = storedData.decorationAsset;
+                                const dec = AVATAR_DECORATIONS.find(d => d.id === asset);
+                                const passthrough = dec ? (dec as any).passthrough : asset.startsWith("a_");
+                                return getDecorationUrl(asset, passthrough);
+                            }
+                        }
+
+                        // Other users via public cache
+                        if (Settings.seeAllCustomProfile && userId) {
+                            const cached = publicProfilesCache.get(userId);
+                            if (cached?.fetched && cached.data?.decorationAsset) {
+                                const asset = cached.data.decorationAsset!;
+                                const dec = AVATAR_DECORATIONS.find(d => d.id === asset);
+                                const passthrough = dec ? (dec as any).passthrough : asset.startsWith("a_");
+                                return getDecorationUrl(asset, passthrough);
+                            }
+                        }
+                    } catch { }
+                    return origDeco(opts);
+                };
+            }
+        } catch { }
+
+        // Avatar patch is already applied by applyAvatarPatchEarly() above.
+        // We only apply this fallback if the early patch somehow missed.
+        if (IconUtils?.getUserAvatarURL && !_avatarPatchApplied) {
+            applyAvatarPatchEarly();
+        }
+
+        // Hook GuildMemberStore.getMember — only patches nick for own user
+        try {
+            const GMS = (Vencord as any).Webpack?.findByProps?.("getMember", "getMembers", "getMemberIds");
+            if (GMS?.getMember && !GMS._cp_member_hook) {
+                const _origGetMember = GMS.getMember.bind(GMS);
+                GMS.getMember = (guildId: string, userId: string) => {
+                    const member = _origGetMember(guildId, userId);
+                    try {
+                        const myId = UserStore.getCurrentUser()?.id;
+                        // Only patch our own member entry
+                        if (isEnabled && userId === myId && member) {
+                            const customNick = storedData.globalName || storedData.username;
+                            if (customNick) {
+                                return { ...member, nick: customNick };
+                            }
+                        }
+                    } catch { }
+                    return member;
+                };
+                GMS._cp_member_hook = true;
+                GMS._cp_orig_getMember = _origGetMember;
+            }
+        } catch { }
+    },
+
+    userProfileBadge: {
+        id: "custom_profile_badges",
+        key: "custom_profile_badges",
+        position: BadgePosition.START,
+        getBadges({ userId, badges: nativeBadges }: { userId: string; guildId: string; badges: ProfileBadge[]; }) {
+            const baseBadges = [...(nativeBadges || [])];
+            const isCurrentUser = userId === UserStore.getCurrentUser()?.id;
+
+            if (isCurrentUser) {
+                if (!isEnabled) return baseBadges;
+                const filtered = baseBadges.filter(badge => !shouldHideNativeBadge(badge, storedData));
+                return [...filtered, ...getCustomProfileBadges(storedData)];
+            }
+
+            if (!Settings.seeAllCustomProfile) return baseBadges;
+
+            const cached = publicProfilesCache.get(userId);
+            if (!cached?.fetched || !cached.data) return baseBadges;
+
+            const filtered = baseBadges.filter(badge => !shouldHideNativeBadge(badge, cached.data!));
+            return [...filtered, ...getCustomProfileBadges(cached.data)];
+        }
+    } as ProfileBadge,
+
+    stop() {
+        removeHeaderBarButton("custom-profile-btn");
+        removeContextMenuPatch("user-context", userContextMenuPatch);
+        FluxDispatcher.unsubscribe("CONNECTION_OPEN", onAccountSwitch);
+        stopDomObserver();
+        removeHideStyle();
+        if (this._origExtractTimestamp && SnowflakeUtils) {
+            (SnowflakeUtils as any).extractTimestamp = this._origExtractTimestamp;
+            this._origExtractTimestamp = null;
+        }
+        if (this._origGetUserAvatarURL && IconUtils) {
+            (IconUtils as any).getUserAvatarURL = this._origGetUserAvatarURL;
+            this._origGetUserAvatarURL = null;
+        }
+        // Clean up GuildMemberStore hook
+        try {
+            const GMS = (Vencord as any).Webpack?.findByProps?.("getMember", "getMembers", "getMemberIds");
+            if (GMS?._cp_member_hook) {
+                if (GMS._cp_orig_getMember) GMS.getMember = GMS._cp_orig_getMember;
+                delete GMS._cp_member_hook;
+                delete GMS._cp_orig_getMember;
+            }
+        } catch { }
+        // Nettoyer le patch avatarDecoration
+        try {
+            const myUser = UserStore.getCurrentUser() as any;
+            if (myUser) {
+                try { delete myUser.avatarDecoration; } catch { }
+                try { delete myUser.avatarDecorationData; } catch { }
+            }
+        } catch { }
+    },
+
+    settingsAboutComponent() {
+        return <Button onClick={() => openModal(props => <CustomProfileModal rootProps={props} />)}>Open Custom Profile</Button>;
+    },
+});
+

@@ -1,0 +1,562 @@
+/*
+ * Vencord, a Discord client mod
+ * Copyright (c) 2025 Vendicated and contributors
+ * SPDX-License-Identifier: GPL-3.0-or-later
+ */
+
+import ErrorBoundary from "@components/ErrorBoundary";
+import { Logger } from "@utils/Logger";
+import { classes } from "@utils/misc";
+import { findComponentByCodeLazy } from "@webpack";
+import { Clickable, Tooltip, useEffect, useState, Popout, useRef } from "@webpack/common";
+import type { ComponentType, JSX, MouseEventHandler, ReactNode } from "react";
+
+const logger = new Logger("HeaderBarAPI");
+
+const HeaderBarIcon = findComponentByCodeLazy(".HEADER_BAR_BADGE_TOP:", '"aria-haspopup":') as ComponentType<ChannelToolbarButtonProps>;
+
+export interface HeaderBarButtonProps {
+    /** The icon component to render inside the button */
+    icon: ComponentType<any>;
+    /** Tooltip text shown on hover. Pass null to disable tooltip */
+    tooltip: ReactNode;
+    /** Called when the button is clicked */
+    onClick?: MouseEventHandler<HTMLDivElement>;
+    /** Called when the button is right-clicked */
+    onContextMenu?: MouseEventHandler<HTMLDivElement>;
+    /** Additional CSS class names */
+    className?: string;
+    /** Size of the icon in pixels */
+    iconSize?: number;
+    /** Tooltip position relative to the button */
+    position?: "top" | "bottom" | "left" | "right";
+    /** Whether the button appears in a selected/active state */
+    selected?: boolean;
+    /** Aria label for accessibility */
+    "aria-label"?: string;
+}
+
+export interface ChannelToolbarButtonProps extends HeaderBarButtonProps {
+    /** CSS class name for the icon element */
+    iconClassName?: string;
+    /** Tooltip position relative to the button */
+    position?: "top" | "bottom" | "left" | "right";
+    /** Whether the button appears in a selected/active state */
+    selected?: boolean;
+    /** Whether the button is disabled */
+    disabled?: boolean;
+    /** Whether to show a notification badge */
+    showBadge?: boolean;
+    /** Position of the notification badge */
+    badgePosition?: "top" | "bottom";
+}
+
+export type HeaderBarButtonFactory = () => JSX.Element | null;
+
+export interface HeaderBarButtonData {
+    /** Function that renders the button component */
+    render: HeaderBarButtonFactory;
+    /** Icon component used for settings UI display */
+    icon: ComponentType<any>;
+    /** Higher priority buttons appear further right. Default: 0 */
+    priority?: number;
+    /** Where to render the button. Default: "headerbar" */
+    location?: "headerbar" | "channeltoolbar";
+}
+
+interface ButtonEntry {
+    render: HeaderBarButtonFactory;
+    priority: number;
+}
+
+/**
+ * Button component for the top header bar (title bar area).
+ *
+ * @example
+ * <HeaderBarButton
+ *     icon={MyIcon}
+ *     tooltip="My Button"
+ *     onClick={() => console.log("clicked")}
+ * />
+ */
+export function HeaderBarButton(props: HeaderBarButtonProps & { ref?: React.RefObject<any>; }) {
+    const {
+        icon: Icon,
+        tooltip,
+        onClick,
+        onContextMenu,
+        className,
+        iconSize = 18,
+        position = "bottom",
+        selected,
+        ref,
+        "aria-label": ariaLabel,
+    } = props;
+
+    const label = ariaLabel ?? (typeof tooltip === "string" ? tooltip : undefined);
+
+    return (
+        <Tooltip text={tooltip ?? ""} position={position} shouldShow={tooltip != null}>
+            {({ onMouseEnter, onMouseLeave }) => (
+                <Clickable
+                    {...{ innerRef: ref } as any}
+                    className={classes("vc-header-bar-button", selected && "vc-header-bar-button-selected", className)}
+                    style={{
+                        width: iconSize,
+                        height: iconSize,
+                        boxSizing: "content-box",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        color: selected ? "var(--interactive-active, #ffffff)" : "var(--interactive-normal, #b5bac1)",
+                        margin: "0 4px",
+                        cursor: "pointer",
+                        opacity: selected ? 1 : 0.85,
+                    }}
+                    onClick={onClick}
+                    onContextMenu={onContextMenu}
+                    onMouseEnter={onMouseEnter}
+                    onMouseLeave={onMouseLeave}
+                    role="button"
+                    tabIndex={0}
+                    aria-label={label}
+                    aria-expanded={selected}
+                >
+                    <Icon size="custom" width={iconSize} height={iconSize} color="currentColor" />
+                </Clickable>
+            )}
+        </Tooltip>
+    );
+}
+
+/**
+ * Button component for the channel toolbar (below the search bar).
+ * Automatically handles selected state styling.
+ *
+ * @example
+ * <ChannelToolbarButton
+ *     icon={MyIcon}
+ *     tooltip={isOpen ? null : "My Button"}
+ *     onClick={() => setOpen(v => !v)}
+ *     selected={isOpen}
+ * />
+ */
+export function ChannelToolbarButton(props: ChannelToolbarButtonProps) {
+    return <HeaderBarIcon {...props} />;
+}
+
+const headerBarButtons = new Map<string, ButtonEntry>();
+const channelToolbarButtons = new Map<string, ButtonEntry>();
+
+const headerBarListeners = new Set<() => void>();
+const channelToolbarListeners = new Set<() => void>();
+
+/**
+ * Adds a button to the header bar (title bar area).
+ *
+ * @param id - Unique identifier for the button (e.g., "my-plugin-button")
+ * @param render - Function that returns the button JSX
+ * @param priority - Higher values appear further right. Default: 0
+ *
+ * @example
+ * addHeaderBarButton("my-button", () => (
+ *     <HeaderBarButton
+ *         icon={MyIcon}
+ *         tooltip="My Button"
+ *         onClick={handleClick}
+ *     />
+ * ));
+ */
+export function addHeaderBarButton(id: string, render: HeaderBarButtonFactory, priority = 0) {
+    headerBarButtons.set(id, { render, priority });
+    headerBarListeners.forEach(listener => listener());
+}
+
+/**
+ * Removes a button from the header bar.
+ *
+ * @param id - The identifier used when adding the button
+ */
+export function removeHeaderBarButton(id: string) {
+    headerBarButtons.delete(id);
+    headerBarListeners.forEach(listener => listener());
+}
+
+/**
+ * Adds a button to the channel toolbar (below the search bar, next to pins/members).
+ *
+ * @param id - Unique identifier for the button (e.g., "my-plugin-toolbar")
+ * @param render - Function that returns the button JSX
+ * @param priority - Higher values appear further right. Default: 0
+ *
+ * @example
+ * addChannelToolbarButton("my-toolbar", () => (
+ *     <ChannelToolbarButton
+ *         icon={MyIcon}
+ *         tooltip="My Button"
+ *         onClick={handleClick}
+ *     />
+ * ));
+ */
+export function addChannelToolbarButton(id: string, render: HeaderBarButtonFactory, priority = 0) {
+    channelToolbarButtons.set(id, { render, priority });
+    channelToolbarListeners.forEach(listener => listener());
+}
+
+/**
+ * Removes a button from the channel toolbar.
+ *
+ * @param id - The identifier used when adding the button
+ */
+export function removeChannelToolbarButton(id: string) {
+    channelToolbarButtons.delete(id);
+    channelToolbarListeners.forEach(listener => listener());
+}
+
+// ══════════════════════════════════════════════════════════════════
+// STEALTH MODE — variable mémoire comme source de vérité
+// ══════════════════════════════════════════════════════════════════
+
+// Variable mémoire — PAS localStorage comme source de vérité
+let _stealthActive = false;
+try { _stealthActive = localStorage.getItem("Nightcord_stealthMode") === "1"; } catch { }
+
+export function isStealthModeEnabled(): boolean {
+    return _stealthActive;
+}
+
+function persistStealth(v: boolean) {
+    try { v ? localStorage.setItem("Nightcord_stealthMode", "1") : localStorage.removeItem("Nightcord_stealthMode"); } catch { }
+}
+
+// Éléments NON-React uniquement (titlebar)
+// NE PAS cacher les entrées settings sidebar — l'utilisateur doit pouvoir accéder aux paramètres
+const NON_REACT_SELECTORS = [
+    "#nightcord-titlebar-btn",
+    "#nightcord-titlebar-link-style",
+];
+
+function hideNonReactElements(hide: boolean) {
+    let count = 0;
+    for (const sel of NON_REACT_SELECTORS) {
+        try {
+            document.querySelectorAll(sel).forEach(el => {
+                (el as HTMLElement).style.display = hide ? "none" : "";
+                count++;
+            });
+        } catch { }
+    }
+    console.log("[StealthMode] hideNonReact hide=" + hide + " count=" + count);
+}
+
+export function syncStealthBodyClass() {
+    try { if (_stealthActive) document.body?.classList.add("nightcord-stealth"); else document.body?.classList.remove("nightcord-stealth"); } catch { }
+    hideNonReactElements(_stealthActive);
+}
+
+export function toggleStealthMode() {
+    _stealthActive = !_stealthActive;
+    persistStealth(_stealthActive);
+    hideNonReactElements(_stealthActive);
+    // Notify React to re-render components (returns null when stealth is on)
+    _notifyStealthChange();
+    try { if (_stealthActive) document.body?.classList.add("nightcord-stealth"); else document.body?.classList.remove("nightcord-stealth"); } catch { }
+    console.log("[StealthMode] toggled →", _stealthActive);
+    return _stealthActive;
+}
+
+// ── Auto-init at module load ──
+if (_stealthActive) {
+    try { hideNonReactElements(true); } catch { }
+    try { document.body?.classList.add("nightcord-stealth"); } catch { }
+}
+
+// Register Ctrl+Shift+H globally at module load
+try {
+    document.addEventListener("keydown", (e: KeyboardEvent) => {
+        if (e.ctrlKey && e.shiftKey && !e.altKey && !e.metaKey && e.code === "KeyH") {
+            e.preventDefault();
+            e.stopPropagation();
+            toggleStealthMode();
+        }
+    }, true);
+} catch { }
+
+// MutationObserver: re-hide non-React elements when Discord re-renders the DOM
+try {
+    let stealthObserver: MutationObserver | null = null;
+    const startObserver = () => {
+        if (stealthObserver) return;
+        stealthObserver = new MutationObserver(() => {
+            if (_stealthActive) hideNonReactElements(true);
+        });
+        const target = document.body || document.documentElement;
+        if (target) {
+            stealthObserver.observe(target, { childList: true, subtree: true });
+        }
+    };
+    const stopObserver = () => {
+        if (stealthObserver) { stealthObserver.disconnect(); stealthObserver = null; }
+    };
+    if (_stealthActive) {
+        if (document.body) startObserver();
+        else document.addEventListener("DOMContentLoaded", startObserver);
+    }
+    window.addEventListener("nightcord-stealth-change", () => {
+        if (_stealthActive) startObserver();
+        else stopObserver();
+    });
+} catch { }
+
+// ── Listeners for React re-render ──
+const stealthListeners = new Set<() => void>();
+export function _notifyStealthChange() {
+    // NO hideNonReactElements here — already handled in toggleStealthMode
+    stealthListeners.forEach(fn => fn());
+    window.dispatchEvent(new Event("nightcord-stealth-change"));
+}
+export function addStealthListener(fn: () => void) { stealthListeners.add(fn); }
+export function removeStealthListener(fn: () => void) { stealthListeners.delete(fn); }
+
+
+// ------------------------------------------------------------------------------
+// COMPACT MODE � variable m�moire comme source de v�rit�
+// ------------------------------------------------------------------------------
+
+let _compactActive = false;
+try { _compactActive = localStorage.getItem("Nightcord_compactMode") === "1"; } catch { }
+
+export function isCompactModeEnabled(): boolean {
+    return _compactActive;
+}
+
+function persistCompact(v: boolean) {
+    try { v ? localStorage.setItem("Nightcord_compactMode", "1") : localStorage.removeItem("Nightcord_compactMode"); } catch { }
+}
+
+export function syncCompactBodyClass() {
+    try { if (_compactActive) document.body?.classList.add("nightcord-compact"); else document.body?.classList.remove("nightcord-compact"); } catch { }
+}
+
+export function toggleCompactMode() {
+    _compactActive = !_compactActive;
+    persistCompact(_compactActive);
+    _notifyCompactChange();
+    try { if (_compactActive) document.body?.classList.add("nightcord-compact"); else document.body?.classList.remove("nightcord-compact"); } catch { }
+    console.log("[CompactMode] toggled ?", _compactActive);
+    return _compactActive;
+}
+
+// Auto-init at module load
+if (_compactActive) {
+    try { document.body?.classList.add("nightcord-compact"); } catch { }
+}
+
+// Listeners for React re-render
+export const compactListeners = new Set<() => void>();
+export function _notifyCompactChange() {
+    compactListeners.forEach(fn => fn());
+    window.dispatchEvent(new Event("nightcord-compact-change"));
+}
+export function addCompactListener(fn: () => void) { compactListeners.add(fn); }
+export function removeCompactListener(fn: () => void) { compactListeners.delete(fn); }
+const GridVerticalIcon = (props: any) => (
+    <svg width={props.width || 24} height={props.height || 24} viewBox="0 0 24 24" fill={props.color || "currentColor"} {...props}>
+        <path d="M3 3h7v7H3V3zm0 11h7v7H3v-7zm11-11h7v7h-7V3zm0 11h7v7h-7v-7z" />
+    </svg>
+);
+
+function CompactHeaderPopout({ type, closePopout }: { type: "header" | "channel", closePopout: () => void }) {
+    const map = type === "header" ? headerBarButtons : channelToolbarButtons;
+    return (
+        <div className="compact-popout-container">
+            <div className="compact-popout-grid">
+                {Array.from(map)
+                    .sort(([, a], [, b]) => a.priority - b.priority)
+                    .map(([id, { render: Button }]) => (
+                        <div key={id} style={{ display: "contents" }} onClick={closePopout}>
+                            <ErrorBoundary noop>
+                                <Button />
+                            </ErrorBoundary>
+                        </div>
+                    ))}
+            </div>
+            <div className="compact-popout-divider" />
+            <div className="compact-popout-disable" onClick={() => { toggleCompactMode(); closePopout(); }}>
+                Disable Compact Mode
+            </div>
+        </div>
+    );
+}
+
+function CompactHeaderBarToggle() {
+    const [, forceUpdate] = useState(0);
+    const [isOpen, setIsOpen] = useState(false);
+    const popoutRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        const listener = () => forceUpdate(n => n + 1);
+        compactListeners.add(listener);
+        window.addEventListener("nightcord-compact-change", listener);
+        return () => {
+            compactListeners.delete(listener);
+            window.removeEventListener("nightcord-compact-change", listener);
+        };
+    }, []);
+
+    return (
+        <Popout
+            targetElementRef={popoutRef}
+            renderPopout={() => <CompactHeaderPopout type="header" closePopout={() => setIsOpen(false)} />}
+            shouldShow={isOpen}
+            onRequestClose={() => setIsOpen(false)}
+            position="bottom"
+            align="right"
+            spacing={8}
+        >
+            {() => (
+                <div ref={popoutRef as any} style={{ display: "flex" }}>
+                    <HeaderBarButton
+                        icon={GridVerticalIcon}
+                        tooltip="Compact Mode"
+                        onClick={() => setIsOpen(v => !v)}
+                        selected={isOpen}
+                    />
+                </div>
+            )}
+        </Popout>
+    );
+}
+
+function HeaderBarButtons() {
+    const [, forceUpdate] = useState(0);
+
+    useEffect(() => {
+        const listener = () => forceUpdate(n => n + 1);
+        headerBarListeners.add(listener);
+        stealthListeners.add(listener);
+        compactListeners.add(listener);
+        window.addEventListener("nightcord-stealth-change", listener);
+        window.addEventListener("nightcord-compact-change", listener);
+        return () => {
+            headerBarListeners.delete(listener);
+            stealthListeners.delete(listener);
+            compactListeners.delete(listener);
+            window.removeEventListener("nightcord-stealth-change", listener);
+            window.removeEventListener("nightcord-compact-change", listener);
+        };
+    }, []);
+
+    if (isStealthModeEnabled()) return null;
+
+    if (isCompactModeEnabled()) {
+        return (
+            <div className="vc-header-bar-btns" style={{ display: "contents" }}>
+                <CompactHeaderBarToggle />
+            </div>
+        );
+    }
+
+    return (
+        <div className="vc-header-bar-btns" style={{ display: "contents" }}>
+            {Array.from(headerBarButtons)
+                .sort(([, a], [, b]) => a.priority - b.priority)
+                .map(([id, { render: Button }]) => (
+                    <ErrorBoundary noop key={id} onError={e => logger.error(`Failed to render header bar button: ${id}`, e.error)}>
+                        <Button />
+                    </ErrorBoundary>
+                ))}
+        </div>
+    );
+}
+
+function CompactChannelToolbarToggle() {
+    const [, forceUpdate] = useState(0);
+    const [isOpen, setIsOpen] = useState(false);
+    const popoutRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        const listener = () => forceUpdate(n => n + 1);
+        compactListeners.add(listener);
+        window.addEventListener("nightcord-compact-change", listener);
+        return () => {
+            compactListeners.delete(listener);
+            window.removeEventListener("nightcord-compact-change", listener);
+        };
+    }, []);
+
+    return (
+        <Popout
+            targetElementRef={popoutRef}
+            renderPopout={() => <CompactHeaderPopout type="channel" closePopout={() => setIsOpen(false)} />}
+            shouldShow={isOpen}
+            onRequestClose={() => setIsOpen(false)}
+            position="bottom"
+            align="right"
+            spacing={8}
+        >
+            {() => (
+                <div ref={popoutRef as any} style={{ display: "flex" }}>
+                    <ChannelToolbarButton
+                        icon={GridVerticalIcon}
+                        tooltip="Compact Mode"
+                        onClick={() => setIsOpen(v => !v)}
+                        selected={isOpen}
+                    />
+                </div>
+            )}
+        </Popout>
+    );
+}
+
+function ChannelToolbarButtons() {
+    const [, forceUpdate] = useState(0);
+
+    useEffect(() => {
+        const listener = () => forceUpdate(n => n + 1);
+        channelToolbarListeners.add(listener);
+        stealthListeners.add(listener);
+        compactListeners.add(listener);
+        window.addEventListener("nightcord-stealth-change", listener);
+        window.addEventListener("nightcord-compact-change", listener);
+        return () => {
+            channelToolbarListeners.delete(listener);
+            stealthListeners.delete(listener);
+            compactListeners.delete(listener);
+            window.removeEventListener("nightcord-stealth-change", listener);
+            window.removeEventListener("nightcord-compact-change", listener);
+        };
+    }, []);
+
+    if (isStealthModeEnabled()) return null;
+
+    if (isCompactModeEnabled()) {
+        return (
+            <div className="vc-channel-toolbar-btns" style={{ display: "contents" }}>
+                <CompactChannelToolbarToggle />
+            </div>
+        );
+    }
+
+    return (
+        <div className="vc-channel-toolbar-btns" style={{ display: "contents" }}>
+            {Array.from(channelToolbarButtons)
+                .sort(([, a], [, b]) => a.priority - b.priority)
+                .map(([id, { render: Button }]) => (
+                    <ErrorBoundary noop key={id} onError={e => logger.error(`Failed to render channel toolbar button: ${id}`, e.error)}>
+                        <Button />
+                    </ErrorBoundary>
+                ))}
+        </div>
+    );
+}
+
+/** @internal Injected by HeaderBarAPI patch (do NOT call directly) */
+export function _addHeaderBarButtons() {
+    return [<HeaderBarButtons key="vc-header-bar-buttons" />];
+}
+
+/** @internal Injected by HeaderBarAPI patch (do NOT call directly) */
+export function _addChannelToolbarButtons(children: any[]) {
+    children.push(<ChannelToolbarButtons key="vc-channel-toolbar-buttons" />);
+}
