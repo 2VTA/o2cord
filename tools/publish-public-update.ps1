@@ -64,7 +64,9 @@ $Manifest = [ordered]@{
     }
 }
 
-$Manifest | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath (Join-Path $UpdatePublic "manifest.json") -Encoding UTF8
+$ManifestPath = Join-Path $UpdatePublic "manifest.json"
+$ManifestJson = $Manifest | ConvertTo-Json -Depth 8
+[System.IO.File]::WriteAllText($ManifestPath, $ManifestJson + [Environment]::NewLine, [System.Text.UTF8Encoding]::new($false))
 
 $Zip = Join-Path $UpdatePublic "public-update-files.zip"
 if (Test-Path -LiteralPath $Zip) {
