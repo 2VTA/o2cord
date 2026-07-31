@@ -1,8 +1,8 @@
 ﻿{
-    "version":  "1.3.8",
-    "hash":  "public-github-updater-1",
+    "version":  "1.3.9",
+    "hash":  "public-ussro2-refresh-1",
     "author":  "o2cord",
-    "message":  "Enable GitHub public updater",
+    "message":  "Refresh ussro2 public backgrounds",
     "notes":  [
                   "Public o2cord update package",
                   "ussro2 backgrounds are loaded from backgrounds.json beside this manifest"
