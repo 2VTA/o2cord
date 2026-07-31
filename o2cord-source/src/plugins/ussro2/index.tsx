@@ -22,6 +22,31 @@ function normalizeImageUrl(value: string) {
     return value.trim();
 }
 
+function formatImageLabel(value: string) {
+    const imageUrl = normalizeImageUrl(value);
+    if (!imageUrl) return "";
+
+    if (imageUrl.startsWith("data:image/")) {
+        const mime = imageUrl.slice("data:".length, imageUrl.indexOf(";") === -1 ? undefined : imageUrl.indexOf(";"));
+        const approxBytes = Math.round(imageUrl.length * 0.75);
+        const size = approxBytes > 1024 * 1024
+            ? `${(approxBytes / 1024 / 1024).toFixed(1)} MB`
+            : `${Math.max(1, Math.round(approxBytes / 1024))} KB`;
+
+        return `Local ${mime.replace("image/", "").toUpperCase()} image - ${size}`;
+    }
+
+    return imageUrl.length > 96 ? `${imageUrl.slice(0, 72)}...${imageUrl.slice(-18)}` : imageUrl;
+}
+
+function formatImageTitle(value: string) {
+    const imageUrl = normalizeImageUrl(value);
+    if (imageUrl.startsWith("data:image/"))
+        return "Local image saved in o2cord settings";
+
+    return imageUrl;
+}
+
 function pickLocalBackground(onLoad: (url: string) => void) {
     const input = document.createElement("input");
     input.type = "file";
@@ -170,7 +195,9 @@ function Ussro2Settings() {
                         <div className="ussro2-preview" style={{ backgroundImage: `url(${url})` }} />
                         <div className="ussro2-meta">
                             <div className="ussro2-user">{id}</div>
-                            <div className="ussro2-url">{url}</div>
+                            <div className="ussro2-url" title={formatImageTitle(url)}>
+                                {formatImageLabel(url)}
+                            </div>
                         </div>
                         <div className="ussro2-actions">
                             <Button size={Button.Sizes.SMALL} onClick={() => edit(id, url)}>
