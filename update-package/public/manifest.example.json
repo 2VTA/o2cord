@@ -1,0 +1,17 @@
+﻿{
+    "version":  "1.3.7",
+    "hash":  "public-ussro2-live-registry",
+    "author":  "o2cord",
+    "message":  "Add live ussro2 background registry",
+    "notes":  [
+                  "ussro2Public now checks backgrounds.json beside the update manifest every 30 seconds",
+                  "Bundled backgrounds still work as fallback if the live registry is unavailable",
+                  "Update backgrounds.json online to change shared images without rebuilding the EXE"
+              ],
+    "files":  {
+                  "patcher.js":  "https://YOUR_HOST/o2cord/public/files/patcher.js",
+                  "preload.js":  "https://YOUR_HOST/o2cord/public/files/preload.js",
+                  "renderer.js":  "https://YOUR_HOST/o2cord/public/files/renderer.js",
+                  "renderer.css":  "https://YOUR_HOST/o2cord/public/files/renderer.css"
+              }
+}

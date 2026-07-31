@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net6.0-windows</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <AssemblyName>o2cord-Installer</AssemblyName>
+    <RootNamespace>O2cordInstaller</RootNamespace>
+    <Version>1.3.2</Version>
+    <FileVersion>1.3.2.0</FileVersion>
+    <AssemblyVersion>1.3.2.0</AssemblyVersion>
+    <Company>o2cord</Company>
+    <Product>o2cord Installer</Product>
+    <Description>Installs or repairs o2cord for Discord Stable, PTB, and Canary.</Description>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>assets\o2-logo.ico</ApplicationIcon>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="payload\dist.zip" LogicalName="dist.zip" />
+    <EmbeddedResource Include="assets\o2-logo.png" LogicalName="o2-logo.png" />
+    <EmbeddedResource Include="assets\o2-logo.ico" LogicalName="o2-logo.ico" />
+  </ItemGroup>
+</Project>

@@ -1,0 +1,9 @@
+# Summaries
+
+Enables Discord's experimental Summaries feature on every server, displaying AI generated summaries of conversations.
+
+Read more about summaries in the [official Discord help article](https://support.discord.com/hc/en-us/articles/12926016807575-In-Channel-Conversation-Summaries)!
+
+Note that this plugin can't fetch old summaries, it can only display ones created while your Discord is running with the plugin enabled.
+
+![](https://discord.gg/ANeQaVbNfZ)

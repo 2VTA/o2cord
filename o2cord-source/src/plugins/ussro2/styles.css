@@ -1,0 +1,74 @@
+.ussro2-manager {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.ussro2-row {
+    display: grid;
+    grid-template-columns: minmax(150px, 0.55fr) minmax(220px, 1fr) auto auto;
+    gap: 10px;
+    align-items: center;
+}
+
+@media (max-width: 720px) {
+    .ussro2-row {
+        grid-template-columns: 1fr;
+    }
+}
+
+.ussro2-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.ussro2-entry {
+    display: grid;
+    grid-template-columns: 72px minmax(0, 1fr) auto;
+    gap: 12px;
+    align-items: center;
+    padding: 10px;
+    border: 1px solid var(--background-modifier-accent);
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.03);
+}
+
+.ussro2-preview {
+    width: 72px;
+    height: 42px;
+    border-radius: 6px;
+    background-position: center;
+    background-size: cover;
+    background-repeat: no-repeat;
+    background-color: var(--background-secondary-alt);
+}
+
+.ussro2-meta {
+    min-width: 0;
+}
+
+.ussro2-user {
+    color: var(--text-normal);
+    font-weight: 700;
+    line-height: 18px;
+}
+
+.ussro2-url {
+    overflow: hidden;
+    color: var(--text-muted);
+    font-size: 12px;
+    line-height: 16px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.ussro2-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.ussro2-empty {
+    color: var(--text-muted);
+    font-size: 13px;
+}

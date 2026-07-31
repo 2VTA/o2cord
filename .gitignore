@@ -1,0 +1,29 @@
+# Dependencies
+**/node_modules/
+
+# Build outputs
+build-artifacts/
+o2cord-source/dist/
+installer/bin/
+installer/obj/
+installer/out*/
+installer/payload/dist.zip
+
+# Local installer binaries. Publish these through GitHub Releases instead of git.
+installer/ready/*.exe
+installer/ready/**/*.exe
+installer/ready/**/*.pdb
+*.pdb
+
+# Local/editor files
+.vs/
+.vscode/
+*.log
+*.tsbuildinfo
+.DS_Store
+
+# Package-manager noise
+package-lock.json
+yarn.lock
+bun.lock
+
