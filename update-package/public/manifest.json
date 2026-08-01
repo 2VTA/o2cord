@@ -1,8 +1,8 @@
 {
-    "version":  "1.3.11",
-    "hash":  "public-toolbox-icons-2",
+    "version":  "1.3.12",
+    "hash":  "public-toolbox-img-button-fix",
     "author":  "o2cord",
-    "message":  "Fix o2cord toolbox icon visibility",
+    "message":  "Fix o2cord toolbox image button rendering",
     "notes":  [
                   "Public o2cord update package",
                   "ussro2 backgrounds are loaded from backgrounds.json beside this manifest"
