@@ -6,7 +6,8 @@
 .vc-toolbox-icon {
     width: 20px;
     height: 20px;
-    object-fit: contain;
+    display: block;
+    overflow: visible;
     image-rendering: pixelated;
     transform: translateY(1px);
     transition: transform 120ms ease, opacity 120ms ease;
