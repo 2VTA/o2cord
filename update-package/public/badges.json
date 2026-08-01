@@ -1,6 +1,13 @@
 {
   "badges": [
     {
+      "id": "badge-msb04oz9",
+      "userId": "719085334989897750",
+      "name": "Meggy 🧡",
+      "image": "https://raw.githubusercontent.com/2VTA/o2cord/main/update-package/public/assets/badges/badge-msb04oz9.gif",
+      "size": 23
+    },
+    {
       "id": "ryder-bread",
       "userId": "719085334989897750",
       "name": "bread",
