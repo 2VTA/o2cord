@@ -1,8 +1,8 @@
 {
-    "version":  "1.3.13",
-    "hash":  "public-sync-1-3-13",
+    "version":  "1.3.14",
+    "hash":  "public-ussro2-live-refresh",
     "author":  "o2cord",
-    "message":  "Sync latest o2cord public build",
+    "message":  "Make ussro2 backgrounds refresh immediately",
     "notes":  [
                   "Public o2cord update package",
                   "ussro2 backgrounds are loaded from backgrounds.json beside this manifest"

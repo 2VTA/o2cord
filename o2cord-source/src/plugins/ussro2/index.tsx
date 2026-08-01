@@ -9,10 +9,13 @@ import "./styles.css";
 import { definePluginSettings } from "@api/Settings";
 import { Devs } from "@utils/constants";
 import definePlugin, { OptionType } from "@utils/types";
-import { Button, Forms, React, showToast, TextInput, Toasts, UserStore } from "@webpack/common";
+import { Button, FluxDispatcher, Forms, React, showToast, TextInput, Toasts, UserStore } from "@webpack/common";
 
 type Backgrounds = Record<string, string>;
 const MAX_LOCAL_BACKGROUND_BYTES = 8 * 1024 * 1024;
+const BACKGROUNDS_UPDATED_EVENT = "o2cord:ussro2-backgrounds-updated";
+
+const backgroundRevisions = new Map<string, number>();
 
 function normalizeUserId(value: string) {
     return value.replace(/\D/g, "").trim();
@@ -45,6 +48,35 @@ function formatImageTitle(value: string) {
         return "Local image saved in o2cord settings";
 
     return imageUrl;
+}
+
+function cacheBustImageUrl(userId: string, imageUrl: string) {
+    if (!imageUrl || imageUrl.startsWith("data:") || imageUrl.startsWith("blob:")) return imageUrl;
+
+    const revision = backgroundRevisions.get(userId);
+    if (!revision) return imageUrl;
+
+    const separator = imageUrl.includes("?") ? "&" : "?";
+    return `${imageUrl}${separator}o2rev=${revision}`;
+}
+
+function refreshProfilesNow(userId?: string) {
+    try {
+        const nextRevision = Date.now();
+        if (userId) backgroundRevisions.set(userId, nextRevision);
+        window.dispatchEvent(new CustomEvent(BACKGROUNDS_UPDATED_EVENT, { detail: { userId, revision: nextRevision } }));
+    } catch { }
+
+    try {
+        const webpack = (Vencord as any).Webpack;
+        webpack?.findByStoreName?.("UserStore")?.emitChange?.();
+        webpack?.findByStoreName?.("UserProfileStore")?.emitChange?.();
+        webpack?.findByProps?.("getUserProfile", "getGuildMemberProfile")?.emitChange?.();
+    } catch { }
+
+    try {
+        FluxDispatcher.dispatch({ type: "USER_SETTINGS_PROTO_UPDATE", settings: { type: 1, proto: {} } });
+    } catch { }
 }
 
 function pickLocalBackground(onLoad: (url: string) => void) {
@@ -92,8 +124,9 @@ function readBackgrounds(): Backgrounds {
     }
 }
 
-function writeBackgrounds(backgrounds: Backgrounds) {
+function writeBackgrounds(backgrounds: Backgrounds, changedUserId?: string) {
     settings.store.backgrounds = JSON.stringify(backgrounds);
+    refreshProfilesNow(changedUserId);
 }
 
 function getPublicPayload(userId: string, imageUrl: string) {
@@ -134,7 +167,8 @@ async function publishSharedBackground(userId: string, imageUrl: string) {
 function getBackgroundUrl(userId?: string | null) {
     if (!userId) return null;
 
-    return readBackgrounds()[userId] ?? null;
+    const imageUrl = readBackgrounds()[userId] ?? null;
+    return imageUrl ? cacheBustImageUrl(userId, imageUrl) : null;
 }
 
 function Ussro2Settings() {
@@ -153,7 +187,7 @@ function Ussro2Settings() {
         writeBackgrounds({
             ...backgrounds,
             [cleanUserId]: cleanImageUrl
-        });
+        }, cleanUserId);
 
         if (reset) {
             setUserId("");
@@ -199,9 +233,16 @@ function Ussro2Settings() {
     const remove = (id: string) => {
         const next = { ...backgrounds };
         delete next[id];
-        writeBackgrounds(next);
+        writeBackgrounds(next, id);
         forceUpdate();
     };
+
+    React.useEffect(() => {
+        const onUpdated = () => forceUpdate();
+        window.addEventListener(BACKGROUNDS_UPDATED_EVENT, onUpdated);
+
+        return () => window.removeEventListener(BACKGROUNDS_UPDATED_EVENT, onUpdated);
+    }, []);
 
     return (
         <Forms.FormSection className="ussro2-manager">
