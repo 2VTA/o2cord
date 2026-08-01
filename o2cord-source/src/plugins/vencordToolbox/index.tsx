@@ -42,12 +42,22 @@ export const settings = definePluginSettings({
 
 function Icon({ isShown }: { isShown: boolean; }) {
     return (
-        <img
-            alt=""
+        <svg
+            viewBox="0 0 128 128"
+            width={20}
+            height={20}
             aria-hidden="true"
-            src={isShown ? TOOLBOX_OPEN_ICON : TOOLBOX_CLOSED_ICON}
             className="vc-toolbox-icon"
-        />
+        >
+            <image
+                href={isShown ? TOOLBOX_CLOSED_ICON : TOOLBOX_OPEN_ICON}
+                x="0"
+                y="0"
+                width="128"
+                height="128"
+                preserveAspectRatio="xMidYMid meet"
+            />
+        </svg>
     );
 }
 
