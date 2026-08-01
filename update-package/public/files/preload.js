@@ -1,4 +1,4 @@
-// Vencord public-ussro2-refresh-1
+// Vencord public-toolbox-icons-1
 // Standalone: false
 // Platform: win32
 // Updater Disabled: false

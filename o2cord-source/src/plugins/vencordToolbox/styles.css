@@ -4,13 +4,15 @@
 }
 
 .vc-toolbox-icon {
-    color: var(--interactive-icon-default);
-}
-
-.vc-toolbox-btn[class*="selected"] .vc-toolbox-icon {
-    color: var(--interactive-icon-active);
+    width: 20px;
+    height: 20px;
+    object-fit: contain;
+    image-rendering: pixelated;
+    transform: translateY(1px);
+    transition: transform 120ms ease, opacity 120ms ease;
 }
 
 .vc-toolbox-btn:hover .vc-toolbox-icon {
-    color: var(--interactive-icon-hover);
+    opacity: 0.95;
+    transform: translateY(1px) scale(1.08);
 }
