@@ -31,7 +31,7 @@ interface ManagedPlugin {
 
 const BADGES_KEY = O2_LOCAL_BADGES_KEY;
 const BADGES_EVENT = O2_LOCAL_BADGES_UPDATED_EVENT;
-const SHOW_ADD_BADGE_FEATURE = false;
+const SHOW_ADD_BADGE_FEATURE = true;
 
 const MANAGED_PLUGINS: ManagedPlugin[] = [
     {
@@ -184,7 +184,7 @@ function DebugO2Tab() {
         const targetBadgeImage = badgeImage.trim();
 
         if (!targetUserId || !targetBadgeImage) {
-            setSaveStatus("Choose a badge image first. Your user ID is filled automatically.");
+            setSaveStatus("Add a Discord user ID and choose a badge image first.");
             return;
         }
 
@@ -203,7 +203,7 @@ function DebugO2Tab() {
         try {
             await writeStoredJson(BADGES_KEY, next);
             setBadges(next);
-            setSaveStatus("Badge saved. Reopen the profile to refresh the badge row.");
+            setSaveStatus("Badge saved. Reopen that user's profile to refresh the badge row.");
             resetBadgeForm();
         } catch (e) {
             setSaveStatus(`Save failed: ${String(e)}`);
@@ -286,7 +286,7 @@ function DebugO2Tab() {
                 <section className="o2-debug-feature-grid">
                     <DebugFeatureCard
                         title="Add Badge"
-                        description="Add custom badges to your local profile preview"
+                        description="Add custom image badges to Discord profile badge rows"
                         onSettingsClick={() => setActiveSettingsModal("badge")}
                     />
                 </section>
@@ -355,7 +355,7 @@ function DebugO2Tab() {
                             <div>
                                 <h2>Add Badge</h2>
                                 <Forms.FormText>
-                                    Create custom badges for your local profile preview.
+                                    Add a Discord user ID and image. The badge appears in that user's profile badge row.
                                 </Forms.FormText>
                             </div>
                             <button
