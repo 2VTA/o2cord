@@ -9,7 +9,7 @@ import "./styles.css";
 import { definePluginSettings } from "@api/Settings";
 import { Devs } from "@utils/constants";
 import definePlugin, { OptionType } from "@utils/types";
-import { Button, Forms, React, TextInput, UserStore } from "@webpack/common";
+import { Button, Forms, React, showToast, TextInput, Toasts, UserStore } from "@webpack/common";
 
 type Backgrounds = Record<string, string>;
 const MAX_LOCAL_BACKGROUND_BYTES = 8 * 1024 * 1024;
@@ -96,6 +96,41 @@ function writeBackgrounds(backgrounds: Backgrounds) {
     settings.store.backgrounds = JSON.stringify(backgrounds);
 }
 
+function getPublicPayload(userId: string, imageUrl: string) {
+    return {
+        userId,
+        imageUrl,
+        users: {
+            [userId]: imageUrl
+        }
+    };
+}
+
+async function copyPublicPayload(userId: string, imageUrl: string) {
+    await navigator.clipboard?.writeText?.(JSON.stringify(getPublicPayload(userId, imageUrl), null, 2));
+}
+
+async function publishSharedBackground(userId: string, imageUrl: string) {
+    const endpoint = normalizeImageUrl(settings.store.publishEndpoint);
+    if (!endpoint) {
+        await copyPublicPayload(userId, imageUrl);
+        showToast("Copied shared ussro2 JSON. Add a publish endpoint for one-click updates.", Toasts.Type.MESSAGE);
+        return false;
+    }
+
+    const res = await fetch(endpoint, {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify(getPublicPayload(userId, imageUrl))
+    });
+
+    if (!res.ok) throw new Error(`Publish endpoint returned ${res.status}`);
+    showToast("Shared ussro2 background published.", Toasts.Type.SUCCESS);
+    return true;
+}
+
 function getBackgroundUrl(userId?: string | null) {
     if (!userId) return null;
 
@@ -105,23 +140,50 @@ function getBackgroundUrl(userId?: string | null) {
 function Ussro2Settings() {
     const [userId, setUserId] = React.useState("");
     const [imageUrl, setImageUrl] = React.useState("");
+    const [isPublishing, setIsPublishing] = React.useState(false);
     const [, forceUpdate] = React.useReducer(x => x + 1, 0);
     const backgrounds = readBackgrounds();
     const entries = Object.entries(backgrounds);
 
-    const save = () => {
+    const save = (reset = true) => {
         const cleanUserId = normalizeUserId(userId);
         const cleanImageUrl = normalizeImageUrl(imageUrl);
-        if (!cleanUserId || !cleanImageUrl) return;
+        if (!cleanUserId || !cleanImageUrl) return null;
 
         writeBackgrounds({
             ...backgrounds,
             [cleanUserId]: cleanImageUrl
         });
 
-        setUserId("");
-        setImageUrl("");
+        if (reset) {
+            setUserId("");
+            setImageUrl("");
+        }
         forceUpdate();
+        return { userId: cleanUserId, imageUrl: cleanImageUrl };
+    };
+
+    const publish = async () => {
+        const saved = save(false);
+        if (!saved) return;
+
+        setIsPublishing(true);
+        try {
+            await publishSharedBackground(saved.userId, saved.imageUrl);
+            setUserId("");
+            setImageUrl("");
+            forceUpdate();
+        } catch (error) {
+            console.error("[ussro2] Failed to publish shared background", error);
+            try {
+                await copyPublicPayload(saved.userId, saved.imageUrl);
+                showToast("Publish failed. Copied shared ussro2 JSON instead.", Toasts.Type.FAILURE);
+            } catch {
+                showToast("Publish failed. Check the console for details.", Toasts.Type.FAILURE);
+            }
+        } finally {
+            setIsPublishing(false);
+        }
     };
 
     const useMyId = () => {
@@ -145,7 +207,7 @@ function Ussro2Settings() {
         <Forms.FormSection className="ussro2-manager">
             <Forms.FormTitle>Local Backgrounds</Forms.FormTitle>
             <Forms.FormText>
-                Add a Discord user ID and an image or GIF URL. o2cord only saves this locally on your device.
+                Add a Discord user ID and an image or GIF URL. Save keeps it local; Publish Shared sends it to your configured public registry endpoint.
             </Forms.FormText>
 
             <div className="ussro2-row">
@@ -165,14 +227,22 @@ function Ussro2Settings() {
                 >
                     Choose GIF/Image
                 </Button>
-                <Button onClick={save} disabled={!normalizeUserId(userId) || !normalizeImageUrl(imageUrl)}>
-                    Save
+                <Button onClick={() => save()} disabled={!normalizeUserId(userId) || !normalizeImageUrl(imageUrl)}>
+                    Save Local
                 </Button>
             </div>
 
             <div className="ussro2-actions">
                 <Button size={Button.Sizes.SMALL} onClick={useMyId}>
                     Use My ID
+                </Button>
+                <Button
+                    size={Button.Sizes.SMALL}
+                    color={Button.Colors.GREEN}
+                    disabled={isPublishing || !normalizeUserId(userId) || !normalizeImageUrl(imageUrl)}
+                    onClick={publish}
+                >
+                    {isPublishing ? "Publishing..." : "Publish Shared"}
                 </Button>
                 <Button
                     size={Button.Sizes.SMALL}
@@ -234,6 +304,11 @@ const settings = definePluginSettings({
         description: "Saved local user background map",
         default: "{}",
         hidden: true
+    },
+    publishEndpoint: {
+        type: OptionType.STRING,
+        description: "Optional private endpoint used by debug o2 to publish shared ussro2 backgrounds",
+        default: ""
     },
     manager: {
         type: OptionType.COMPONENT,
