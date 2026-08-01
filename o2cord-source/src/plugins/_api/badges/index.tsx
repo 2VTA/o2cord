@@ -40,6 +40,12 @@ import o2BreadImage from "../../../components/settings/tabs/vencord/o2BreadImage
 
 let O2LocalBadges = [] as O2LocalBadge[];
 let O2HiddenBadgeIds = [] as string[];
+let O2RemoteBadges = [] as O2LocalBadge[];
+let remoteBadgeRefreshPromise: Promise<void> | null = null;
+let remoteBadgeRefreshTimer: number | undefined;
+let lastRemoteBadgeRefresh = 0;
+
+const O2_SHARED_BADGES_REFRESH_MS = 30_000;
 
 const O2SharedBadges: O2LocalBadge[] = [{
     id: "shared-bread",
@@ -53,6 +59,128 @@ function getO2BadgeSize(size: number | undefined) {
     if (!Number.isFinite(size)) return 22;
 
     return Math.min(40, Math.max(14, Math.round(size!)));
+}
+
+function normalizeUserId(value: unknown) {
+    return typeof value === "string" ? value.replace(/\D/g, "").trim() : "";
+}
+
+function normalizeBadgeText(value: unknown) {
+    return typeof value === "string" ? value.trim() : "";
+}
+
+function normalizeBadgeSize(value: unknown) {
+    const size = typeof value === "number" ? value : Number(value);
+    return getO2BadgeSize(size);
+}
+
+function normalizeSharedBadge(rawBadge: unknown, fallbackUserId = "", fallbackIndex = 0): O2LocalBadge | null {
+    if (!rawBadge || typeof rawBadge !== "object" || Array.isArray(rawBadge)) return null;
+
+    const badge = rawBadge as Partial<O2LocalBadge> & Record<string, unknown>;
+    const userId = normalizeUserId(badge.userId ?? fallbackUserId);
+    const image = normalizeBadgeText(badge.image ?? badge.icon ?? badge.iconSrc);
+    const name = normalizeBadgeText(badge.name ?? badge.description ?? badge.tooltip) || "o2cord badge";
+    if (!userId || !image) return null;
+
+    return {
+        id: normalizeBadgeText(badge.id) || `shared-${userId}-${fallbackIndex}`,
+        userId,
+        name,
+        image,
+        size: normalizeBadgeSize(badge.size)
+    };
+}
+
+function cleanSharedBadges(raw: unknown): O2LocalBadge[] {
+    const badges: O2LocalBadge[] = [];
+
+    if (Array.isArray(raw)) {
+        raw.forEach((badge, index) => {
+            const cleanBadge = normalizeSharedBadge(badge, "", index);
+            if (cleanBadge) badges.push(cleanBadge);
+        });
+    } else if (raw && typeof raw === "object") {
+        const source = raw as Record<string, unknown>;
+        const rawBadges = Array.isArray(source.badges) ? source.badges : null;
+        if (rawBadges) {
+            rawBadges.forEach((badge, index) => {
+                const cleanBadge = normalizeSharedBadge(badge, "", index);
+                if (cleanBadge) badges.push(cleanBadge);
+            });
+        }
+
+        const rawUsers = source.users;
+        if (rawUsers && typeof rawUsers === "object" && !Array.isArray(rawUsers)) {
+            for (const [userId, userBadges] of Object.entries(rawUsers as Record<string, unknown>)) {
+                const items = Array.isArray(userBadges) ? userBadges : [userBadges];
+                items.forEach((badge, index) => {
+                    const cleanBadge = typeof badge === "string"
+                        ? normalizeSharedBadge({ userId, image: badge, name: "o2cord badge" }, userId, index)
+                        : normalizeSharedBadge(badge, userId, index);
+
+                    if (cleanBadge) badges.push(cleanBadge);
+                });
+            }
+        }
+    }
+
+    const byId = new Map<string, O2LocalBadge>();
+    for (const badge of badges) byId.set(badge.id, badge);
+
+    return [...byId.values()];
+}
+
+function getSharedBadgesUrl() {
+    const manifestUrl = typeof O2CORD_UPDATE_MANIFEST === "string" ? O2CORD_UPDATE_MANIFEST.trim() : "";
+    if (!manifestUrl) return "";
+
+    try {
+        return new URL("badges.json", manifestUrl).href;
+    } catch {
+        return "";
+    }
+}
+
+function refreshProfileBadgesNow() {
+    try {
+        const webpack = (Vencord as any).Webpack;
+        webpack?.findByStoreName?.("UserStore")?.emitChange?.();
+        webpack?.findByStoreName?.("UserProfileStore")?.emitChange?.();
+        webpack?.findByProps?.("getUserProfile", "getGuildMemberProfile")?.emitChange?.();
+    } catch { }
+}
+
+async function refreshO2RemoteBadges(force = false) {
+    const badgesUrl = getSharedBadgesUrl();
+    if (!badgesUrl) return;
+
+    const now = Date.now();
+    if (!force && now - lastRemoteBadgeRefresh < O2_SHARED_BADGES_REFRESH_MS) return;
+    if (remoteBadgeRefreshPromise) return remoteBadgeRefreshPromise;
+
+    remoteBadgeRefreshPromise = fetch(`${badgesUrl}${badgesUrl.includes("?") ? "&" : "?"}t=${now}`, {
+        cache: "no-store"
+    })
+        .then(async res => {
+            if (!res.ok) throw new Error(`o2cord badges registry returned ${res.status}`);
+
+            const nextBadges = cleanSharedBadges(await res.json());
+            const previous = JSON.stringify(O2RemoteBadges);
+            const next = JSON.stringify(nextBadges);
+            O2RemoteBadges = nextBadges;
+            lastRemoteBadgeRefresh = Date.now();
+
+            if (previous !== next) refreshProfileBadgesNow();
+        })
+        .catch(() => {
+            lastRemoteBadgeRefresh = Date.now();
+        })
+        .finally(() => {
+            remoteBadgeRefreshPromise = null;
+        });
+
+    return remoteBadgeRefreshPromise;
 }
 
 async function loadO2LocalBadges() {
@@ -166,11 +294,15 @@ export default definePlugin({
         window.addEventListener(O2_LOCAL_BADGES_UPDATED_EVENT, onO2LocalBadgesUpdated);
         window.addEventListener(O2_HIDDEN_BADGES_UPDATED_EVENT, onO2HiddenBadgesUpdated);
 
+        void refreshO2RemoteBadges(true);
+        remoteBadgeRefreshTimer = window.setInterval(() => void refreshO2RemoteBadges(true), O2_SHARED_BADGES_REFRESH_MS);
         clearInterval(intervalId);
     },
 
     async stop() {
         clearInterval(intervalId);
+        if (remoteBadgeRefreshTimer) window.clearInterval(remoteBadgeRefreshTimer);
+        remoteBadgeRefreshTimer = undefined;
         window.removeEventListener(O2_LOCAL_BADGES_UPDATED_EVENT, onO2LocalBadgesUpdated);
         window.removeEventListener(O2_HIDDEN_BADGES_UPDATED_EVENT, onO2HiddenBadgesUpdated);
     },
@@ -214,8 +346,11 @@ export default definePlugin({
 
     getO2LocalBadges(userId: string): ProfileBadge[] {
         try {
+            void refreshO2RemoteBadges();
+
             const badgesById = new Map<string, O2LocalBadge>();
             for (const badge of O2SharedBadges) badgesById.set(badge.id, badge);
+            for (const badge of O2RemoteBadges) badgesById.set(badge.id, badge);
             for (const badge of O2LocalBadges) badgesById.set(badge.id, badge);
 
             return [...badgesById.values()]

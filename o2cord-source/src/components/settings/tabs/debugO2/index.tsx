@@ -104,6 +104,18 @@ function normalizeBadgeSize(size: string | number | undefined) {
     return Math.min(40, Math.max(14, Math.round(parsed)));
 }
 
+function getPublicBadgePayload(badge: LocalBadge) {
+    return {
+        badges: [{
+            id: badge.id,
+            userId: badge.userId,
+            name: badge.name,
+            image: badge.image,
+            size: normalizeBadgeSize(badge.size)
+        }]
+    };
+}
+
 function fileToDataUrl(file: File) {
     return new Promise<string>((resolve, reject) => {
         const reader = new FileReader();
@@ -254,6 +266,28 @@ function DebugO2Tab() {
         setSaveStatus("Image selected. Press Save Badge to apply it.");
     }
 
+    async function copyPublicBadgeJson() {
+        const nextBadge: LocalBadge = {
+            id: editingId ?? makeBadgeId(),
+            userId: userId.trim() || (UserStore.getCurrentUser()?.id ?? ""),
+            name: badgeName.trim() || "Custom Badge",
+            image: badgeImage.trim(),
+            size: normalizeBadgeSize(badgeSize)
+        };
+
+        if (!nextBadge.userId || !nextBadge.image) {
+            setSaveStatus("Add a Discord user ID and badge image first.");
+            return;
+        }
+
+        try {
+            await navigator.clipboard?.writeText?.(JSON.stringify(getPublicBadgePayload(nextBadge), null, 2));
+            setSaveStatus("Public badge JSON copied. Add it to update-package/public/badges.json.");
+        } catch (e) {
+            setSaveStatus(`Copy failed: ${String(e)}`);
+        }
+    }
+
     function isManagedPluginEnabled(pluginName: string) {
         return settings.plugins[pluginName]?.enabled ?? false;
     }
@@ -402,6 +436,7 @@ function DebugO2Tab() {
                                 </div>
                                 <div className="o2-debug-actions">
                                     <Button onClick={saveBadge}>{editingId ? "Save Changes" : "Save Badge"}</Button>
+                                    <Button color={Button.Colors.GREEN} onClick={copyPublicBadgeJson}>Copy Public JSON</Button>
                                     <Button color={Button.Colors.PRIMARY} onClick={resetBadgeForm}>Clear</Button>
                                 </div>
                                 {saveStatus && (

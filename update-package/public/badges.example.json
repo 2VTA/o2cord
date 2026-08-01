@@ -1,0 +1,11 @@
+{
+  "badges": [
+    {
+      "id": "badge-example-719085334989897750",
+      "userId": "719085334989897750",
+      "name": "bread",
+      "image": "https://example.com/bread.png",
+      "size": 24
+    }
+  ]
+}

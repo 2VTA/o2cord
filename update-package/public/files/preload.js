@@ -1,4 +1,4 @@
-// Vencord public-ussro2-live-refresh
+// Vencord public-shared-badges-registry
 // Standalone: false
 // Platform: win32
 // Updater Disabled: false
