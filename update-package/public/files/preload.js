@@ -1,4 +1,4 @@
-// Vencord public-sync-1-3-13
+// Vencord public-ussro2-live-refresh
 // Standalone: false
 // Platform: win32
 // Updater Disabled: false
