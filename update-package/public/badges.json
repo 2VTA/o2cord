@@ -1,3 +1,11 @@
 {
-  "badges": []
+  "badges": [
+    {
+      "id": "ryder-bread",
+      "userId": "719085334989897750",
+      "name": "bread",
+      "image": "https://raw.githubusercontent.com/2VTA/o2cord/main/update-package/public/assets/badges/ryder-bread.png",
+      "size": 24
+    }
+  ]
 }
