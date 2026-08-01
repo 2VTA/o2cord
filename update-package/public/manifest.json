@@ -1,8 +1,8 @@
 {
-    "version":  "1.3.9",
-    "hash":  "public-ussro2-refresh-1",
+    "version":  "1.3.10",
+    "hash":  "public-toolbox-icons-1",
     "author":  "o2cord",
-    "message":  "Refresh ussro2 public backgrounds",
+    "message":  "Update o2cord toolbox icons",
     "notes":  [
                   "Public o2cord update package",
                   "ussro2 backgrounds are loaded from backgrounds.json beside this manifest"
