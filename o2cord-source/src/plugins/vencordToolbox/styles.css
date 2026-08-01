@@ -8,6 +8,8 @@
     height: 20px;
     display: block;
     overflow: visible;
+    object-fit: contain;
+    pointer-events: none;
     image-rendering: pixelated;
     transform: translateY(1px);
     transition: transform 120ms ease, opacity 120ms ease;

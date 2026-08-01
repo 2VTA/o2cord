@@ -1,4 +1,4 @@
-// Vencord public-toolbox-icons-2
+// Vencord public-toolbox-img-button-fix
 // Standalone: false
 // Platform: win32
 // Updater Disabled: false
