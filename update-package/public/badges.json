@@ -1,18 +1,25 @@
 {
-  "badges": [
-    {
-      "id": "badge-msa31j3o",
-      "userId": "719085334989897750",
-      "name": ":)",
-      "image": "https://raw.githubusercontent.com/2VTA/o2cord/main/update-package/public/assets/badges/badge-msa31j3o.png",
-      "size": 23
-    },
-    {
-      "id": "badge-msb04oz9",
-      "userId": "719085334989897750",
-      "name": "Meggy ًں§،",
-      "image": "https://raw.githubusercontent.com/2VTA/o2cord/main/update-package/public/assets/badges/badge-msb04oz9.gif",
-      "size": 23
-    }
-  ]
+    "badges":  [
+                   {
+                       "id":  "badge-msa31j3o",
+                       "userId":  "719085334989897750",
+                       "name":  ":)",
+                       "image":  "https://raw.githubusercontent.com/2VTA/o2cord/main/update-package/public/assets/badges/badge-msa31j3o.png",
+                       "size":  23
+                   },
+                   {
+                       "id":  "badge-msb04oz9",
+                       "userId":  "719085334989897750",
+                       "name":  "Meggy ظ‹ع؛آ§طŒ",
+                       "image":  "https://raw.githubusercontent.com/2VTA/o2cord/main/update-package/public/assets/badges/badge-msb04oz9.gif",
+                       "size":  23
+                   },
+                   {
+                       "id":  "badge-msb0jehy",
+                       "userId":  "1228145726240854067",
+                       "name":  "Friend",
+                       "image":  "https://raw.githubusercontent.com/2VTA/o2cord/main/update-package/public/assets/badges/badge-msb0jehy.png",
+                       "size":  23
+                   }
+               ]
 }
