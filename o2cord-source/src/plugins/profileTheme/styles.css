@@ -87,10 +87,32 @@ html.o2-profile-theme-active [role="dialog"] [class*="outer_c0bea0"] {
     position: relative !important;
     isolation: isolate;
     overflow: hidden !important;
+    background-color: transparent !important;
+}
+
+html.o2-profile-theme-active [data-o2-profile-theme-layer="true"] {
+    position: absolute !important;
+    inset: 0 !important;
+    z-index: 0 !important;
+    pointer-events: none !important;
     background:
         linear-gradient(180deg, rgba(0, 0, 0, 0.06), rgba(0, 0, 0, var(--o2-profile-theme-dim, 0.52))),
         var(--o2-profile-theme-image) center top / cover no-repeat !important;
-    background-color: transparent !important;
+}
+
+html.o2-profile-theme-active .o2-profile-theme-target > :not([data-o2-profile-theme-layer]),
+html.o2-profile-theme-active [data-o2-profile-theme-target="true"] > :not([data-o2-profile-theme-layer]) {
+    position: relative;
+    z-index: 1;
+}
+
+html.o2-profile-theme-active .o2-profile-theme-target [class*="profileFrameLayer"],
+html.o2-profile-theme-active .o2-profile-theme-target [class*="profileFrameMask"],
+html.o2-profile-theme-active .o2-profile-theme-target img[src*="collectibles-shop"],
+html.o2-profile-theme-active [data-o2-profile-theme-target="true"] [class*="profileFrameLayer"],
+html.o2-profile-theme-active [data-o2-profile-theme-target="true"] [class*="profileFrameMask"],
+html.o2-profile-theme-active [data-o2-profile-theme-target="true"] img[src*="collectibles-shop"] {
+    z-index: 3 !important;
 }
 
 html.o2-profile-theme-active .o2-profile-theme-target [class*="userProfileInner"],

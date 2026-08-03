@@ -18,6 +18,7 @@ import { Button, Forms, React, Select, showToast, TextInput, Toasts } from "@web
 const STYLE_ID = "o2-profile-theme-vars";
 const TARGET_CLASS = "o2-profile-theme-target";
 const TARGET_ATTR = "data-o2-profile-theme-target";
+const IMAGE_LAYER_ATTR = "data-o2-profile-theme-layer";
 const TRANSPARENT_CHILD_ATTR = "data-o2-profile-theme-transparent";
 const PANEL_CHILD_ATTR = "data-o2-profile-theme-panel";
 const MAX_LOCAL_IMAGE_BYTES = 8 * 1024 * 1024;
@@ -122,25 +123,49 @@ function getProfileShell(element: Element) {
     return element.closest<HTMLElement>(PROFILE_SHELL_SELECTOR);
 }
 
+function getClassName(element: Element) {
+    const { className } = element as HTMLElement;
+    return typeof className === "string" ? className : "";
+}
+
+function isProfileFramePart(element: Element) {
+    const className = getClassName(element);
+
+    return className.includes("profileFrameLayer")
+        || className.includes("profileFrameMask")
+        || className.includes("avatarDecoration")
+        || (element instanceof HTMLImageElement && element.src.includes("collectibles-shop"));
+}
+
 function addTargetFromElement(targets: Set<HTMLElement>, element: Element) {
     const shell = getProfileShell(element);
     if (shell) targets.add(shell);
 }
 
+function ensureImageLayer(element: HTMLElement) {
+    const existingLayer = Array
+        .from(element.children)
+        .find(child => child instanceof HTMLElement && child.hasAttribute(IMAGE_LAYER_ATTR));
+
+    if (existingLayer) return;
+
+    const layer = document.createElement("div");
+    layer.className = "o2-profile-theme-image-layer";
+    layer.setAttribute(IMAGE_LAYER_ATTR, "true");
+    layer.setAttribute("aria-hidden", "true");
+    element.prepend(layer);
+}
+
 function applyTargetFallback(element: HTMLElement) {
     element.classList.add(TARGET_CLASS);
     element.setAttribute(TARGET_ATTR, "true");
-    element.style.setProperty(
-        "background",
-        "linear-gradient(180deg, rgba(0, 0, 0, 0.06), rgba(0, 0, 0, var(--o2-profile-theme-dim, 0.52))), var(--o2-profile-theme-image) center top / cover no-repeat",
-        "important"
-    );
+    ensureImageLayer(element);
     element.style.setProperty("background-color", "transparent", "important");
     applyChildFallbacks(element);
 }
 
 function applyTransparentChildFallback(element: HTMLElement) {
-    if (element.className.includes("profileFrameLayer") || element.className.includes("profileFrameMask")) return;
+    if (isProfileFramePart(element)) return;
 
     element.setAttribute(TRANSPARENT_CHILD_ATTR, "true");
     element.style.setProperty("background", "transparent", "important");
@@ -148,7 +173,7 @@ function applyTransparentChildFallback(element: HTMLElement) {
 }
 
 function applyPanelChildFallback(element: HTMLElement) {
-    if (element.className.includes("profileFrameLayer") || element.className.includes("profileFrameMask")) return;
+    if (isProfileFramePart(element)) return;
 
     element.setAttribute(PANEL_CHILD_ATTR, "true");
     element.style.setProperty("background", "var(--o2-profile-theme-panel-bg)", "important");
@@ -168,6 +193,10 @@ function applyChildFallbacks(element: HTMLElement) {
 function clearTargetFallback(element: Element) {
     element.classList.remove(TARGET_CLASS);
     element.removeAttribute(TARGET_ATTR);
+
+    element
+        .querySelectorAll(`[${IMAGE_LAYER_ATTR}]`)
+        .forEach(layer => layer.remove());
 
     element
         .querySelectorAll(`[${TRANSPARENT_CHILD_ATTR}], [${PANEL_CHILD_ATTR}]`)
