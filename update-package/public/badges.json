@@ -27,6 +27,13 @@
             "name": "Friend",
             "image": "https://raw.githubusercontent.com/2VTA/o2cord/main/update-package/public/assets/badges/badge-msb0jehy.png",
             "size": 23
+        },
+        {
+            "id": "badge-mscldigw",
+            "userId": "836605913510707210",
+            "name": "binshow9an",
+            "image": "https://raw.githubusercontent.com/2VTA/o2cord/main/update-package/public/assets/badges/badge-mscldigw.png",
+            "size": 25
         }
     ]
 }
