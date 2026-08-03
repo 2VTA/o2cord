@@ -55,7 +55,6 @@ const PROFILE_TARGET_SELECTOR = [
     "[class*='userPopoutOuter']",
     "[class*='outer_c0bea0']",
     "[class*='accountProfilePopout']",
-    "[class*='accountPopout']",
     "[class*='themeContainer_ce8328']",
     "[class*='profilePanel'] [class*='userProfile']",
     "[style*='--profile-gradient-primary-color']",
