@@ -80,6 +80,9 @@ html.o2-profile-theme-active [class*="userPopoutOuter"],
 html.o2-profile-theme-active [class*="outer_c0bea0"],
 html.o2-profile-theme-active [class*="accountProfilePopout"],
 html.o2-profile-theme-active [class*="profilePanel"] [class*="userProfile"] {
+    --profile-gradient-overlay-color: transparent !important;
+    --profile-gradient-overlay-synced-with-user-theme: transparent !important;
+    --profile-gradient-modal-background-color: transparent !important;
     position: relative !important;
     isolation: isolate;
     overflow: hidden !important;
@@ -141,13 +144,23 @@ html.o2-profile-theme-active .o2-profile-theme-target [class*="container__"],
 html.o2-profile-theme-active [class*="outer_c0bea0"] > [class*="inner_c0bea0"],
 html.o2-profile-theme-active [class*="outer_c0bea0"] [class*="body_ce8328"],
 html.o2-profile-theme-active [class*="outer_c0bea0"] [class*="userInfo_ce8328"] {
+    --profile-gradient-overlay-color: transparent !important;
+    --profile-gradient-overlay-synced-with-user-theme: transparent !important;
+    --profile-gradient-modal-background-color: transparent !important;
     background: transparent !important;
     background-color: transparent !important;
 }
 
+html.o2-profile-theme-active .o2-profile-theme-target [class*="body_ce8328"],
+html.o2-profile-theme-active [class*="outer_c0bea0"] [class*="body_ce8328"] {
+    background:
+        linear-gradient(180deg, rgba(0, 0, 0, 0.02), rgba(0, 0, 0, var(--o2-profile-theme-dim, 0.52))),
+        var(--o2-profile-theme-image) center top / cover no-repeat !important;
+}
+
 html.o2-profile-theme-active .o2-profile-theme-target [class*="activity"],
 html.o2-profile-theme-active .o2-profile-theme-target [class*="menuOverlay"] {
-    background: var(--o2-profile-theme-panel-bg, rgba(18, 18, 24, 0.58)) !important;
+    background: rgba(18, 18, 24, 0.34) !important;
 }
 
 html.o2-profile-theme-active .o2-profile-theme-target [class*="overlayBackground"],
@@ -163,7 +176,13 @@ html.o2-profile-theme-active .o2-profile-theme-target [class*="menu_"],
 html.o2-profile-theme-active .o2-profile-theme-target [class*="menu__"],
 html.o2-profile-theme-active .o2-profile-theme-target [class*="card_"],
 html.o2-profile-theme-active .o2-profile-theme-target [class*="card__"] {
-    background: rgba(18, 18, 24, 0.42) !important;
+    background: rgba(18, 18, 24, 0.34) !important;
+}
+
+html.o2-profile-theme-active [class*="panels"] [class*="activityPanel"],
+html.o2-profile-theme-active [class*="panels"] [class*="container"],
+html.o2-profile-theme-active [class*="panels"] [class*="panel"] {
+    background-color: rgba(18, 18, 24, 0.28) !important;
 }
 
 html.o2-profile-theme-active .o2-profile-theme-target [class*="banner"],
