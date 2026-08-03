@@ -119,7 +119,8 @@ html.o2-profile-theme-active [role="dialog"] [class*="outer_c0bea0"] [class*="bo
 html.o2-profile-theme-active [role="dialog"] [class*="outer_c0bea0"] [class*="userInfo_ce8328"],
 html.o2-profile-theme-active [class*="outer_c0bea0"] > [class*="inner_c0bea0"],
 html.o2-profile-theme-active [class*="outer_c0bea0"] [class*="body_ce8328"],
-html.o2-profile-theme-active [class*="outer_c0bea0"] [class*="userInfo_ce8328"] {
+html.o2-profile-theme-active [class*="outer_c0bea0"] [class*="userInfo_ce8328"],
+html.o2-profile-theme-active [data-o2-profile-theme-transparent="true"] {
     --profile-gradient-overlay-color: transparent !important;
     --profile-gradient-overlay-synced-with-user-theme: transparent !important;
     --profile-gradient-modal-background-color: transparent !important;
@@ -145,8 +146,9 @@ html.o2-profile-theme-active .o2-profile-theme-target [class*="card__"],
 html.o2-profile-theme-active [data-o2-profile-theme-target="true"] [class*="card__"],
 html.o2-profile-theme-active [class*="popoutContainer"][class*="accountPopout"] [class*="section"],
 html.o2-profile-theme-active [class*="popoutContainer"][class*="accountPopout"] [class*="card_"],
-html.o2-profile-theme-active [class*="popoutContainer"][class*="accountPopout"] [class*="card__"] {
-    background: rgba(18, 18, 24, 0.34) !important;
+html.o2-profile-theme-active [class*="popoutContainer"][class*="accountPopout"] [class*="card__"],
+html.o2-profile-theme-active [data-o2-profile-theme-panel="true"] {
+    background: var(--o2-profile-theme-panel-bg, rgba(18, 18, 24, 0.34)) !important;
 }
 
 html.o2-profile-theme-active .o2-profile-theme-target [class*="banner"],
@@ -157,6 +159,7 @@ html.o2-profile-theme-active .o2-profile-theme-target [class*="userProfileInner"
 
 html.o2-profile-theme-active .o2-profile-theme-target [class*="banner"],
 html.o2-profile-theme-active [data-o2-profile-theme-target="true"] [class*="banner"],
-html.o2-profile-theme-active .o2-profile-theme-target [class*="fill_b83360"] {
+html.o2-profile-theme-active .o2-profile-theme-target [class*="fill_b83360"],
+html.o2-profile-theme-active [data-o2-profile-theme-target="true"] [class*="fill_b83360"] {
     background-color: transparent !important;
 }
