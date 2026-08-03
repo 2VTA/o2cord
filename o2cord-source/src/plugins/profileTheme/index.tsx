@@ -52,10 +52,12 @@ function getModeVars(mode: ThemeMode) {
 }
 
 const PROFILE_TARGET_SELECTOR = [
+    "[class*='popoutContainer'][class*='accountPopout'] [class*='outer_c0bea0']",
+    "[class*='accountPopout'] [class*='outer_c0bea0']",
+    "[role='dialog'] [class*='outer_c0bea0']",
+    "[class*='outer_c0bea0']",
     "[class*='userProfileOuter']",
     "[class*='userPopoutOuter']",
-    "[class*='outer_c0bea0']",
-    "[class*='accountProfilePopout']",
     "[class*='themeContainer_ce8328']",
     "[class*='profilePanel'] [class*='userProfile']",
     "[style*='--profile-gradient-primary-color']",
@@ -117,7 +119,7 @@ function scheduleProfileScans() {
 
 function handleAppLifecycleChange() {
     if (!settings.store.imageUrl) return;
-    scheduleProfileScans();
+    refreshProfileTheme();
 }
 
 function addLifecycleListeners() {
@@ -183,15 +185,15 @@ async function pickLocalImage() {
     return readFileAsDataUrl(file);
 }
 
-function applyProfileTheme() {
-    if (!O2CORD_DEBUG) return;
+function writeProfileThemeVars() {
+    if (!O2CORD_DEBUG) return false;
 
     const imageUrl = cleanImageUrl(settings.store.imageUrl);
     const root = document.documentElement;
 
     if (!imageUrl) {
         removeProfileTheme();
-        return;
+        return false;
     }
 
     const modeVars = getModeVars(settings.store.mode as ThemeMode);
@@ -211,6 +213,20 @@ function applyProfileTheme() {
         }
     `;
     root.classList.add("o2-profile-theme-active");
+    return true;
+}
+
+function refreshProfileTheme() {
+    if (!settings.store.imageUrl) return;
+
+    if (writeProfileThemeVars())
+        scheduleProfileScans();
+}
+
+function applyProfileTheme() {
+    if (!O2CORD_DEBUG) return;
+
+    if (!writeProfileThemeVars()) return;
     startProfileWatcher();
     scheduleProfileScans();
 }
