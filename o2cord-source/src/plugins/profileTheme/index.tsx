@@ -66,6 +66,8 @@ const PROFILE_TARGET_SELECTOR = [
     "[class*='userProfileOuter']",
     "[class*='userPopoutOuter']",
     "[class*='themeContainer_ce8328']",
+    "[class*='profileFrameContainer']",
+    "[class*='custom-profile-frame']",
     "[class*='profilePanel'] [class*='userProfile']",
     "[style*='--profile-gradient-primary-color']",
     "[style*='--profile-gradient-secondary-color']"
@@ -77,10 +79,16 @@ const PROFILE_SHELL_SELECTOR = [
     "[class*='userPopoutOuter']",
     "[class*='themeContainer_ce8328']",
     "[class*='custom-user-profile-theme']",
-    "[class*='user-profile-popout']"
+    "[class*='user-profile-popout']",
+    "[class*='profileFrameContainer']",
+    "[class*='custom-profile-frame']"
 ].join(",");
 
 const PROFILE_FRAME_SELECTOR = [
+    "[class*='profileFrameContainer']",
+    "[class*='custom-profile-frame']",
+    "[class*='profileFrameLayer']",
+    "[class*='profileFrameMask']",
     "[class*='avatarDecoration']",
     "[class*='decoration']",
     "[src*='collectibles-shop']",
@@ -132,12 +140,16 @@ function applyTargetFallback(element: HTMLElement) {
 }
 
 function applyTransparentChildFallback(element: HTMLElement) {
+    if (element.className.includes("profileFrameLayer") || element.className.includes("profileFrameMask")) return;
+
     element.setAttribute(TRANSPARENT_CHILD_ATTR, "true");
     element.style.setProperty("background", "transparent", "important");
     element.style.setProperty("background-color", "transparent", "important");
 }
 
 function applyPanelChildFallback(element: HTMLElement) {
+    if (element.className.includes("profileFrameLayer") || element.className.includes("profileFrameMask")) return;
+
     element.setAttribute(PANEL_CHILD_ATTR, "true");
     element.style.setProperty("background", "var(--o2-profile-theme-panel-bg)", "important");
     element.style.setProperty("background-color", "transparent", "important");

@@ -76,6 +76,8 @@
 
 html.o2-profile-theme-active .o2-profile-theme-target,
 html.o2-profile-theme-active [data-o2-profile-theme-target="true"],
+html.o2-profile-theme-active [class*="profileFrameContainer"],
+html.o2-profile-theme-active [class*="custom-profile-frame"],
 html.o2-profile-theme-active [class*="popoutContainer"][class*="accountPopout"] [class*="outer_c0bea0"],
 html.o2-profile-theme-active [class*="accountPopout"] [class*="outer_c0bea0"],
 html.o2-profile-theme-active [role="dialog"] [class*="outer_c0bea0"] {
