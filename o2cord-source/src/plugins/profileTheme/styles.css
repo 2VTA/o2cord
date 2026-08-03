@@ -74,12 +74,7 @@
     font-size: 13px;
 }
 
-html.o2-profile-theme-active .o2-profile-theme-target,
-html.o2-profile-theme-active [class*="userProfileOuter"],
-html.o2-profile-theme-active [class*="userPopoutOuter"],
-html.o2-profile-theme-active [class*="outer_c0bea0"],
-html.o2-profile-theme-active [class*="accountProfilePopout"],
-html.o2-profile-theme-active [class*="profilePanel"] [class*="userProfile"] {
+html.o2-profile-theme-active .o2-profile-theme-target {
     --profile-gradient-overlay-color: transparent !important;
     --profile-gradient-overlay-synced-with-user-theme: transparent !important;
     --profile-gradient-modal-background-color: transparent !important;
@@ -92,12 +87,7 @@ html.o2-profile-theme-active [class*="profilePanel"] [class*="userProfile"] {
     background-color: transparent !important;
 }
 
-html.o2-profile-theme-active .o2-profile-theme-target::before,
-html.o2-profile-theme-active [class*="userProfileOuter"]::before,
-html.o2-profile-theme-active [class*="userPopoutOuter"]::before,
-html.o2-profile-theme-active [class*="outer_c0bea0"]::before,
-html.o2-profile-theme-active [class*="accountProfilePopout"]::before,
-html.o2-profile-theme-active [class*="profilePanel"] [class*="userProfile"]::before {
+html.o2-profile-theme-active .o2-profile-theme-target::before {
     position: absolute;
     inset: 0;
     z-index: -2;
@@ -110,25 +100,13 @@ html.o2-profile-theme-active [class*="profilePanel"] [class*="userProfile"]::bef
     opacity: var(--o2-profile-theme-image-opacity, 0.48);
 }
 
-html.o2-profile-theme-active .o2-profile-theme-target::after,
-html.o2-profile-theme-active [class*="userProfileOuter"]::after,
-html.o2-profile-theme-active [class*="userPopoutOuter"]::after,
-html.o2-profile-theme-active [class*="outer_c0bea0"]::after,
-html.o2-profile-theme-active [class*="accountProfilePopout"]::after,
-html.o2-profile-theme-active [class*="profilePanel"] [class*="userProfile"]::after {
+html.o2-profile-theme-active .o2-profile-theme-target::after {
     position: absolute;
     inset: 0;
     z-index: -1;
     content: "";
     pointer-events: none;
     background: linear-gradient(180deg, rgba(0, 0, 0, 0.08), rgba(0, 0, 0, var(--o2-profile-theme-dim, 0.52)));
-}
-
-html.o2-profile-theme-active [class*="activity"],
-html.o2-profile-theme-active [class*="activityUserPopout"],
-html.o2-profile-theme-active [class*="menuOverlay"],
-html.o2-profile-theme-active [class*="userProfileModalOverlayBackground"] {
-    background: var(--o2-profile-theme-panel-bg, rgba(18, 18, 24, 0.58)) !important;
 }
 
 html.o2-profile-theme-active .o2-profile-theme-target [class*="userProfileInner"],
@@ -167,7 +145,9 @@ html.o2-profile-theme-active .o2-profile-theme-target [class*="overlayBackground
 html.o2-profile-theme-active .o2-profile-theme-target [class*="bodyInnerWrapper"],
 html.o2-profile-theme-active .o2-profile-theme-target [class*="body_ce8328"],
 html.o2-profile-theme-active [class*="outer_c0bea0"] [class*="body_ce8328"] {
-    background: transparent !important;
+    background:
+        linear-gradient(180deg, rgba(0, 0, 0, 0.02), rgba(0, 0, 0, var(--o2-profile-theme-dim, 0.52))),
+        var(--o2-profile-theme-image) center top / cover no-repeat !important;
     background-color: transparent !important;
 }
 
@@ -179,18 +159,12 @@ html.o2-profile-theme-active .o2-profile-theme-target [class*="card__"] {
     background: rgba(18, 18, 24, 0.34) !important;
 }
 
-html.o2-profile-theme-active [class*="panels"] [class*="activityPanel"],
-html.o2-profile-theme-active [class*="panels"] [class*="container"],
-html.o2-profile-theme-active [class*="panels"] [class*="panel"] {
-    background-color: rgba(18, 18, 24, 0.28) !important;
-}
-
 html.o2-profile-theme-active .o2-profile-theme-target [class*="banner"],
-html.o2-profile-theme-active [class*="userProfileInner"] {
+html.o2-profile-theme-active .o2-profile-theme-target [class*="userProfileInner"] {
     backdrop-filter: blur(1px);
 }
 
 html.o2-profile-theme-active .o2-profile-theme-target [class*="banner"],
-html.o2-profile-theme-active [class*="banner"] {
+html.o2-profile-theme-active .o2-profile-theme-target [class*="fill_b83360"] {
     background-color: transparent !important;
 }
