@@ -20,7 +20,7 @@ const MAX_LOCAL_IMAGE_BYTES = 8 * 1024 * 1024;
 type ThemeMode = "dim" | "full";
 
 let observer: MutationObserver | null = null;
-let scanTimer: ReturnType<typeof setInterval> | null = null;
+let scanFrame: number | null = null;
 
 function cleanImageUrl(value: string) {
     return value.trim();
@@ -49,61 +49,55 @@ function getModeVars(mode: ThemeMode) {
     };
 }
 
-function isProfileLikeElement(element: Element) {
-    const className = String((element as HTMLElement).className || "");
-    const style = (element as HTMLElement).getAttribute("style") || "";
-
-    if (
-        className.includes("userProfileOuter")
-        || className.includes("userPopoutOuter")
-        || className.includes("accountProfilePopout")
-        || className.includes("profilePanel")
-        || style.includes("--profile-gradient-primary-color")
-        || style.includes("--profile-gradient-secondary-color")
-        || style.includes("--custom-user-profile")
-    ) {
-        const rect = element.getBoundingClientRect();
-        return rect.width >= 240 && rect.height >= 280;
-    }
-
-    return false;
-}
+const PROFILE_TARGET_SELECTOR = [
+    "[class*='userProfileOuter']",
+    "[class*='userPopoutOuter']",
+    "[class*='accountProfilePopout']",
+    "[class*='profilePanel'] [class*='userProfile']",
+    "[style*='--profile-gradient-primary-color']",
+    "[style*='--profile-gradient-secondary-color']"
+].join(",");
 
 function markProfileTargets() {
     if (!O2CORD_DEBUG || !settings.store.imageUrl) return;
 
+    const targets = new Set(document.querySelectorAll<HTMLElement>(PROFILE_TARGET_SELECTOR));
+
     document.querySelectorAll(`.${TARGET_CLASS}`).forEach(element => {
-        if (!isProfileLikeElement(element))
+        if (!targets.has(element as HTMLElement))
             element.classList.remove(TARGET_CLASS);
     });
 
-    document.querySelectorAll<HTMLElement>("[class], [style]").forEach(element => {
-        if (isProfileLikeElement(element))
-            element.classList.add(TARGET_CLASS);
+    targets.forEach(element => element.classList.add(TARGET_CLASS));
+}
+
+function queueProfileTargetScan() {
+    if (scanFrame != null) return;
+
+    scanFrame = requestAnimationFrame(() => {
+        scanFrame = null;
+        markProfileTargets();
     });
 }
 
 function startProfileWatcher() {
     stopProfileWatcher(false);
 
-    markProfileTargets();
-    observer = new MutationObserver(() => markProfileTargets());
+    queueProfileTargetScan();
+    observer = new MutationObserver(queueProfileTargetScan);
     observer.observe(document.body, {
         childList: true,
-        subtree: true,
-        attributes: true,
-        attributeFilter: ["class", "style"]
+        subtree: true
     });
-    scanTimer = setInterval(markProfileTargets, 750);
 }
 
 function stopProfileWatcher(clearTargets = true) {
     observer?.disconnect();
     observer = null;
 
-    if (scanTimer) {
-        clearInterval(scanTimer);
-        scanTimer = null;
+    if (scanFrame != null) {
+        cancelAnimationFrame(scanFrame);
+        scanFrame = null;
     }
 
     if (clearTargets)
