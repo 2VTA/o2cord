@@ -1,8 +1,8 @@
 {
-    "version":  "1.3.17",
-    "hash":  "public-profile-theme-20260803",
+    "version":  "1.3.18",
+    "hash":  "public-hide-profile-theme-20260803",
     "author":  "o2cord",
-    "message":  "Add ProfileTheme plugin",
+    "message":  "Hide ProfileTheme from public builds",
     "notes":  [
                   "Public o2cord update package",
                   "ussro2 backgrounds are loaded from backgrounds.json beside this manifest",
