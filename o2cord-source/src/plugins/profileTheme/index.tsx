@@ -13,7 +13,7 @@ import { createAndAppendStyle } from "@utils/css";
 import { Margins } from "@utils/margins";
 import definePlugin, { OptionType, StartAt } from "@utils/types";
 import { chooseFile } from "@utils/web";
-import { Button, Forms, React, Select, showToast, TextInput, Toasts } from "@webpack/common";
+import { Button, Forms, React, Select, showToast, TextInput, Toasts, UserStore } from "@webpack/common";
 
 const STYLE_ID = "o2-profile-theme-vars";
 const TARGET_CLASS = "o2-profile-theme-target";
@@ -96,6 +96,18 @@ const PROFILE_FRAME_SELECTOR = [
     "[class*='profileEffect']"
 ].join(",");
 
+const PROFILE_THEME_EXCLUDED_SELECTOR = [
+    "[class*='frameGridItem']",
+    "[class*='profilePreviewContainer']",
+    "[class*='profileContainer_c9a5b2']",
+    "[class*='previewContainer_c9a5b2']",
+    "[aria-label*='Profile Frame Preview']",
+    "[class*='collectiblesShop']",
+    "[class*='collectibles-shop']",
+    "[class*='shop_']",
+    "[class*='shop__']"
+].join(",");
+
 const TRANSPARENT_CHILD_SELECTOR = [
     "[class*='inner_c0bea0']",
     "[class*='userProfileInner']",
@@ -117,10 +129,17 @@ const PANEL_CHILD_SELECTOR = [
 ].join(",");
 
 function getProfileShell(element: Element) {
+    if (element.closest(PROFILE_THEME_EXCLUDED_SELECTOR))
+        return null;
+
     if (element.matches(PROFILE_SHELL_SELECTOR))
         return element as HTMLElement;
 
-    return element.closest<HTMLElement>(PROFILE_SHELL_SELECTOR);
+    const shell = element.closest<HTMLElement>(PROFILE_SHELL_SELECTOR);
+    if (shell?.closest(PROFILE_THEME_EXCLUDED_SELECTOR))
+        return null;
+
+    return shell;
 }
 
 function getClassName(element: Element) {
@@ -139,7 +158,33 @@ function isProfileFramePart(element: Element) {
 
 function addTargetFromElement(targets: Set<HTMLElement>, element: Element) {
     const shell = getProfileShell(element);
-    if (shell) targets.add(shell);
+    if (shell && isCurrentUserProfileShell(shell)) targets.add(shell);
+}
+
+function isCurrentUserProfileShell(element: HTMLElement) {
+    const me = UserStore.getCurrentUser() as any;
+    if (!me?.id) return false;
+
+    const text = element.textContent ?? "";
+    const names = [
+        me.id,
+        me.username,
+        me.globalName,
+        me.displayName
+    ].filter((name): name is string => typeof name === "string" && name.length > 1);
+
+    if (names.some(name => text.includes(name))) return true;
+
+    const avatarUrl = typeof me.getAvatarURL === "function"
+        ? me.getAvatarURL(undefined, 128, true)
+        : "";
+    const avatarHash = typeof me.avatar === "string" ? me.avatar : "";
+
+    return Array.from(element.querySelectorAll<HTMLImageElement>("img"))
+        .some(img => {
+            const src = img.src || "";
+            return Boolean((avatarUrl && src.includes(avatarUrl.split("?")[0])) || (avatarHash && src.includes(avatarHash)));
+        });
 }
 
 function ensureImageLayer(element: HTMLElement) {
