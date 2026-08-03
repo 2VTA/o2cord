@@ -1,8 +1,8 @@
 {
-    "version":  "1.3.16",
-    "hash":  "public-badges-refresh-20260803",
+    "version":  "1.3.17",
+    "hash":  "public-profile-theme-20260803",
     "author":  "o2cord",
-    "message":  "Refresh shared o2cord badges",
+    "message":  "Add ProfileTheme plugin",
     "notes":  [
                   "Public o2cord update package",
                   "ussro2 backgrounds are loaded from backgrounds.json beside this manifest",

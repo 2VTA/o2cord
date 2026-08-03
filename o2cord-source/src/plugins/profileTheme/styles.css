@@ -1,0 +1,131 @@
+.o2-profile-theme-settings {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.o2-profile-theme-row {
+    display: grid;
+    grid-template-columns: minmax(220px, 1fr) auto;
+    gap: 10px;
+    align-items: center;
+}
+
+.o2-profile-theme-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.o2-profile-theme-preview {
+    position: relative;
+    width: 320px;
+    max-width: 100%;
+    height: 580px;
+    overflow: hidden;
+    border: 1px solid var(--background-modifier-accent);
+    border-radius: 10px;
+    background:
+        linear-gradient(180deg, rgba(0, 0, 0, 0.08), rgba(0, 0, 0, 0.62)),
+        var(--background-secondary-alt);
+}
+
+.o2-profile-theme-preview::before {
+    position: absolute;
+    inset: 0;
+    content: "";
+    background-image: var(--o2-profile-theme-settings-preview-image);
+    background-position: center;
+    background-repeat: no-repeat;
+    background-size: cover;
+    opacity: var(--o2-profile-theme-settings-preview-opacity, 0.48);
+}
+
+.o2-profile-theme-preview-empty {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    color: var(--text-muted);
+    font-size: 13px;
+}
+
+.o2-profile-theme-preview-card {
+    position: absolute;
+    right: 16px;
+    bottom: 18px;
+    left: 16px;
+    padding: 14px;
+    border-radius: 8px;
+    background: rgba(12, 12, 16, 0.62);
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.3);
+    color: var(--text-normal);
+}
+
+.o2-profile-theme-preview-name {
+    font-size: 20px;
+    font-weight: 800;
+    line-height: 24px;
+}
+
+.o2-profile-theme-preview-subtitle {
+    margin-top: 4px;
+    color: var(--text-muted);
+    font-size: 13px;
+}
+
+html.o2-profile-theme-active [class*="userProfileOuter"],
+html.o2-profile-theme-active [class*="userPopoutOuter"],
+html.o2-profile-theme-active [class*="accountProfilePopout"],
+html.o2-profile-theme-active [class*="profilePanel"] [class*="userProfile"] {
+    position: relative !important;
+    isolation: isolate;
+    overflow: hidden !important;
+    background: transparent !important;
+}
+
+html.o2-profile-theme-active [class*="userProfileOuter"]::before,
+html.o2-profile-theme-active [class*="userPopoutOuter"]::before,
+html.o2-profile-theme-active [class*="accountProfilePopout"]::before,
+html.o2-profile-theme-active [class*="profilePanel"] [class*="userProfile"]::before {
+    position: absolute;
+    inset: 0;
+    z-index: -2;
+    content: "";
+    pointer-events: none;
+    background-image: var(--o2-profile-theme-image);
+    background-position: center;
+    background-repeat: no-repeat;
+    background-size: cover;
+    opacity: var(--o2-profile-theme-image-opacity, 0.48);
+}
+
+html.o2-profile-theme-active [class*="userProfileOuter"]::after,
+html.o2-profile-theme-active [class*="userPopoutOuter"]::after,
+html.o2-profile-theme-active [class*="accountProfilePopout"]::after,
+html.o2-profile-theme-active [class*="profilePanel"] [class*="userProfile"]::after {
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    content: "";
+    pointer-events: none;
+    background: linear-gradient(180deg, rgba(0, 0, 0, 0.08), rgba(0, 0, 0, var(--o2-profile-theme-dim, 0.52)));
+}
+
+html.o2-profile-theme-active [class*="userProfileInner"],
+html.o2-profile-theme-active [class*="overlayBackground"],
+html.o2-profile-theme-active [class*="bodyInnerWrapper"],
+html.o2-profile-theme-active [class*="activity"],
+html.o2-profile-theme-active [class*="activityUserPopout"],
+html.o2-profile-theme-active [class*="menuOverlay"],
+html.o2-profile-theme-active [class*="userProfileModalOverlayBackground"] {
+    background: var(--o2-profile-theme-panel-bg, rgba(18, 18, 24, 0.58)) !important;
+}
+
+html.o2-profile-theme-active [class*="userProfileInner"] {
+    backdrop-filter: blur(1px);
+}
+
+html.o2-profile-theme-active [class*="banner"] {
+    background-color: transparent !important;
+}
