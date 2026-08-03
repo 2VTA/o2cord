@@ -1,4 +1,4 @@
-// Vencord public-badges-refresh-20260803
+// Vencord public-profile-theme-20260803
 // Standalone: false
 // Platform: win32
 // Updater Disabled: false
