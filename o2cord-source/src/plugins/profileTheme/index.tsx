@@ -7,7 +7,9 @@
 import "./styles.css";
 
 import { definePluginSettings } from "@api/Settings";
+import { managedStyleRootNode } from "@api/Styles";
 import { Devs } from "@utils/constants";
+import { createAndAppendStyle } from "@utils/css";
 import { Margins } from "@utils/margins";
 import definePlugin, { OptionType, StartAt } from "@utils/types";
 import { chooseFile } from "@utils/web";
@@ -22,6 +24,8 @@ type ThemeMode = "dim" | "full";
 let observer: MutationObserver | null = null;
 let scanFrame: number | null = null;
 let scanTimeouts: ReturnType<typeof setTimeout>[] = [];
+let keepAliveInterval: ReturnType<typeof setInterval> | null = null;
+let styleElement: HTMLStyleElement | null = null;
 let lifecycleListenersActive = false;
 
 function cleanImageUrl(value: string) {
@@ -77,6 +81,14 @@ function markProfileTargets() {
     targets.forEach(element => element.classList.add(TARGET_CLASS));
 }
 
+function ensureProfileThemeStyle() {
+    if (styleElement?.isConnected) return styleElement;
+
+    document.getElementById(STYLE_ID)?.remove();
+    styleElement = createAndAppendStyle(STYLE_ID, managedStyleRootNode);
+    return styleElement;
+}
+
 function queueProfileTargetScan() {
     if (scanFrame != null) return;
 
@@ -98,7 +110,10 @@ function startProfileWatcher() {
     stopProfileWatcher(false);
 
     scheduleProfileScans();
-    observer = new MutationObserver(queueProfileTargetScan);
+    observer = new MutationObserver(() => {
+        writeProfileThemeVars();
+        queueProfileTargetScan();
+    });
     observer.observe(document.body, {
         childList: true,
         subtree: true,
@@ -106,6 +121,7 @@ function startProfileWatcher() {
         attributeFilter: ["class", "style"]
     });
     addLifecycleListeners();
+    startKeepAlive();
 }
 
 function scheduleProfileScans() {
@@ -120,6 +136,24 @@ function scheduleProfileScans() {
 function handleAppLifecycleChange() {
     if (!settings.store.imageUrl) return;
     refreshProfileTheme();
+}
+
+function startKeepAlive() {
+    if (keepAliveInterval != null) return;
+
+    keepAliveInterval = setInterval(() => {
+        if (!settings.store.imageUrl) return;
+
+        writeProfileThemeVars();
+        markProfileTargets();
+    }, 1000);
+}
+
+function stopKeepAlive() {
+    if (keepAliveInterval == null) return;
+
+    clearInterval(keepAliveInterval);
+    keepAliveInterval = null;
 }
 
 function addLifecycleListeners() {
@@ -154,6 +188,7 @@ function stopProfileWatcher(clearTargets = true) {
 
     scanTimeouts.forEach(clearTimeout);
     scanTimeouts = [];
+    stopKeepAlive();
 
     if (clearTargets)
         document.querySelectorAll(`.${TARGET_CLASS}`).forEach(element => element.classList.remove(TARGET_CLASS));
@@ -197,12 +232,7 @@ function writeProfileThemeVars() {
     }
 
     const modeVars = getModeVars(settings.store.mode as ThemeMode);
-    let style = document.getElementById(STYLE_ID) as HTMLStyleElement | null;
-    if (!style) {
-        style = document.createElement("style");
-        style.id = STYLE_ID;
-        document.head.appendChild(style);
-    }
+    const style = ensureProfileThemeStyle();
 
     style.textContent = `
         :root {
@@ -234,6 +264,7 @@ function applyProfileTheme() {
 function removeProfileTheme() {
     document.documentElement.classList.remove("o2-profile-theme-active");
     document.getElementById(STYLE_ID)?.remove();
+    styleElement = null;
     stopProfileWatcher();
 }
 
@@ -328,7 +359,8 @@ const settings = definePluginSettings({
         type: OptionType.STRING,
         description: "ProfileTheme image or GIF URL",
         default: "",
-        hidden: true
+        hidden: true,
+        onChange: applyProfileTheme
     },
     mode: {
         type: OptionType.SELECT,
@@ -336,7 +368,8 @@ const settings = definePluginSettings({
         options: [
             { label: "Dim image", value: "dim", default: true },
             { label: "Full image", value: "full" }
-        ]
+        ],
+        onChange: applyProfileTheme
     },
     manager: {
         type: OptionType.COMPONENT,
