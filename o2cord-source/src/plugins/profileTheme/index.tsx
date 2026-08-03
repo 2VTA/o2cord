@@ -72,6 +72,8 @@ async function pickLocalImage() {
 }
 
 function applyProfileTheme() {
+    if (!O2CORD_DEBUG) return;
+
     const imageUrl = cleanImageUrl(settings.store.imageUrl);
     const root = document.documentElement;
 
@@ -214,9 +216,11 @@ const settings = definePluginSettings({
 
 export default definePlugin({
     name: "ProfileTheme",
-    description: "Use a local 320x580-style image or GIF as your profile theme background.",
+    description: "Private debug profile theme image background.",
     tags: ["Appearance", "Customisation"],
     authors: [Devs.Ryder],
+    hidden: !O2CORD_DEBUG,
+    enabledByDefault: O2CORD_DEBUG,
     settings,
     startAt: StartAt.DOMContentLoaded,
     start: applyProfileTheme,
