@@ -21,6 +21,7 @@ type ThemeMode = "dim" | "full";
 
 let observer: MutationObserver | null = null;
 let scanFrame: number | null = null;
+let scanTimeouts: ReturnType<typeof setTimeout>[] = [];
 
 function cleanImageUrl(value: string) {
     return value.trim();
@@ -52,7 +53,10 @@ function getModeVars(mode: ThemeMode) {
 const PROFILE_TARGET_SELECTOR = [
     "[class*='userProfileOuter']",
     "[class*='userPopoutOuter']",
+    "[class*='outer_c0bea0']",
     "[class*='accountProfilePopout']",
+    "[class*='accountPopout']",
+    "[class*='themeContainer_ce8328']",
     "[class*='profilePanel'] [class*='userProfile']",
     "[style*='--profile-gradient-primary-color']",
     "[style*='--profile-gradient-secondary-color']"
@@ -64,7 +68,7 @@ function markProfileTargets() {
     const targets = new Set(document.querySelectorAll<HTMLElement>(PROFILE_TARGET_SELECTOR));
 
     document.querySelectorAll(`.${TARGET_CLASS}`).forEach(element => {
-        if (!targets.has(element as HTMLElement))
+        if (!document.documentElement.contains(element))
             element.classList.remove(TARGET_CLASS);
     });
 
@@ -83,12 +87,23 @@ function queueProfileTargetScan() {
 function startProfileWatcher() {
     stopProfileWatcher(false);
 
-    queueProfileTargetScan();
+    scheduleProfileScans();
     observer = new MutationObserver(queueProfileTargetScan);
     observer.observe(document.body, {
         childList: true,
-        subtree: true
+        subtree: true,
+        attributes: true,
+        attributeFilter: ["class", "style"]
     });
+}
+
+function scheduleProfileScans() {
+    scanTimeouts.forEach(clearTimeout);
+    scanTimeouts = [];
+    queueProfileTargetScan();
+
+    for (const delay of [100, 350, 800, 1600, 3000, 5000])
+        scanTimeouts.push(setTimeout(queueProfileTargetScan, delay));
 }
 
 function stopProfileWatcher(clearTargets = true) {
@@ -99,6 +114,9 @@ function stopProfileWatcher(clearTargets = true) {
         cancelAnimationFrame(scanFrame);
         scanFrame = null;
     }
+
+    scanTimeouts.forEach(clearTimeout);
+    scanTimeouts = [];
 
     if (clearTargets)
         document.querySelectorAll(`.${TARGET_CLASS}`).forEach(element => element.classList.remove(TARGET_CLASS));
@@ -159,6 +177,7 @@ function applyProfileTheme() {
     `;
     root.classList.add("o2-profile-theme-active");
     startProfileWatcher();
+    scheduleProfileScans();
 }
 
 function removeProfileTheme() {
