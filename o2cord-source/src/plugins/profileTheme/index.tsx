@@ -22,6 +22,7 @@ type ThemeMode = "dim" | "full";
 let observer: MutationObserver | null = null;
 let scanFrame: number | null = null;
 let scanTimeouts: ReturnType<typeof setTimeout>[] = [];
+let lifecycleListenersActive = false;
 
 function cleanImageUrl(value: string) {
     return value.trim();
@@ -83,6 +84,14 @@ function queueProfileTargetScan() {
     });
 }
 
+function queueImmediateProfileTargetScan() {
+    if (!O2CORD_DEBUG || !settings.store.imageUrl) return;
+
+    try {
+        markProfileTargets();
+    } catch { }
+}
+
 function startProfileWatcher() {
     stopProfileWatcher(false);
 
@@ -94,6 +103,7 @@ function startProfileWatcher() {
         attributes: true,
         attributeFilter: ["class", "style"]
     });
+    addLifecycleListeners();
 }
 
 function scheduleProfileScans() {
@@ -101,13 +111,39 @@ function scheduleProfileScans() {
     scanTimeouts = [];
     queueProfileTargetScan();
 
-    for (const delay of [100, 350, 800, 1600, 3000, 5000])
-        scanTimeouts.push(setTimeout(queueProfileTargetScan, delay));
+    for (const delay of [50, 150, 350, 800, 1600, 3000, 5000])
+        scanTimeouts.push(setTimeout(queueImmediateProfileTargetScan, delay));
+}
+
+function handleAppLifecycleChange() {
+    if (!settings.store.imageUrl) return;
+    scheduleProfileScans();
+}
+
+function addLifecycleListeners() {
+    if (lifecycleListenersActive) return;
+
+    lifecycleListenersActive = true;
+    window.addEventListener("blur", handleAppLifecycleChange);
+    window.addEventListener("focus", handleAppLifecycleChange);
+    window.addEventListener("resize", handleAppLifecycleChange);
+    document.addEventListener("visibilitychange", handleAppLifecycleChange);
+}
+
+function removeLifecycleListeners() {
+    if (!lifecycleListenersActive) return;
+
+    lifecycleListenersActive = false;
+    window.removeEventListener("blur", handleAppLifecycleChange);
+    window.removeEventListener("focus", handleAppLifecycleChange);
+    window.removeEventListener("resize", handleAppLifecycleChange);
+    document.removeEventListener("visibilitychange", handleAppLifecycleChange);
 }
 
 function stopProfileWatcher(clearTargets = true) {
     observer?.disconnect();
     observer = null;
+    removeLifecycleListeners();
 
     if (scanFrame != null) {
         cancelAnimationFrame(scanFrame);
