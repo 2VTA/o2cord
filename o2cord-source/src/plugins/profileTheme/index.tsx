@@ -17,6 +17,7 @@ import { Button, Forms, React, Select, showToast, TextInput, Toasts } from "@web
 
 const STYLE_ID = "o2-profile-theme-vars";
 const TARGET_CLASS = "o2-profile-theme-target";
+const TARGET_ATTR = "data-o2-profile-theme-target";
 const MAX_LOCAL_IMAGE_BYTES = 8 * 1024 * 1024;
 
 type ThemeMode = "dim" | "full";
@@ -68,17 +69,74 @@ const PROFILE_TARGET_SELECTOR = [
     "[style*='--profile-gradient-secondary-color']"
 ].join(",");
 
+const PROFILE_SHELL_SELECTOR = [
+    "[class*='outer_c0bea0']",
+    "[class*='userProfileOuter']",
+    "[class*='userPopoutOuter']",
+    "[class*='themeContainer_ce8328']",
+    "[class*='custom-user-profile-theme']",
+    "[class*='user-profile-popout']"
+].join(",");
+
+const PROFILE_FRAME_SELECTOR = [
+    "[class*='avatarDecoration']",
+    "[class*='decoration']",
+    "[src*='collectibles-shop']",
+    "[class*='profileEffect']"
+].join(",");
+
+function getProfileShell(element: Element) {
+    if (element.matches(PROFILE_SHELL_SELECTOR))
+        return element as HTMLElement;
+
+    return element.closest<HTMLElement>(PROFILE_SHELL_SELECTOR);
+}
+
+function addTargetFromElement(targets: Set<HTMLElement>, element: Element) {
+    const shell = getProfileShell(element);
+    if (shell) targets.add(shell);
+}
+
+function applyTargetFallback(element: HTMLElement) {
+    element.classList.add(TARGET_CLASS);
+    element.setAttribute(TARGET_ATTR, "true");
+    element.style.setProperty(
+        "background",
+        "linear-gradient(180deg, rgba(0, 0, 0, 0.06), rgba(0, 0, 0, var(--o2-profile-theme-dim, 0.52))), var(--o2-profile-theme-image) center top / cover no-repeat",
+        "important"
+    );
+    element.style.setProperty("background-color", "transparent", "important");
+}
+
+function clearTargetFallback(element: Element) {
+    element.classList.remove(TARGET_CLASS);
+    element.removeAttribute(TARGET_ATTR);
+
+    if (element instanceof HTMLElement) {
+        element.style.removeProperty("background");
+        element.style.removeProperty("background-color");
+    }
+}
+
 function markProfileTargets() {
     if (!O2CORD_DEBUG || !settings.store.imageUrl) return;
 
-    const targets = new Set(document.querySelectorAll<HTMLElement>(PROFILE_TARGET_SELECTOR));
+    const targets = new Set<HTMLElement>();
 
-    document.querySelectorAll(`.${TARGET_CLASS}`).forEach(element => {
-        if (!document.documentElement.contains(element))
-            element.classList.remove(TARGET_CLASS);
+    document
+        .querySelectorAll<HTMLElement>(PROFILE_TARGET_SELECTOR)
+        .forEach(element => addTargetFromElement(targets, element));
+
+    document
+        .querySelectorAll<HTMLElement>(PROFILE_FRAME_SELECTOR)
+        .forEach(element => addTargetFromElement(targets, element));
+
+    document.querySelectorAll(`.${TARGET_CLASS}, [${TARGET_ATTR}]`).forEach(element => {
+        if (!document.documentElement.contains(element) || !targets.has(element as HTMLElement))
+            clearTargetFallback(element);
     });
 
-    targets.forEach(element => element.classList.add(TARGET_CLASS));
+    targets.forEach(applyTargetFallback);
 }
 
 function ensureProfileThemeStyle() {
@@ -191,7 +249,7 @@ function stopProfileWatcher(clearTargets = true) {
     stopKeepAlive();
 
     if (clearTargets)
-        document.querySelectorAll(`.${TARGET_CLASS}`).forEach(element => element.classList.remove(TARGET_CLASS));
+        document.querySelectorAll(`.${TARGET_CLASS}, [${TARGET_ATTR}]`).forEach(clearTargetFallback);
 }
 
 function readFileAsDataUrl(file: File) {
