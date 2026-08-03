@@ -14,9 +14,13 @@ import { chooseFile } from "@utils/web";
 import { Button, Forms, React, Select, showToast, TextInput, Toasts } from "@webpack/common";
 
 const STYLE_ID = "o2-profile-theme-vars";
+const TARGET_CLASS = "o2-profile-theme-target";
 const MAX_LOCAL_IMAGE_BYTES = 8 * 1024 * 1024;
 
 type ThemeMode = "dim" | "full";
+
+let observer: MutationObserver | null = null;
+let scanTimer: ReturnType<typeof setInterval> | null = null;
 
 function cleanImageUrl(value: string) {
     return value.trim();
@@ -43,6 +47,67 @@ function getModeVars(mode: ThemeMode) {
         dim: "0.58",
         panelBg: "rgba(18, 18, 24, 0.66)"
     };
+}
+
+function isProfileLikeElement(element: Element) {
+    const className = String((element as HTMLElement).className || "");
+    const style = (element as HTMLElement).getAttribute("style") || "";
+
+    if (
+        className.includes("userProfileOuter")
+        || className.includes("userPopoutOuter")
+        || className.includes("accountProfilePopout")
+        || className.includes("profilePanel")
+        || style.includes("--profile-gradient-primary-color")
+        || style.includes("--profile-gradient-secondary-color")
+        || style.includes("--custom-user-profile")
+    ) {
+        const rect = element.getBoundingClientRect();
+        return rect.width >= 240 && rect.height >= 280;
+    }
+
+    return false;
+}
+
+function markProfileTargets() {
+    if (!O2CORD_DEBUG || !settings.store.imageUrl) return;
+
+    document.querySelectorAll(`.${TARGET_CLASS}`).forEach(element => {
+        if (!isProfileLikeElement(element))
+            element.classList.remove(TARGET_CLASS);
+    });
+
+    document.querySelectorAll<HTMLElement>("[class], [style]").forEach(element => {
+        if (isProfileLikeElement(element))
+            element.classList.add(TARGET_CLASS);
+    });
+}
+
+function startProfileWatcher() {
+    stopProfileWatcher(false);
+
+    markProfileTargets();
+    observer = new MutationObserver(() => markProfileTargets());
+    observer.observe(document.body, {
+        childList: true,
+        subtree: true,
+        attributes: true,
+        attributeFilter: ["class", "style"]
+    });
+    scanTimer = setInterval(markProfileTargets, 750);
+}
+
+function stopProfileWatcher(clearTargets = true) {
+    observer?.disconnect();
+    observer = null;
+
+    if (scanTimer) {
+        clearInterval(scanTimer);
+        scanTimer = null;
+    }
+
+    if (clearTargets)
+        document.querySelectorAll(`.${TARGET_CLASS}`).forEach(element => element.classList.remove(TARGET_CLASS));
 }
 
 function readFileAsDataUrl(file: File) {
@@ -99,11 +164,13 @@ function applyProfileTheme() {
         }
     `;
     root.classList.add("o2-profile-theme-active");
+    startProfileWatcher();
 }
 
 function removeProfileTheme() {
     document.documentElement.classList.remove("o2-profile-theme-active");
     document.getElementById(STYLE_ID)?.remove();
+    stopProfileWatcher();
 }
 
 function clearProfileTheme() {
