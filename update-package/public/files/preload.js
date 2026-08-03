@@ -1,4 +1,4 @@
-// Vencord public-shared-badges-registry
+// Vencord public-badges-refresh-20260803
 // Standalone: false
 // Platform: win32
 // Updater Disabled: false
