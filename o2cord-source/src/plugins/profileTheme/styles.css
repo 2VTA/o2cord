@@ -74,20 +74,29 @@
     font-size: 13px;
 }
 
+html.o2-profile-theme-active .o2-profile-theme-target,
 html.o2-profile-theme-active [class*="userProfileOuter"],
 html.o2-profile-theme-active [class*="userPopoutOuter"],
 html.o2-profile-theme-active [class*="accountProfilePopout"],
-html.o2-profile-theme-active [class*="profilePanel"] [class*="userProfile"] {
+html.o2-profile-theme-active [class*="profilePanel"] [class*="userProfile"],
+html.o2-profile-theme-active [style*="--profile-gradient-primary-color"],
+html.o2-profile-theme-active [style*="--profile-gradient-secondary-color"] {
     position: relative !important;
     isolation: isolate;
     overflow: hidden !important;
-    background: transparent !important;
+    background:
+        linear-gradient(180deg, rgba(0, 0, 0, 0.06), rgba(0, 0, 0, var(--o2-profile-theme-dim, 0.52))),
+        var(--o2-profile-theme-image) center / cover no-repeat !important;
+    background-color: transparent !important;
 }
 
+html.o2-profile-theme-active .o2-profile-theme-target::before,
 html.o2-profile-theme-active [class*="userProfileOuter"]::before,
 html.o2-profile-theme-active [class*="userPopoutOuter"]::before,
 html.o2-profile-theme-active [class*="accountProfilePopout"]::before,
-html.o2-profile-theme-active [class*="profilePanel"] [class*="userProfile"]::before {
+html.o2-profile-theme-active [class*="profilePanel"] [class*="userProfile"]::before,
+html.o2-profile-theme-active [style*="--profile-gradient-primary-color"]::before,
+html.o2-profile-theme-active [style*="--profile-gradient-secondary-color"]::before {
     position: absolute;
     inset: 0;
     z-index: -2;
@@ -100,10 +109,13 @@ html.o2-profile-theme-active [class*="profilePanel"] [class*="userProfile"]::bef
     opacity: var(--o2-profile-theme-image-opacity, 0.48);
 }
 
+html.o2-profile-theme-active .o2-profile-theme-target::after,
 html.o2-profile-theme-active [class*="userProfileOuter"]::after,
 html.o2-profile-theme-active [class*="userPopoutOuter"]::after,
 html.o2-profile-theme-active [class*="accountProfilePopout"]::after,
-html.o2-profile-theme-active [class*="profilePanel"] [class*="userProfile"]::after {
+html.o2-profile-theme-active [class*="profilePanel"] [class*="userProfile"]::after,
+html.o2-profile-theme-active [style*="--profile-gradient-primary-color"]::after,
+html.o2-profile-theme-active [style*="--profile-gradient-secondary-color"]::after {
     position: absolute;
     inset: 0;
     z-index: -1;
@@ -112,6 +124,7 @@ html.o2-profile-theme-active [class*="profilePanel"] [class*="userProfile"]::aft
     background: linear-gradient(180deg, rgba(0, 0, 0, 0.08), rgba(0, 0, 0, var(--o2-profile-theme-dim, 0.52)));
 }
 
+html.o2-profile-theme-active .o2-profile-theme-target > *,
 html.o2-profile-theme-active [class*="userProfileInner"],
 html.o2-profile-theme-active [class*="overlayBackground"],
 html.o2-profile-theme-active [class*="bodyInnerWrapper"],
@@ -122,10 +135,20 @@ html.o2-profile-theme-active [class*="userProfileModalOverlayBackground"] {
     background: var(--o2-profile-theme-panel-bg, rgba(18, 18, 24, 0.58)) !important;
 }
 
+html.o2-profile-theme-active .o2-profile-theme-target [class*="overlayBackground"],
+html.o2-profile-theme-active .o2-profile-theme-target [class*="bodyInnerWrapper"],
+html.o2-profile-theme-active .o2-profile-theme-target [class*="section"],
+html.o2-profile-theme-active .o2-profile-theme-target [class*="activity"],
+html.o2-profile-theme-active .o2-profile-theme-target [class*="menuOverlay"] {
+    background: var(--o2-profile-theme-panel-bg, rgba(18, 18, 24, 0.58)) !important;
+}
+
+html.o2-profile-theme-active .o2-profile-theme-target [class*="banner"],
 html.o2-profile-theme-active [class*="userProfileInner"] {
     backdrop-filter: blur(1px);
 }
 
+html.o2-profile-theme-active .o2-profile-theme-target [class*="banner"],
 html.o2-profile-theme-active [class*="banner"] {
     background-color: transparent !important;
 }
