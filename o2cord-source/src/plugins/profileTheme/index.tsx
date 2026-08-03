@@ -18,6 +18,8 @@ import { Button, Forms, React, Select, showToast, TextInput, Toasts } from "@web
 const STYLE_ID = "o2-profile-theme-vars";
 const TARGET_CLASS = "o2-profile-theme-target";
 const TARGET_ATTR = "data-o2-profile-theme-target";
+const TRANSPARENT_CHILD_ATTR = "data-o2-profile-theme-transparent";
+const PANEL_CHILD_ATTR = "data-o2-profile-theme-panel";
 const MAX_LOCAL_IMAGE_BYTES = 8 * 1024 * 1024;
 
 type ThemeMode = "dim" | "full";
@@ -85,6 +87,26 @@ const PROFILE_FRAME_SELECTOR = [
     "[class*='profileEffect']"
 ].join(",");
 
+const TRANSPARENT_CHILD_SELECTOR = [
+    "[class*='inner_c0bea0']",
+    "[class*='userProfileInner']",
+    "[class*='overlayBackground']",
+    "[class*='bodyInnerWrapper']",
+    "[class*='body_ce8328']",
+    "[class*='userInfo_ce8328']",
+    "[class*='scrollerBase']",
+    "[class*='thin_']",
+    "[style*='--profile-gradient-modal-background-color']"
+].join(",");
+
+const PANEL_CHILD_SELECTOR = [
+    "[class*='activity']",
+    "[class*='section']",
+    "[class*='menuOverlay']",
+    "[class*='card_']",
+    "[class*='card__']"
+].join(",");
+
 function getProfileShell(element: Element) {
     if (element.matches(PROFILE_SHELL_SELECTOR))
         return element as HTMLElement;
@@ -106,11 +128,48 @@ function applyTargetFallback(element: HTMLElement) {
         "important"
     );
     element.style.setProperty("background-color", "transparent", "important");
+    applyChildFallbacks(element);
+}
+
+function applyTransparentChildFallback(element: HTMLElement) {
+    element.setAttribute(TRANSPARENT_CHILD_ATTR, "true");
+    element.style.setProperty("background", "transparent", "important");
+    element.style.setProperty("background-color", "transparent", "important");
+}
+
+function applyPanelChildFallback(element: HTMLElement) {
+    element.setAttribute(PANEL_CHILD_ATTR, "true");
+    element.style.setProperty("background", "var(--o2-profile-theme-panel-bg)", "important");
+    element.style.setProperty("background-color", "transparent", "important");
+}
+
+function applyChildFallbacks(element: HTMLElement) {
+    element
+        .querySelectorAll<HTMLElement>(TRANSPARENT_CHILD_SELECTOR)
+        .forEach(applyTransparentChildFallback);
+
+    element
+        .querySelectorAll<HTMLElement>(PANEL_CHILD_SELECTOR)
+        .forEach(applyPanelChildFallback);
 }
 
 function clearTargetFallback(element: Element) {
     element.classList.remove(TARGET_CLASS);
     element.removeAttribute(TARGET_ATTR);
+
+    element
+        .querySelectorAll(`[${TRANSPARENT_CHILD_ATTR}], [${PANEL_CHILD_ATTR}]`)
+        .forEach(clearChildFallback);
+
+    if (element instanceof HTMLElement) {
+        element.style.removeProperty("background");
+        element.style.removeProperty("background-color");
+    }
+}
+
+function clearChildFallback(element: Element) {
+    element.removeAttribute(TRANSPARENT_CHILD_ATTR);
+    element.removeAttribute(PANEL_CHILD_ATTR);
 
     if (element instanceof HTMLElement) {
         element.style.removeProperty("background");
