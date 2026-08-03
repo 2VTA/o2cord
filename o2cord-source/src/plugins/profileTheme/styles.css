@@ -75,12 +75,7 @@
 }
 
 html.o2-profile-theme-active .o2-profile-theme-target,
-html.o2-profile-theme-active [data-o2-profile-theme-target="true"],
-html.o2-profile-theme-active [class*="profileFrameContainer"],
-html.o2-profile-theme-active [class*="custom-profile-frame"],
-html.o2-profile-theme-active [class*="popoutContainer"][class*="accountPopout"] [class*="outer_c0bea0"],
-html.o2-profile-theme-active [class*="accountPopout"] [class*="outer_c0bea0"],
-html.o2-profile-theme-active [role="dialog"] [class*="outer_c0bea0"] {
+html.o2-profile-theme-active [data-o2-profile-theme-target="true"] {
     --profile-gradient-overlay-color: transparent !important;
     --profile-gradient-overlay-synced-with-user-theme: transparent !important;
     --profile-gradient-modal-background-color: transparent !important;
@@ -135,15 +130,6 @@ html.o2-profile-theme-active .o2-profile-theme-target [class*="container_"],
 html.o2-profile-theme-active [data-o2-profile-theme-target="true"] [class*="container_"],
 html.o2-profile-theme-active .o2-profile-theme-target [class*="container__"],
 html.o2-profile-theme-active [data-o2-profile-theme-target="true"] [class*="container__"],
-html.o2-profile-theme-active [class*="popoutContainer"][class*="accountPopout"] [class*="inner_c0bea0"],
-html.o2-profile-theme-active [class*="popoutContainer"][class*="accountPopout"] [class*="body_ce8328"],
-html.o2-profile-theme-active [class*="popoutContainer"][class*="accountPopout"] [class*="userInfo_ce8328"],
-html.o2-profile-theme-active [role="dialog"] [class*="outer_c0bea0"] [class*="inner_c0bea0"],
-html.o2-profile-theme-active [role="dialog"] [class*="outer_c0bea0"] [class*="body_ce8328"],
-html.o2-profile-theme-active [role="dialog"] [class*="outer_c0bea0"] [class*="userInfo_ce8328"],
-html.o2-profile-theme-active [class*="outer_c0bea0"] > [class*="inner_c0bea0"],
-html.o2-profile-theme-active [class*="outer_c0bea0"] [class*="body_ce8328"],
-html.o2-profile-theme-active [class*="outer_c0bea0"] [class*="userInfo_ce8328"],
 html.o2-profile-theme-active [data-o2-profile-theme-transparent="true"] {
     --profile-gradient-overlay-color: transparent !important;
     --profile-gradient-overlay-synced-with-user-theme: transparent !important;
@@ -168,9 +154,6 @@ html.o2-profile-theme-active .o2-profile-theme-target [class*="card_"],
 html.o2-profile-theme-active [data-o2-profile-theme-target="true"] [class*="card_"],
 html.o2-profile-theme-active .o2-profile-theme-target [class*="card__"],
 html.o2-profile-theme-active [data-o2-profile-theme-target="true"] [class*="card__"],
-html.o2-profile-theme-active [class*="popoutContainer"][class*="accountPopout"] [class*="section"],
-html.o2-profile-theme-active [class*="popoutContainer"][class*="accountPopout"] [class*="card_"],
-html.o2-profile-theme-active [class*="popoutContainer"][class*="accountPopout"] [class*="card__"],
 html.o2-profile-theme-active [data-o2-profile-theme-panel="true"] {
     background: var(--o2-profile-theme-panel-bg, rgba(18, 18, 24, 0.34)) !important;
 }
