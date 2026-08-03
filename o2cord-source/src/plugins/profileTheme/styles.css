@@ -118,14 +118,22 @@ html.o2-profile-theme-active [class*="profilePanel"] [class*="userProfile"]::aft
     background: linear-gradient(180deg, rgba(0, 0, 0, 0.08), rgba(0, 0, 0, var(--o2-profile-theme-dim, 0.52)));
 }
 
-html.o2-profile-theme-active [class*="userProfileInner"],
-html.o2-profile-theme-active [class*="overlayBackground"],
-html.o2-profile-theme-active [class*="bodyInnerWrapper"],
 html.o2-profile-theme-active [class*="activity"],
 html.o2-profile-theme-active [class*="activityUserPopout"],
 html.o2-profile-theme-active [class*="menuOverlay"],
 html.o2-profile-theme-active [class*="userProfileModalOverlayBackground"] {
     background: var(--o2-profile-theme-panel-bg, rgba(18, 18, 24, 0.58)) !important;
+}
+
+html.o2-profile-theme-active .o2-profile-theme-target [class*="userProfileInner"],
+html.o2-profile-theme-active .o2-profile-theme-target [class*="overlayBackground"],
+html.o2-profile-theme-active .o2-profile-theme-target [class*="bodyInnerWrapper"],
+html.o2-profile-theme-active .o2-profile-theme-target [class*="body_"],
+html.o2-profile-theme-active .o2-profile-theme-target [class*="body__"],
+html.o2-profile-theme-active .o2-profile-theme-target [class*="container_"],
+html.o2-profile-theme-active .o2-profile-theme-target [class*="container__"] {
+    background: transparent !important;
+    background-color: transparent !important;
 }
 
 html.o2-profile-theme-active .o2-profile-theme-target [class*="overlayBackground"],
@@ -134,6 +142,12 @@ html.o2-profile-theme-active .o2-profile-theme-target [class*="section"],
 html.o2-profile-theme-active .o2-profile-theme-target [class*="activity"],
 html.o2-profile-theme-active .o2-profile-theme-target [class*="menuOverlay"] {
     background: var(--o2-profile-theme-panel-bg, rgba(18, 18, 24, 0.58)) !important;
+}
+
+html.o2-profile-theme-active .o2-profile-theme-target [class*="overlayBackground"],
+html.o2-profile-theme-active .o2-profile-theme-target [class*="bodyInnerWrapper"] {
+    background: transparent !important;
+    background-color: transparent !important;
 }
 
 html.o2-profile-theme-active .o2-profile-theme-target [class*="banner"],
