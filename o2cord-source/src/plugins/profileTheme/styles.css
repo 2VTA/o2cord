@@ -75,6 +75,7 @@
 }
 
 html.o2-profile-theme-active .o2-profile-theme-target,
+html.o2-profile-theme-active [data-o2-profile-theme-target="true"],
 html.o2-profile-theme-active [class*="popoutContainer"][class*="accountPopout"] [class*="outer_c0bea0"],
 html.o2-profile-theme-active [class*="accountPopout"] [class*="outer_c0bea0"],
 html.o2-profile-theme-active [role="dialog"] [class*="outer_c0bea0"] {
@@ -91,15 +92,25 @@ html.o2-profile-theme-active [role="dialog"] [class*="outer_c0bea0"] {
 }
 
 html.o2-profile-theme-active .o2-profile-theme-target [class*="userProfileInner"],
+html.o2-profile-theme-active [data-o2-profile-theme-target="true"] [class*="userProfileInner"],
 html.o2-profile-theme-active .o2-profile-theme-target [class*="inner_c0bea0"],
+html.o2-profile-theme-active [data-o2-profile-theme-target="true"] [class*="inner_c0bea0"],
 html.o2-profile-theme-active .o2-profile-theme-target [class*="overlayBackground"],
+html.o2-profile-theme-active [data-o2-profile-theme-target="true"] [class*="overlayBackground"],
 html.o2-profile-theme-active .o2-profile-theme-target [class*="bodyInnerWrapper"],
+html.o2-profile-theme-active [data-o2-profile-theme-target="true"] [class*="bodyInnerWrapper"],
 html.o2-profile-theme-active .o2-profile-theme-target [class*="body_"],
+html.o2-profile-theme-active [data-o2-profile-theme-target="true"] [class*="body_"],
 html.o2-profile-theme-active .o2-profile-theme-target [class*="body__"],
+html.o2-profile-theme-active [data-o2-profile-theme-target="true"] [class*="body__"],
 html.o2-profile-theme-active .o2-profile-theme-target [class*="body_ce8328"],
+html.o2-profile-theme-active [data-o2-profile-theme-target="true"] [class*="body_ce8328"],
 html.o2-profile-theme-active .o2-profile-theme-target [class*="userInfo_ce8328"],
+html.o2-profile-theme-active [data-o2-profile-theme-target="true"] [class*="userInfo_ce8328"],
 html.o2-profile-theme-active .o2-profile-theme-target [class*="container_"],
+html.o2-profile-theme-active [data-o2-profile-theme-target="true"] [class*="container_"],
 html.o2-profile-theme-active .o2-profile-theme-target [class*="container__"],
+html.o2-profile-theme-active [data-o2-profile-theme-target="true"] [class*="container__"],
 html.o2-profile-theme-active [class*="popoutContainer"][class*="accountPopout"] [class*="inner_c0bea0"],
 html.o2-profile-theme-active [class*="popoutContainer"][class*="accountPopout"] [class*="body_ce8328"],
 html.o2-profile-theme-active [class*="popoutContainer"][class*="accountPopout"] [class*="userInfo_ce8328"],
@@ -117,15 +128,21 @@ html.o2-profile-theme-active [class*="outer_c0bea0"] [class*="userInfo_ce8328"] 
 }
 
 html.o2-profile-theme-active .o2-profile-theme-target [class*="activity"],
+html.o2-profile-theme-active [data-o2-profile-theme-target="true"] [class*="activity"],
 html.o2-profile-theme-active .o2-profile-theme-target [class*="menuOverlay"] {
     background: rgba(18, 18, 24, 0.34) !important;
 }
 
 html.o2-profile-theme-active .o2-profile-theme-target [class*="section"],
+html.o2-profile-theme-active [data-o2-profile-theme-target="true"] [class*="section"],
 html.o2-profile-theme-active .o2-profile-theme-target [class*="menu_"],
+html.o2-profile-theme-active [data-o2-profile-theme-target="true"] [class*="menu_"],
 html.o2-profile-theme-active .o2-profile-theme-target [class*="menu__"],
+html.o2-profile-theme-active [data-o2-profile-theme-target="true"] [class*="menu__"],
 html.o2-profile-theme-active .o2-profile-theme-target [class*="card_"],
+html.o2-profile-theme-active [data-o2-profile-theme-target="true"] [class*="card_"],
 html.o2-profile-theme-active .o2-profile-theme-target [class*="card__"],
+html.o2-profile-theme-active [data-o2-profile-theme-target="true"] [class*="card__"],
 html.o2-profile-theme-active [class*="popoutContainer"][class*="accountPopout"] [class*="section"],
 html.o2-profile-theme-active [class*="popoutContainer"][class*="accountPopout"] [class*="card_"],
 html.o2-profile-theme-active [class*="popoutContainer"][class*="accountPopout"] [class*="card__"] {
@@ -133,11 +150,13 @@ html.o2-profile-theme-active [class*="popoutContainer"][class*="accountPopout"] 
 }
 
 html.o2-profile-theme-active .o2-profile-theme-target [class*="banner"],
+html.o2-profile-theme-active [data-o2-profile-theme-target="true"] [class*="banner"],
 html.o2-profile-theme-active .o2-profile-theme-target [class*="userProfileInner"] {
     backdrop-filter: blur(1px);
 }
 
 html.o2-profile-theme-active .o2-profile-theme-target [class*="banner"],
+html.o2-profile-theme-active [data-o2-profile-theme-target="true"] [class*="banner"],
 html.o2-profile-theme-active .o2-profile-theme-target [class*="fill_b83360"] {
     background-color: transparent !important;
 }
