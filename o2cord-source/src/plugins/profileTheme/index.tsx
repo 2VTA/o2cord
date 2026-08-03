@@ -161,24 +161,25 @@ function addTargetFromElement(targets: Set<HTMLElement>, element: Element) {
     if (shell && isCurrentUserProfileShell(shell)) targets.add(shell);
 }
 
+function hasOwnProfileControls(element: HTMLElement) {
+    const text = element.textContent ?? "";
+
+    return text.includes("Edit Profile")
+        || text.includes("Edit Server Profile")
+        || Boolean(element.querySelector("[aria-label*='Edit Profile'], [aria-label*='Edit Server Profile']"));
+}
+
 function isCurrentUserProfileShell(element: HTMLElement) {
     const me = UserStore.getCurrentUser() as any;
     if (!me?.id) return false;
-
-    const text = element.textContent ?? "";
-    const names = [
-        me.id,
-        me.username,
-        me.globalName,
-        me.displayName
-    ].filter((name): name is string => typeof name === "string" && name.length > 1);
-
-    if (names.some(name => text.includes(name))) return true;
+    if (!hasOwnProfileControls(element)) return false;
 
     const avatarUrl = typeof me.getAvatarURL === "function"
         ? me.getAvatarURL(undefined, 128, true)
         : "";
     const avatarHash = typeof me.avatar === "string" ? me.avatar : "";
+
+    if (!avatarUrl && !avatarHash) return true;
 
     return Array.from(element.querySelectorAll<HTMLImageElement>("img"))
         .some(img => {
@@ -279,6 +280,12 @@ function markProfileTargets() {
     document.querySelectorAll(`.${TARGET_CLASS}, [${TARGET_ATTR}]`).forEach(element => {
         if (!document.documentElement.contains(element) || !targets.has(element as HTMLElement))
             clearTargetFallback(element);
+    });
+
+    document.querySelectorAll(`[${IMAGE_LAYER_ATTR}]`).forEach(layer => {
+        const parent = layer.parentElement;
+        if (!parent || !targets.has(parent))
+            layer.remove();
     });
 
     targets.forEach(applyTargetFallback);
