@@ -28,6 +28,7 @@ const DISCORD_ID_RE = /^\d{17,20}$/;
 const REGISTRY_REFRESH_MS = 30_000;
 const REACT_SCAN_LIMIT = 220;
 const REACT_SCAN_DEPTH = 5;
+const PROFILE_SCAN_THROTTLE_MS = 250;
 const PROFILE_FRAME_URL_PARTS = [
     "collectibles-shop",
     "1489398661619384321/1511863804592521317",
@@ -41,8 +42,25 @@ const PROFILE_EDITOR_MARKERS = [
     "Display Name Style",
     "Theme & Banner",
     "Profile Effect & Frame",
-    "Your Widgets",
-    "Add Widget"
+    "Change Profile Frame",
+    "Your Frames",
+    "See What's in Shop",
+    "Your Effects",
+    "Collectibles",
+    "Edit Image"
+];
+const PROFILE_DIALOG_EDITOR_MARKERS = [
+    "Avatar & Decoration",
+    "Change Profile Frame",
+    "Display Name Style",
+    "Edit Image",
+    "Main Profile",
+    "Nameplate",
+    "Profile Effect & Frame",
+    "See What's in Shop",
+    "Theme & Banner",
+    "Your Effects",
+    "Your Frames"
 ];
 
 type ThemeMode = "dim" | "full";
@@ -56,6 +74,7 @@ type ProfileThemeTarget = {
 
 let observer: MutationObserver | null = null;
 let scanFrame: number | null = null;
+let scanDebounceTimer: ReturnType<typeof setTimeout> | null = null;
 let scanTimeouts: ReturnType<typeof setTimeout>[] = [];
 let keepAliveInterval: ReturnType<typeof setInterval> | null = null;
 let registryRefreshTimer: number | undefined;
@@ -64,6 +83,9 @@ let registryRefreshPromise: Promise<void> | null = null;
 let remoteProfileThemes: ProfileThemes = {};
 let styleElement: HTMLStyleElement | null = null;
 let lifecycleListenersActive = false;
+let applyingTargets = false;
+let lastProfileScan = 0;
+let lastProfileThemeCss = "";
 
 function cleanImageUrl(value?: string | null) {
     return (value ?? "").trim();
@@ -185,10 +207,16 @@ function getProfileShell(element: Element) {
 }
 
 function isBlockedProfileArea(element: HTMLElement) {
-    const settingsRoot = element.closest<HTMLElement>("[class*='standardSidebarView'], [class*='contentRegion'], [role='dialog']");
-    const text = settingsRoot?.textContent ?? "";
+    const settingsRoot = element.closest<HTMLElement>("[class*='standardSidebarView'], [class*='contentRegion']");
+    if (settingsRoot) {
+        const text = settingsRoot.textContent ?? "";
+        return PROFILE_EDITOR_MARKERS.some(marker => text.includes(marker));
+    }
 
-    return PROFILE_EDITOR_MARKERS.some(marker => text.includes(marker));
+    const dialog = element.closest<HTMLElement>("[role='dialog']");
+    const text = dialog?.textContent ?? "";
+
+    return PROFILE_DIALOG_EDITOR_MARKERS.some(marker => text.includes(marker));
 }
 
 function getClassName(element: Element) {
@@ -525,18 +553,28 @@ function getProfileThemeKind(element: HTMLElement): ProfileThemeKind {
 }
 
 function applyTargetFallback({ element, userId, imageUrl }: ProfileThemeTarget) {
-    element.classList.add(TARGET_CLASS);
-    element.setAttribute(TARGET_ATTR, "true");
-    element.setAttribute(TARGET_KIND_ATTR, getProfileThemeKind(element));
-    element.setAttribute("data-o2-profile-theme-user-id", userId);
-    element.style.setProperty("--o2-profile-theme-image", `url("${cssString(imageUrl)}")`);
+    const kind = getProfileThemeKind(element);
+    const imageValue = `url("${cssString(imageUrl)}")`;
+
+    if (!element.classList.contains(TARGET_CLASS))
+        element.classList.add(TARGET_CLASS);
+    if (element.getAttribute(TARGET_ATTR) !== "true")
+        element.setAttribute(TARGET_ATTR, "true");
+    if (element.getAttribute(TARGET_KIND_ATTR) !== kind)
+        element.setAttribute(TARGET_KIND_ATTR, kind);
+    if (element.getAttribute("data-o2-profile-theme-user-id") !== userId)
+        element.setAttribute("data-o2-profile-theme-user-id", userId);
+    if (element.style.getPropertyValue("--o2-profile-theme-image") !== imageValue)
+        element.style.setProperty("--o2-profile-theme-image", imageValue);
     ensureImageLayer(element);
-    element.style.setProperty("background-color", "transparent", "important");
+    if (element.style.getPropertyValue("background-color") !== "transparent")
+        element.style.setProperty("background-color", "transparent", "important");
     applyChildFallbacks(element);
 }
 
 function applyTransparentChildFallback(element: HTMLElement) {
     if (isProfileFramePart(element)) return;
+    if (element.hasAttribute(TRANSPARENT_CHILD_ATTR)) return;
 
     element.setAttribute(TRANSPARENT_CHILD_ATTR, "true");
     element.style.setProperty("background", "transparent", "important");
@@ -545,6 +583,7 @@ function applyTransparentChildFallback(element: HTMLElement) {
 
 function applyPanelChildFallback(element: HTMLElement) {
     if (isProfileFramePart(element)) return;
+    if (element.hasAttribute(PANEL_CHILD_ATTR)) return;
 
     element.setAttribute(PANEL_CHILD_ATTR, "true");
     element.style.setProperty("background", "var(--o2-profile-theme-panel-bg)", "important");
@@ -594,41 +633,49 @@ function clearChildFallback(element: Element) {
 
 function markProfileTargets() {
     if (!hasProfileThemeSource()) return;
+    if (applyingTargets) return;
 
-    const targets = new Map<HTMLElement, ProfileThemeTarget>();
+    applyingTargets = true;
 
-    document
-        .querySelectorAll<HTMLElement>(PROFILE_TARGET_SELECTOR)
-        .forEach(element => addTargetFromElement(targets, element));
+    try {
+        const targets = new Map<HTMLElement, ProfileThemeTarget>();
 
-    document
-        .querySelectorAll<HTMLElement>(PROFILE_FRAME_SELECTOR)
-        .forEach(element => addTargetFromElement(targets, element));
+        document
+            .querySelectorAll<HTMLElement>(PROFILE_TARGET_SELECTOR)
+            .forEach(element => addTargetFromElement(targets, element));
 
-    document.querySelectorAll(`.${TARGET_CLASS}, [${TARGET_ATTR}]`).forEach(element => {
-        if (!document.documentElement.contains(element)) {
+        document
+            .querySelectorAll<HTMLElement>(PROFILE_FRAME_SELECTOR)
+            .forEach(element => addTargetFromElement(targets, element));
+
+        document.querySelectorAll(`.${TARGET_CLASS}, [${TARGET_ATTR}]`).forEach(element => {
+            if (!document.documentElement.contains(element)) {
+                clearTargetFallback(element);
+                return;
+            }
+
+            if (element instanceof HTMLElement && isBlockedProfileArea(element)) {
+                clearTargetFallback(element);
+                return;
+            }
+
+            if (targets.has(element as HTMLElement))
+                return;
+
             clearTargetFallback(element);
-            return;
-        }
+        });
 
-        if (element instanceof HTMLElement && isBlockedProfileArea(element)) {
-            clearTargetFallback(element);
-            return;
-        }
+        document.querySelectorAll(`[${IMAGE_LAYER_ATTR}]`).forEach(layer => {
+            const parent = layer.parentElement;
+            if (!parent || !targets.has(parent))
+                layer.remove();
+        });
 
-        if (targets.has(element as HTMLElement))
-            return;
-
-        clearTargetFallback(element);
-    });
-
-    document.querySelectorAll(`[${IMAGE_LAYER_ATTR}]`).forEach(layer => {
-        const parent = layer.parentElement;
-        if (!parent || !targets.has(parent))
-            layer.remove();
-    });
-
-    targets.forEach(applyTargetFallback);
+        targets.forEach(applyTargetFallback);
+        lastProfileScan = Date.now();
+    } finally {
+        applyingTargets = false;
+    }
 }
 
 function ensureProfileThemeStyle() {
@@ -641,6 +688,17 @@ function ensureProfileThemeStyle() {
 
 function queueProfileTargetScan() {
     if (scanFrame != null) return;
+
+    const waitMs = PROFILE_SCAN_THROTTLE_MS - (Date.now() - lastProfileScan);
+    if (waitMs > 0) {
+        if (scanDebounceTimer == null) {
+            scanDebounceTimer = setTimeout(() => {
+                scanDebounceTimer = null;
+                queueProfileTargetScan();
+            }, waitMs);
+        }
+        return;
+    }
 
     scanFrame = requestAnimationFrame(() => {
         scanFrame = null;
@@ -661,14 +719,11 @@ function startProfileWatcher() {
 
     scheduleProfileScans();
     observer = new MutationObserver(() => {
-        writeProfileThemeVars();
         queueProfileTargetScan();
     });
     observer.observe(document.body, {
         childList: true,
-        subtree: true,
-        attributes: true,
-        attributeFilter: ["class", "style"]
+        subtree: true
     });
     addLifecycleListeners();
     startKeepAlive();
@@ -695,8 +750,8 @@ function startKeepAlive() {
         if (!hasProfileThemeSource()) return;
 
         writeProfileThemeVars();
-        markProfileTargets();
-    }, 1000);
+        queueProfileTargetScan();
+    }, 2500);
 }
 
 function stopKeepAlive() {
@@ -749,6 +804,10 @@ function stopProfileWatcher(clearTargets = true) {
         cancelAnimationFrame(scanFrame);
         scanFrame = null;
     }
+    if (scanDebounceTimer != null) {
+        clearTimeout(scanDebounceTimer);
+        scanDebounceTimer = null;
+    }
 
     scanTimeouts.forEach(clearTimeout);
     scanTimeouts = [];
@@ -768,13 +827,17 @@ function writeProfileThemeVars() {
     const modeVars = getModeVars(settings.store.mode as ThemeMode);
     const style = ensureProfileThemeStyle();
 
-    style.textContent = `
+    const nextCss = `
         :root {
             --o2-profile-theme-image-opacity: ${modeVars.imageOpacity};
             --o2-profile-theme-dim: ${modeVars.dim};
             --o2-profile-theme-panel-bg: ${modeVars.panelBg};
         }
     `;
+    if (lastProfileThemeCss !== nextCss) {
+        style.textContent = nextCss;
+        lastProfileThemeCss = nextCss;
+    }
     root.classList.add("o2-profile-theme-active");
     return true;
 }
@@ -798,6 +861,7 @@ function removeProfileTheme() {
     document.documentElement.classList.remove("o2-profile-theme-active");
     document.getElementById(STYLE_ID)?.remove();
     styleElement = null;
+    lastProfileThemeCss = "";
     stopProfileWatcher();
 }
 

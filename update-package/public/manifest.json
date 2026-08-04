@@ -1,8 +1,8 @@
 {
-    "version":  "1.3.23",
-    "hash":  "public-profiletheme-settings-fix-1.3.23",
+    "version":  "1.3.24",
+    "hash":  "public-stability-fixes-1.3.24",
     "author":  "o2cord",
-    "message":  "Fix ProfileTheme settings layout",
+    "message":  "Stability fixes for ProfileTheme, CustomSounds, plugin freezes, and update notice",
     "notes":  [
                   "Public o2cord update package",
                   "ussro2 backgrounds are loaded from backgrounds.json beside this manifest",
