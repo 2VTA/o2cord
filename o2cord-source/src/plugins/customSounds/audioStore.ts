@@ -191,7 +191,6 @@ export async function getAudioDataURI(id: string): Promise<string | undefined> {
         return entry.dataUri;
     }
 
-    console.log(`[CustomSounds] No cached data URI for ${id}, generating...`);
     if (!(entry.buffer instanceof ArrayBuffer)) {
         console.warn(`[CustomSounds] Saved audio file ${id} has no valid ArrayBuffer`);
         return undefined;

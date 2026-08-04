@@ -146,7 +146,6 @@ export async function ensureDataURICached(fileId: string): Promise<string | null
         const dataUri = await getAudioDataURI(fileId);
         if (dataUri) {
             dataUriCache.set(fileId, dataUri);
-            console.log(`[CustomSounds] Cached data URI for file ${fileId}`);
             return dataUri;
         }
     } catch (error) {
@@ -159,18 +158,12 @@ export async function ensureDataURICached(fileId: string): Promise<string | null
 export async function refreshDataURI(id: string): Promise<void> {
     const override = getOverride(id);
     if (!override?.selectedFileId) {
-        console.log(`[CustomSounds] refreshDataURI called for ${id} but no selectedFileId`);
         return;
     }
 
-    console.log(`[CustomSounds] Refreshing data URI for ${id} with file ID ${override.selectedFileId}`);
-
     const dataUri = await ensureDataURICached(override.selectedFileId);
-    if (dataUri) {
-        console.log(`[CustomSounds] Successfully cached data URI for ${id} (length: ${dataUri.length})`);
-    } else {
+    if (!dataUri)
         console.error(`[CustomSounds] Failed to cache data URI for ${id}`);
-    }
 }
 
 function cleanupInvalidCustomOverrides(files: Record<string, unknown>) {
@@ -185,8 +178,6 @@ function cleanupInvalidCustomOverrides(files: Record<string, unknown>) {
 }
 
 async function cleanCustomSoundsStore() {
-    console.log("[CustomSounds] Cleaning saved audio store...");
-
     try {
         const files = await getAllAudio();
         cleanupInvalidCustomOverrides(files);
@@ -194,8 +185,6 @@ async function cleanCustomSoundsStore() {
     } catch (error) {
         console.error("[CustomSounds] Failed to clean audio store:", error);
     }
-
-    console.log("[CustomSounds] Startup cleanup complete");
 }
 
 export async function debugCustomSounds() {
@@ -434,8 +423,6 @@ const settings = definePluginSettings({
                                                 showToast("Error loading custom sound file");
                                             }
                                         }
-
-                                        console.log(`[CustomSounds] Settings saved for ${selectedSoundType.id}:`, selectedOverride);
                                     }}
                                 />
                             </ErrorBoundary>
@@ -467,17 +454,14 @@ export default definePlugin({
     audioProcessor: getCustomSoundURL,
 
     async start() {
-        console.log("[CustomSounds] Plugin starting...");
-
         try {
             await cleanCustomSoundsStore();
-            console.log("[CustomSounds] Startup complete");
         } catch (error) {
             console.error("[CustomSounds] Startup failed:", error);
         }
     },
 
     stop() {
-        console.log("[CustomSounds] Plugin stopped");
+        dataUriCache.clear();
     }
 });

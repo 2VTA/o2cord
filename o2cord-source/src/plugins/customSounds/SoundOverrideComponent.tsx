@@ -56,8 +56,13 @@ export function SoundOverrideComponent({ type, override, onChange }: {
     }, []);
 
     const saveAndNotify = async () => {
-        await onChange();
-        update();
+        try {
+            await onChange();
+            update();
+        } catch (error) {
+            console.error("[CustomSounds] Failed to save override:", error);
+            showToast("CustomSounds could not save this setting.");
+        }
     };
 
     const previewSound = async () => {
@@ -168,8 +173,6 @@ export function SoundOverrideComponent({ type, override, onChange }: {
                 title={type.name}
                 value={override.enabled || false}
                 onChange={async val => {
-                    console.log(`[CustomSounds] Setting ${type.id} enabled to:`, val);
-
                     override.enabled = val;
 
                     if (val && override.selectedSound === "custom" && override.selectedFileId) {
@@ -182,7 +185,6 @@ export function SoundOverrideComponent({ type, override, onChange }: {
                     }
 
                     await saveAndNotify();
-                    console.log("[CustomSounds] After setting enabled, override.enabled =", override.enabled);
                 }}
                 className={Margins.bottom16}
                 hideBorder
