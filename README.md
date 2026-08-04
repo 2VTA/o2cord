@@ -12,6 +12,10 @@ The public `ussro2` backgrounds are read from:
 
 `https://raw.githubusercontent.com/2VTA/o2cord/main/update-package/public/backgrounds.json`
 
+The public `ProfileTheme` images are read from:
+
+`https://raw.githubusercontent.com/2VTA/o2cord/main/update-package/public/profile-themes.json`
+
 After users install a public build that contains this manifest URL, they can update from Discord:
 
 `Settings -> o2cord -> Updater -> Check for Updates -> Install Update`
@@ -25,4 +29,3 @@ Run from this folder:
 ```
 
 This builds the public renderer files, updates `update-package/public/manifest.json`, and rebuilds the public installer.
-

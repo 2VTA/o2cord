@@ -1,4 +1,4 @@
-// Vencord public-hide-profile-theme-20260803
+// Vencord public-profiletheme-1.3.21
 // Standalone: false
 // Platform: win32
 // Updater Disabled: false

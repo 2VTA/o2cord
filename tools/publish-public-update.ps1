@@ -55,6 +55,7 @@ $Manifest = [ordered]@{
     notes = @(
         "Public o2cord update package",
         "ussro2 backgrounds are loaded from backgrounds.json beside this manifest",
+        "ProfileTheme images are loaded from profile-themes.json beside this manifest",
         "o2cord shared badges are loaded from badges.json beside this manifest"
     )
     files = [ordered]@{

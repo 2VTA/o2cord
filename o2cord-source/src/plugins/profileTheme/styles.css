@@ -19,9 +19,9 @@
 
 .o2-profile-theme-preview {
     position: relative;
-    width: 320px;
+    width: var(--o2-profile-theme-card-width, 320px);
     max-width: 100%;
-    height: 580px;
+    aspect-ratio: 320 / 580;
     overflow: hidden;
     border: 1px solid var(--background-modifier-accent);
     border-radius: 10px;
@@ -76,13 +76,55 @@
 
 html.o2-profile-theme-active .o2-profile-theme-target,
 html.o2-profile-theme-active [data-o2-profile-theme-target="true"] {
+    --o2-profile-theme-popout-min-width: 300px;
+    --o2-profile-theme-popout-max-width: 340px;
+    --o2-profile-theme-full-min-width: 600px;
+    --o2-profile-theme-full-max-width: 800px;
+    --o2-profile-theme-card-width: 320px;
+    --o2-profile-theme-card-height: 580px;
+    --o2-profile-theme-card-ratio: 320 / 580;
+    --o2-profile-theme-banner-width: 320px;
+    --o2-profile-theme-banner-height: 120px;
+    --o2-profile-theme-background-position: center;
+    --o2-profile-theme-background-size: cover;
+    --profile-gradient-primary-color: transparent !important;
+    --profile-gradient-secondary-color: transparent !important;
     --profile-gradient-overlay-color: transparent !important;
     --profile-gradient-overlay-synced-with-user-theme: transparent !important;
     --profile-gradient-modal-background-color: transparent !important;
+    --profile-gradient-button-color: rgba(255, 255, 255, 0.14) !important;
+    --profile-body-background-color: transparent !important;
+    --profile-body-background-hover: var(--o2-profile-theme-panel-bg, rgba(18, 18, 24, 0.34)) !important;
+    --profile-body-divider-color: rgba(255, 255, 255, 0.14) !important;
+    --profile-body-border-color: rgba(255, 255, 255, 0.12) !important;
+    --profile-note-background-color: transparent !important;
+    --profile-role-pill-background-color: rgba(18, 18, 24, 0.32) !important;
+    --profile-role-pill-border-color: rgba(255, 255, 255, 0.16) !important;
+    --theme-base-color-light-hsl: unset !important;
+    --theme-base-color-light: unset !important;
+    --theme-text-color-light: unset !important;
+    --theme-base-color-dark-hsl: unset !important;
+    --theme-base-color-dark: unset !important;
+    --theme-text-color-dark: unset !important;
+    --theme-base-color-amount: unset !important;
+    --theme-text-color-amount: unset !important;
     position: relative !important;
     isolation: isolate;
     overflow: hidden !important;
-    background-color: transparent !important;
+    background:
+        linear-gradient(180deg, rgba(0, 0, 0, 0.08), rgba(0, 0, 0, 0.62)),
+        var(--background-secondary-alt) !important;
+    background-color: var(--background-secondary-alt) !important;
+}
+
+html.o2-profile-theme-active [data-o2-profile-theme-kind="popout"] {
+    --o2-profile-theme-background-position: center;
+    --o2-profile-theme-background-size: cover;
+}
+
+html.o2-profile-theme-active [data-o2-profile-theme-kind="full"] {
+    --o2-profile-theme-background-position: center;
+    --o2-profile-theme-background-size: cover;
 }
 
 html.o2-profile-theme-active [data-o2-profile-theme-layer="true"] {
@@ -90,9 +132,19 @@ html.o2-profile-theme-active [data-o2-profile-theme-layer="true"] {
     inset: 0 !important;
     z-index: 0 !important;
     pointer-events: none !important;
-    background:
-        linear-gradient(180deg, rgba(0, 0, 0, 0.06), rgba(0, 0, 0, var(--o2-profile-theme-dim, 0.52))),
-        var(--o2-profile-theme-image) center top / cover no-repeat !important;
+    background-image: var(--o2-profile-theme-image) !important;
+    background-position: var(--o2-profile-theme-background-position, center) !important;
+    background-repeat: no-repeat !important;
+    background-size: var(--o2-profile-theme-background-size, cover) !important;
+    opacity: var(--o2-profile-theme-image-opacity, 0.48) !important;
+}
+
+html.o2-profile-theme-active [data-o2-profile-theme-kind="popout"] [class*="banner"],
+html.o2-profile-theme-active [data-o2-profile-theme-kind="popout"] [class*="banner_"],
+html.o2-profile-theme-active [data-o2-profile-theme-kind="popout"] [class*="banner__"] {
+    min-height: var(--o2-profile-theme-banner-height) !important;
+    max-height: var(--o2-profile-theme-banner-height) !important;
+    background-size: 100% var(--o2-profile-theme-banner-height) !important;
 }
 
 html.o2-profile-theme-active .o2-profile-theme-target > :not([data-o2-profile-theme-layer]),
@@ -104,14 +156,30 @@ html.o2-profile-theme-active [data-o2-profile-theme-target="true"] > :not([data-
 html.o2-profile-theme-active .o2-profile-theme-target [class*="profileFrameLayer"],
 html.o2-profile-theme-active .o2-profile-theme-target [class*="profileFrameMask"],
 html.o2-profile-theme-active .o2-profile-theme-target img[src*="collectibles-shop"],
+html.o2-profile-theme-active .o2-profile-theme-target [style*="collectibles-shop"],
+html.o2-profile-theme-active .o2-profile-theme-target [style*="1489398661619384321/1511863804592521317"],
+html.o2-profile-theme-active .o2-profile-theme-target [style*="1489398661619384321/1511863813127929897"],
+html.o2-profile-theme-active .o2-profile-theme-target [style*="1489398661619384321/1511863801518227588"],
 html.o2-profile-theme-active [data-o2-profile-theme-target="true"] [class*="profileFrameLayer"],
 html.o2-profile-theme-active [data-o2-profile-theme-target="true"] [class*="profileFrameMask"],
-html.o2-profile-theme-active [data-o2-profile-theme-target="true"] img[src*="collectibles-shop"] {
+html.o2-profile-theme-active [data-o2-profile-theme-target="true"] img[src*="collectibles-shop"],
+html.o2-profile-theme-active [data-o2-profile-theme-target="true"] [style*="collectibles-shop"],
+html.o2-profile-theme-active [data-o2-profile-theme-target="true"] [style*="1489398661619384321/1511863804592521317"],
+html.o2-profile-theme-active [data-o2-profile-theme-target="true"] [style*="1489398661619384321/1511863813127929897"],
+html.o2-profile-theme-active [data-o2-profile-theme-target="true"] [style*="1489398661619384321/1511863801518227588"] {
     z-index: 3 !important;
+    display: block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    pointer-events: none !important;
 }
 
 html.o2-profile-theme-active .o2-profile-theme-target [class*="userProfileInner"],
 html.o2-profile-theme-active [data-o2-profile-theme-target="true"] [class*="userProfileInner"],
+html.o2-profile-theme-active .o2-profile-theme-target [class*="userPopoutInner"],
+html.o2-profile-theme-active [data-o2-profile-theme-target="true"] [class*="userPopoutInner"],
+html.o2-profile-theme-active .o2-profile-theme-target [class*="profileColors"],
+html.o2-profile-theme-active [data-o2-profile-theme-target="true"] [class*="profileColors"],
 html.o2-profile-theme-active .o2-profile-theme-target [class*="inner_c0bea0"],
 html.o2-profile-theme-active [data-o2-profile-theme-target="true"] [class*="inner_c0bea0"],
 html.o2-profile-theme-active .o2-profile-theme-target [class*="overlayBackground"],
@@ -131,9 +199,28 @@ html.o2-profile-theme-active [data-o2-profile-theme-target="true"] [class*="cont
 html.o2-profile-theme-active .o2-profile-theme-target [class*="container__"],
 html.o2-profile-theme-active [data-o2-profile-theme-target="true"] [class*="container__"],
 html.o2-profile-theme-active [data-o2-profile-theme-transparent="true"] {
+    --profile-gradient-primary-color: transparent !important;
+    --profile-gradient-secondary-color: transparent !important;
     --profile-gradient-overlay-color: transparent !important;
     --profile-gradient-overlay-synced-with-user-theme: transparent !important;
     --profile-gradient-modal-background-color: transparent !important;
+    --profile-body-background-color: transparent !important;
+    --profile-body-background-hover: var(--o2-profile-theme-panel-bg, rgba(18, 18, 24, 0.34)) !important;
+    --profile-body-divider-color: rgba(255, 255, 255, 0.14) !important;
+    background: transparent !important;
+    background-color: transparent !important;
+}
+
+html.o2-profile-theme-active .o2-profile-theme-target [class*="userProfileInner"]::before,
+html.o2-profile-theme-active [data-o2-profile-theme-target="true"] [class*="userProfileInner"]::before,
+html.o2-profile-theme-active .o2-profile-theme-target [class*="userPopoutInner"]::before,
+html.o2-profile-theme-active [data-o2-profile-theme-target="true"] [class*="userPopoutInner"]::before,
+html.o2-profile-theme-active .o2-profile-theme-target [class*="overlayBackground"]::before,
+html.o2-profile-theme-active [data-o2-profile-theme-target="true"] [class*="overlayBackground"]::before,
+html.o2-profile-theme-active .o2-profile-theme-target [class*="body_"]::before,
+html.o2-profile-theme-active [data-o2-profile-theme-target="true"] [class*="body_"]::before,
+html.o2-profile-theme-active .o2-profile-theme-target [class*="body__"]::before,
+html.o2-profile-theme-active [data-o2-profile-theme-target="true"] [class*="body__"]::before {
     background: transparent !important;
     background-color: transparent !important;
 }

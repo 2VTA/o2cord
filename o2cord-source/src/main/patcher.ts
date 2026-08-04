@@ -23,6 +23,50 @@ import { dirname, join } from "path";
 import { RendererSettings } from "./settings";
 import { IS_VANILLA } from "./utils/constants";
 
+function isBrokenPipeError(err: unknown) {
+    return (err as NodeJS.ErrnoException)?.code === "EPIPE";
+}
+
+function suppressBrokenPipeStreamCrash() {
+    for (const stream of [process.stdout, process.stderr]) {
+        if (!stream?.write) continue;
+
+        const originalWrite = stream.write.bind(stream);
+        stream.write = ((...args: any[]) => {
+            try {
+                return originalWrite(...args);
+            } catch (err) {
+                if (isBrokenPipeError(err)) return false;
+                throw err;
+            }
+        }) as typeof stream.write;
+
+        stream.on?.("error", err => {
+            if (!isBrokenPipeError(err)) throw err;
+        });
+    }
+}
+
+function suppressBrokenPipeConsoleCrash() {
+    const methods = ["debug", "error", "info", "log", "warn"] as const;
+
+    for (const method of methods) {
+        const original = console[method];
+        if (typeof original !== "function") continue;
+
+        console[method] = ((...args: any[]) => {
+            try {
+                return original.apply(console, args);
+            } catch (err) {
+                if (!isBrokenPipeError(err)) throw err;
+            }
+        }) as typeof original;
+    }
+}
+
+suppressBrokenPipeStreamCrash();
+suppressBrokenPipeConsoleCrash();
+
 console.log("[o2cord] Starting up...");
 
 // Our injector file at app/index.js
