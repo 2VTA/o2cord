@@ -10,8 +10,10 @@ import { definePluginSettings } from "@api/Settings";
 import { managedStyleRootNode } from "@api/Styles";
 import { Devs } from "@utils/constants";
 import { createAndAppendStyle } from "@utils/css";
+import { Margins } from "@utils/margins";
 import definePlugin, { OptionType, StartAt } from "@utils/types";
-import { Forms, React, Select, UserStore } from "@webpack/common";
+import { chooseFile } from "@utils/web";
+import { Button, Forms, React, Select, showToast, TextInput, Toasts, UserStore } from "@webpack/common";
 
 const STYLE_ID = "o2-profile-theme-vars";
 const TARGET_CLASS = "o2-profile-theme-target";
@@ -20,6 +22,7 @@ const TARGET_KIND_ATTR = "data-o2-profile-theme-kind";
 const IMAGE_LAYER_ATTR = "data-o2-profile-theme-layer";
 const TRANSPARENT_CHILD_ATTR = "data-o2-profile-theme-transparent";
 const PANEL_CHILD_ATTR = "data-o2-profile-theme-panel";
+const MAX_LOCAL_IMAGE_BYTES = 8 * 1024 * 1024;
 const RYDER_USER_ID = "719085334989897750";
 const DISCORD_ID_RE = /^\d{17,20}$/;
 const REGISTRY_REFRESH_MS = 30_000;
@@ -798,13 +801,41 @@ function removeProfileTheme() {
     stopProfileWatcher();
 }
 
-function ProfileThemeSettings() {
-    const [mode, setMode] = React.useState<ThemeMode>((settings.store.mode as ThemeMode) || "dim");
+function clearProfileTheme() {
+    settings.store.imageUrl = "";
+    settings.store.publicImageUrl = "";
+    removeProfileTheme();
+}
 
+function readFileAsDataUrl(file: File) {
+    return new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onerror = () => reject(reader.error);
+        reader.onload = () => resolve(String(reader.result ?? ""));
+        reader.readAsDataURL(file);
+    });
+}
+
+async function pickLocalImage() {
+    const file = await chooseFile("image/png,image/jpeg,image/webp,image/gif");
+    if (!file) return null;
+
+    if (!file.type.startsWith("image/")) {
+        showToast("Choose an image or GIF file.", Toasts.Type.FAILURE);
+        return null;
+    }
+
+    if (file.size > MAX_LOCAL_IMAGE_BYTES) {
+        showToast("Use an image or GIF under 8 MB.", Toasts.Type.FAILURE);
+        return null;
+    }
+
+    return readFileAsDataUrl(file);
+}
+
+function VisibilitySelect({ mode, setMode }: { mode: ThemeMode; setMode: (mode: ThemeMode) => void; }) {
     return (
-        <Forms.FormSection className="o2-profile-theme-settings">
-            <Forms.FormTitle tag="h3">Profile Theme</Forms.FormTitle>
-
+        <>
             <Forms.FormTitle tag="h5">Visibility</Forms.FormTitle>
             <Select
                 options={[
@@ -820,8 +851,138 @@ function ProfileThemeSettings() {
                 isSelected={value => value === mode}
                 serialize={value => String(value)}
             />
+        </>
+    );
+}
+
+function PublicProfileThemeSettings() {
+    const [mode, setMode] = React.useState<ThemeMode>((settings.store.mode as ThemeMode) || "dim");
+
+    return (
+        <Forms.FormSection className="o2-profile-theme-settings">
+            <Forms.FormTitle tag="h3">Profile Theme</Forms.FormTitle>
+            <VisibilitySelect mode={mode} setMode={setMode} />
         </Forms.FormSection>
     );
+}
+
+function DebugProfileThemeSettings() {
+    const [imageUrl, setImageUrl] = React.useState(settings.store.imageUrl);
+    const [publicImageUrl, setPublicImageUrl] = React.useState(settings.store.publicImageUrl);
+    const [targetUserId, setTargetUserId] = React.useState(settings.store.targetUserId || RYDER_USER_ID);
+    const [mode, setMode] = React.useState<ThemeMode>((settings.store.mode as ThemeMode) || "dim");
+
+    const save = (
+        nextImageUrl = imageUrl,
+        nextMode = mode,
+        nextTargetUserId = targetUserId,
+        nextPublicImageUrl = publicImageUrl
+    ) => {
+        settings.store.imageUrl = cleanImageUrl(nextImageUrl);
+        settings.store.publicImageUrl = cleanImageUrl(nextPublicImageUrl);
+        settings.store.targetUserId = cleanUserId(nextTargetUserId) || RYDER_USER_ID;
+        settings.store.mode = nextMode;
+        applyProfileTheme();
+        showToast("ProfileTheme applied.", Toasts.Type.SUCCESS);
+    };
+
+    const chooseImage = async () => {
+        const picked = await pickLocalImage();
+        if (!picked) return;
+
+        setImageUrl(picked);
+        if (!publicImageUrl)
+            setPublicImageUrl(picked);
+        save(picked, mode, targetUserId, publicImageUrl || picked);
+    };
+
+    const clear = () => {
+        setImageUrl("");
+        setPublicImageUrl("");
+        clearProfileTheme();
+        showToast("ProfileTheme cleared.", Toasts.Type.MESSAGE);
+    };
+
+    const previewVars = {
+        "--o2-profile-theme-settings-preview-image": imageUrl ? `url("${cssString(imageUrl)}")` : "none",
+        "--o2-profile-theme-settings-preview-opacity": getModeVars(mode).imageOpacity
+    } as React.CSSProperties;
+
+    return (
+        <Forms.FormSection className="o2-profile-theme-settings">
+            <Forms.FormTitle tag="h3">Profile Theme</Forms.FormTitle>
+            <Forms.FormText>
+                Set a 320x580-style profile background image or GIF for selected Discord profiles.
+            </Forms.FormText>
+
+            <Forms.FormTitle tag="h5">Image</Forms.FormTitle>
+            <div className="o2-profile-theme-row">
+                <TextInput
+                    value={imageUrl}
+                    onChange={setImageUrl}
+                    placeholder="Image or GIF URL"
+                />
+                <Button onClick={chooseImage}>Choose Image</Button>
+            </div>
+
+            <Forms.FormTitle tag="h5">Public Target</Forms.FormTitle>
+            <div className="o2-profile-theme-row">
+                <TextInput
+                    value={targetUserId}
+                    onChange={setTargetUserId}
+                    placeholder="Discord user ID"
+                />
+                <Button
+                    onClick={() => {
+                        const me = UserStore.getCurrentUser();
+                        if (!me?.id) return;
+                        setTargetUserId(me.id);
+                    }}
+                >
+                    Use My ID
+                </Button>
+            </div>
+
+            <Forms.FormTitle tag="h5">Public Image</Forms.FormTitle>
+            <div className="o2-profile-theme-row">
+                <TextInput
+                    value={publicImageUrl}
+                    onChange={setPublicImageUrl}
+                    placeholder="Image or GIF URL for the target ID"
+                />
+                <Button
+                    onClick={() => {
+                        setPublicImageUrl(imageUrl);
+                        save(imageUrl, mode, targetUserId, imageUrl);
+                    }}
+                >
+                    Use Image
+                </Button>
+            </div>
+
+            <VisibilitySelect mode={mode} setMode={setMode} />
+
+            <div className="o2-profile-theme-actions">
+                <Button onClick={() => save()}>Apply</Button>
+                <Button color={Button.Colors.RED} onClick={clear}>Clear</Button>
+            </div>
+
+            <Forms.FormTitle tag="h5" className={Margins.top8}>Preview 320x580</Forms.FormTitle>
+            <div className="o2-profile-theme-preview" style={previewVars}>
+                {!imageUrl && <div className="o2-profile-theme-preview-empty">No image selected</div>}
+                <div className="o2-profile-theme-preview-card">
+                    <div className="o2-profile-theme-preview-name">o2 Profile</div>
+                    <div className="o2-profile-theme-preview-subtitle">
+                        {mode === "full" ? "Full image mode" : "Dim image mode"}
+                    </div>
+                </div>
+            </div>
+        </Forms.FormSection>
+    );
+}
+
+function ProfileThemeSettings() {
+    return O2CORD_DEBUG ? <DebugProfileThemeSettings /> : <PublicProfileThemeSettings />;
 }
 
 const settings = definePluginSettings({
@@ -849,6 +1010,7 @@ const settings = definePluginSettings({
     mode: {
         type: OptionType.SELECT,
         description: "ProfileTheme image visibility",
+        hidden: true,
         options: [
             { label: "Dim image", value: "dim", default: true },
             { label: "Full image", value: "full" }
