@@ -1,4 +1,4 @@
-// Vencord public-profiletheme-refresh-1.3.22
+// Vencord public-profiletheme-settings-fix-1.3.23
 // Standalone: false
 // Platform: win32
 // Updater Disabled: false
