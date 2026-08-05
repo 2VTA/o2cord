@@ -147,10 +147,22 @@ html.o2-profile-theme-active [data-o2-profile-theme-kind="popout"] [class*="bann
     background-size: 100% var(--o2-profile-theme-banner-height) !important;
 }
 
-html.o2-profile-theme-active .o2-profile-theme-target > :not([data-o2-profile-theme-layer]),
-html.o2-profile-theme-active [data-o2-profile-theme-target="true"] > :not([data-o2-profile-theme-layer]) {
+html.o2-profile-theme-active .o2-profile-theme-target > :not([data-o2-profile-theme-layer]):not([class*="profileFrameLayer"]):not([class*="profileFrameMask"]):not([class*="custom-profile-frame"]),
+html.o2-profile-theme-active [data-o2-profile-theme-target="true"] > :not([data-o2-profile-theme-layer]):not([class*="profileFrameLayer"]):not([class*="profileFrameMask"]):not([class*="custom-profile-frame"]) {
     position: relative;
     z-index: 1;
+}
+
+/*
+ * Profile frame layers/masks (equipped Discord collectible frames) are absolutely
+ * positioned by Discord to pin over the avatar. Forcing them to position:relative
+ * above would drop them into normal flow and scramble the whole card's layout, so
+ * leave their own positioning untouched and just let the frame extend past the
+ * card bounds instead of clipping it.
+ */
+html.o2-profile-theme-active [data-o2-profile-theme-has-frame="true"].o2-profile-theme-target,
+html.o2-profile-theme-active [data-o2-profile-theme-has-frame="true"][data-o2-profile-theme-target="true"] {
+    overflow: visible !important;
 }
 
 html.o2-profile-theme-active .o2-profile-theme-target [class*="profileFrameLayer"],

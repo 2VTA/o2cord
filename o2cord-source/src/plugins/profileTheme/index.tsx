@@ -20,6 +20,7 @@ const TARGET_CLASS = "o2-profile-theme-target";
 const TARGET_ATTR = "data-o2-profile-theme-target";
 const TARGET_KIND_ATTR = "data-o2-profile-theme-kind";
 const IMAGE_LAYER_ATTR = "data-o2-profile-theme-layer";
+const FRAME_PRESENT_ATTR = "data-o2-profile-theme-has-frame";
 const TRANSPARENT_CHILD_ATTR = "data-o2-profile-theme-transparent";
 const PANEL_CHILD_ATTR = "data-o2-profile-theme-panel";
 const MAX_LOCAL_IMAGE_BYTES = 8 * 1024 * 1024;
@@ -439,7 +440,45 @@ function findProfileUserId(value: any, seen = new WeakSet<object>(), depth = 0):
     return "";
 }
 
+const MIN_PRIMARY_AVATAR_SIZE = 48;
+const AVATAR_ID_RE = /\/(?:avatars\/|users\/)(\d{17,20})(?:\/avatars)?\//;
+
+function getKnownThemedUserIds() {
+    const ids = new Set<string>();
+
+    const targetId = cleanUserId(settings.store.targetUserId);
+    if (targetId) ids.add(targetId);
+
+    for (const id of Object.keys(remoteProfileThemes))
+        ids.add(id);
+
+    return ids;
+}
+
+function shellHasAvatarForUser(shell: HTMLElement, userId: string) {
+    return Array.from(shell.querySelectorAll<HTMLImageElement>("img")).some(img => {
+        const src = img.currentSrc || img.src || "";
+        const match = AVATAR_ID_RE.exec(src);
+        if (match?.[1] !== userId) return false;
+
+        const rect = img.getBoundingClientRect();
+        return Math.max(rect.width, rect.height) >= MIN_PRIMARY_AVATAR_SIZE;
+    });
+}
+
+function getProfileUserIdFromAvatar(shell: HTMLElement) {
+    for (const userId of getKnownThemedUserIds()) {
+        if (shellHasAvatarForUser(shell, userId))
+            return userId;
+    }
+
+    return "";
+}
+
 function getProfileUserId(shell: HTMLElement) {
+    const avatarUserId = getProfileUserIdFromAvatar(shell);
+    if (avatarUserId) return avatarUserId;
+
     for (let node: Element | null = shell, depth = 0; node && depth < 4; node = node.parentElement, depth++) {
         if (node === document.body || node === document.documentElement)
             break;
@@ -552,9 +591,14 @@ function getProfileThemeKind(element: HTMLElement): ProfileThemeKind {
     return "popout";
 }
 
+function shellHasProfileFrame(element: HTMLElement) {
+    return element.matches(PROFILE_FRAME_SELECTOR) || Boolean(element.querySelector(PROFILE_FRAME_SELECTOR));
+}
+
 function applyTargetFallback({ element, userId, imageUrl }: ProfileThemeTarget) {
     const kind = getProfileThemeKind(element);
     const imageValue = `url("${cssString(imageUrl)}")`;
+    const hasFrame = shellHasProfileFrame(element);
 
     if (!element.classList.contains(TARGET_CLASS))
         element.classList.add(TARGET_CLASS);
@@ -562,6 +606,8 @@ function applyTargetFallback({ element, userId, imageUrl }: ProfileThemeTarget) 
         element.setAttribute(TARGET_ATTR, "true");
     if (element.getAttribute(TARGET_KIND_ATTR) !== kind)
         element.setAttribute(TARGET_KIND_ATTR, kind);
+    if (element.getAttribute(FRAME_PRESENT_ATTR) !== String(hasFrame))
+        element.setAttribute(FRAME_PRESENT_ATTR, String(hasFrame));
     if (element.getAttribute("data-o2-profile-theme-user-id") !== userId)
         element.setAttribute("data-o2-profile-theme-user-id", userId);
     if (element.style.getPropertyValue("--o2-profile-theme-image") !== imageValue)
@@ -604,6 +650,7 @@ function clearTargetFallback(element: Element) {
     element.classList.remove(TARGET_CLASS);
     element.removeAttribute(TARGET_ATTR);
     element.removeAttribute(TARGET_KIND_ATTR);
+    element.removeAttribute(FRAME_PRESENT_ATTR);
     element.removeAttribute("data-o2-profile-theme-user-id");
 
     element
@@ -741,6 +788,7 @@ function scheduleProfileScans() {
 function handleAppLifecycleChange() {
     if (!hasProfileThemeSource()) return;
     refreshProfileTheme();
+    queueImmediateProfileTargetScan();
 }
 
 function startKeepAlive() {
@@ -750,7 +798,7 @@ function startKeepAlive() {
         if (!hasProfileThemeSource()) return;
 
         writeProfileThemeVars();
-        queueProfileTargetScan();
+        queueImmediateProfileTargetScan();
     }, 2500);
 }
 
