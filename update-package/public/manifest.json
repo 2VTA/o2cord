@@ -1,8 +1,8 @@
 {
-    "version":  "1.3.28",
-    "hash":  "public-20260805185554",
+    "version":  "1.3.29",
+    "hash":  "public-20260805202134",
     "author":  "o2cord",
-    "message":  "Fix ProfileTheme leaking into the account-switcher menu and cross-account bleed; keep ussro2 fully independent",
+    "message":  "Fix ProfileTheme leaking into voice call tiles (overbroad decoration scan); add automatic background updates so future updates apply without clicking Install",
     "notes":  [
                   "Public o2cord update package",
                   "ussro2 backgrounds are loaded from backgrounds.json beside this manifest",
