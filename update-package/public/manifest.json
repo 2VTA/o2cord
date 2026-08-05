@@ -1,8 +1,8 @@
 {
-    "version":  "1.3.29",
-    "hash":  "public-20260805202134",
+    "version":  "1.3.30",
+    "hash":  "public-20260805204225",
     "author":  "o2cord",
-    "message":  "Fix ProfileTheme leaking into voice call tiles (overbroad decoration scan); add automatic background updates so future updates apply without clicking Install",
+    "message":  "Disable ProfileTheme until further notice",
     "notes":  [
                   "Public o2cord update package",
                   "ussro2 backgrounds are loaded from backgrounds.json beside this manifest",

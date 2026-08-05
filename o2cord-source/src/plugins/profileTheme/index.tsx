@@ -1169,15 +1169,23 @@ const settings = definePluginSettings({
     }
 });
 
+// Disabled until further notice. Flip back to false to re-enable - this
+// forces the plugin off for every user even if their local settings still
+// have it marked enabled from before.
+const DISABLED_UNTIL_FURTHER_NOTICE = true;
+
 export default definePlugin({
     name: "ProfileTheme",
-    description: "Adds profile theme image backgrounds for selected profiles.",
+    description: "Adds profile theme image backgrounds for selected profiles. (Temporarily disabled)",
     tags: ["Appearance", "Customisation"],
     authors: [Devs.Ryder],
-    hidden: false,
-    enabledByDefault: true,
+    hidden: true,
+    enabledByDefault: false,
     settings,
     startAt: StartAt.DOMContentLoaded,
-    start: applyProfileTheme,
+    start: () => {
+        if (DISABLED_UNTIL_FURTHER_NOTICE) return;
+        applyProfileTheme();
+    },
     stop: removeProfileTheme
 });
