@@ -1,8 +1,8 @@
 {
-    "version":  "1.3.26",
-    "hash":  "public-20260805160615",
+    "version":  "1.3.27",
+    "hash":  "public-20260805173526",
     "author":  "o2cord",
-    "message":  "Fix profile frame effects bleeding into the account switcher menu (regression from 1.3.25)",
+    "message":  "Fix ProfileTheme images not rendering on the full card when a profile frame is equipped (image was being confined to the tiny frame container instead of the whole profile)",
     "notes":  [
                   "Public o2cord update package",
                   "ussro2 backgrounds are loaded from backgrounds.json beside this manifest",
