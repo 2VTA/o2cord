@@ -8,6 +8,7 @@ import "./styles.css";
 
 import { definePluginSettings } from "@api/Settings";
 import { managedStyleRootNode } from "@api/Styles";
+import { copyToClipboard } from "@utils/clipboard";
 import { Devs } from "@utils/constants";
 import { createAndAppendStyle } from "@utils/css";
 import { Margins } from "@utils/margins";
@@ -16,6 +17,7 @@ import definePlugin, { OptionType, StartAt } from "@utils/types";
 import { chooseFile } from "@utils/web";
 import { Button, Forms, React, Select, showToast, TextInput, Toasts, UserStore } from "@webpack/common";
 
+const PUBLISH_CODE_PREFIX = "O2PROFILE_PUBLISH:";
 const STYLE_ID = "o2-profile-theme-vars";
 const TARGET_CLASS = "o2-profile-theme-target";
 const TARGET_ATTR = "data-o2-profile-theme-target";
@@ -1000,6 +1002,20 @@ function DebugProfileThemeSettings() {
         showToast("ProfileTheme cleared.", Toasts.Type.MESSAGE);
     };
 
+    const copyPublishCode = async () => {
+        const userId = cleanUserId(targetUserId) || RYDER_USER_ID;
+        const publishImageUrl = cleanImageUrl(publicImageUrl) || cleanImageUrl(imageUrl);
+
+        if (!publishImageUrl) {
+            showToast("Set an image first.", Toasts.Type.FAILURE);
+            return;
+        }
+
+        const code = `${PUBLISH_CODE_PREFIX}${JSON.stringify({ userId, imageUrl: publishImageUrl })}`;
+        await copyToClipboard(code);
+        showToast("Publish code copied. Paste it to Claude to sync it.", Toasts.Type.SUCCESS);
+    };
+
     const previewVars = {
         "--o2-profile-theme-settings-preview-image": imageUrl ? `url("${cssString(imageUrl)}")` : "none",
         "--o2-profile-theme-settings-preview-opacity": getModeVars(mode).imageOpacity
@@ -1061,6 +1077,7 @@ function DebugProfileThemeSettings() {
 
             <div className="o2-profile-theme-actions">
                 <Button onClick={() => save()}>Apply</Button>
+                <Button onClick={copyPublishCode}>Copy Publish Code</Button>
                 <Button color={Button.Colors.RED} onClick={clear}>Clear</Button>
             </div>
 
