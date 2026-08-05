@@ -1,8 +1,8 @@
 {
-    "version":  "1.3.27",
-    "hash":  "public-20260805173526",
+    "version":  "1.3.28",
+    "hash":  "public-20260805185554",
     "author":  "o2cord",
-    "message":  "Fix ProfileTheme images not rendering on the full card when a profile frame is equipped (image was being confined to the tiny frame container instead of the whole profile)",
+    "message":  "Fix ProfileTheme leaking into the account-switcher menu and cross-account bleed; keep ussro2 fully independent",
     "notes":  [
                   "Public o2cord update package",
                   "ussro2 backgrounds are loaded from backgrounds.json beside this manifest",

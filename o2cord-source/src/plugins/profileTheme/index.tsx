@@ -66,6 +66,7 @@ const PROFILE_DIALOG_EDITOR_MARKERS = [
     "Your Effects",
     "Your Frames"
 ];
+const ACCOUNT_SWITCHER_MARKERS = ["Switch Accounts", "Copy User ID"];
 
 type ThemeMode = "dim" | "full";
 type ProfileThemeKind = "popout" | "full";
@@ -205,7 +206,27 @@ function getProfileShell(element: Element) {
     return shell;
 }
 
+function isAccountSwitcherPopout(element: HTMLElement) {
+    for (let node: Element | null = element, depth = 0; node && depth < 8; node = node.parentElement, depth++) {
+        if (node === document.body || node === document.documentElement)
+            break;
+
+        const text = node.textContent ?? "";
+        if (ACCOUNT_SWITCHER_MARKERS.every(marker => text.includes(marker)))
+            return true;
+    }
+
+    return false;
+}
+
 function isBlockedProfileArea(element: HTMLElement) {
+    // The bottom-left account-switcher flyout (Edit Profile / Switch Accounts /
+    // Copy User ID) reuses the same profile-card markup as a real profile, but
+    // it isn't one - theming it caused the image to bleed into that menu and
+    // let one logged-in account's avatar get mistaken for another's.
+    if (isAccountSwitcherPopout(element))
+        return true;
+
     const settingsRoot = element.closest<HTMLElement>("[class*='standardSidebarView'], [class*='contentRegion']");
     if (settingsRoot) {
         const text = settingsRoot.textContent ?? "";
@@ -453,24 +474,27 @@ function getKnownThemedUserIds() {
     return ids;
 }
 
-function shellHasAvatarForUser(shell: HTMLElement, userId: string) {
-    return Array.from(shell.querySelectorAll<HTMLImageElement>("img")).some(img => {
+function getMainAvatarUserId(shell: HTMLElement) {
+    for (const img of Array.from(shell.querySelectorAll<HTMLImageElement>("img"))) {
         const src = img.currentSrc || img.src || "";
         const match = AVATAR_ID_RE.exec(src);
-        if (match?.[1] !== userId) return false;
+        if (!match) continue;
 
         const rect = img.getBoundingClientRect();
-        return Math.max(rect.width, rect.height) >= MIN_PRIMARY_AVATAR_SIZE;
-    });
-}
+        if (Math.max(rect.width, rect.height) < MIN_PRIMARY_AVATAR_SIZE) continue;
 
-function getProfileUserIdFromAvatar(shell: HTMLElement) {
-    for (const userId of getKnownThemedUserIds()) {
-        if (shellHasAvatarForUser(shell, userId))
-            return userId;
+        // First large avatar in document order is the profile's own header
+        // avatar; anything after it (mutual friends, in-voice participants)
+        // is someone else's picture and must not be mistaken for the owner.
+        return match[1];
     }
 
     return "";
+}
+
+function getProfileUserIdFromAvatar(shell: HTMLElement) {
+    const userId = getMainAvatarUserId(shell);
+    return userId && getKnownThemedUserIds().has(userId) ? userId : "";
 }
 
 function getProfileUserId(shell: HTMLElement) {
@@ -508,10 +532,13 @@ function getTargetForShell(shell: HTMLElement): ProfileThemeTarget | null {
         return imageUrl ? { element: shell, userId, imageUrl } : null;
     }
 
-    if (isCurrentUserProfileShell(shell)) {
-        const fallbackUserId = UserStore.getCurrentUser()?.id ?? getTargetUserId();
-        const imageUrl = getImageUrlForUser(fallbackUserId) || getAnyConfiguredImageUrl();
-        return imageUrl ? { element: shell, userId: fallbackUserId, imageUrl } : null;
+    // Only preview on Ryder's own account. Otherwise this fires for whatever
+    // Discord account happens to be logged in (alts included), stamping
+    // Ryder's personal image onto profiles that never asked for it and
+    // fighting with per-user tools like ussro2.
+    if (isCurrentUserProfileShell(shell) && UserStore.getCurrentUser()?.id === RYDER_USER_ID) {
+        const imageUrl = getImageUrlForUser(RYDER_USER_ID) || getAnyConfiguredImageUrl();
+        return imageUrl ? { element: shell, userId: RYDER_USER_ID, imageUrl } : null;
     }
 
     return null;
