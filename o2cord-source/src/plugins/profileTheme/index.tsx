@@ -11,6 +11,7 @@ import { managedStyleRootNode } from "@api/Styles";
 import { Devs } from "@utils/constants";
 import { createAndAppendStyle } from "@utils/css";
 import { Margins } from "@utils/margins";
+import { isDebugOwner } from "@utils/o2Debug";
 import definePlugin, { OptionType, StartAt } from "@utils/types";
 import { chooseFile } from "@utils/web";
 import { Button, Forms, React, Select, showToast, TextInput, Toasts, UserStore } from "@webpack/common";
@@ -150,11 +151,6 @@ const PROFILE_FRAME_SELECTOR = [
     "[style*='1489398661619384321/1511863813127929897']",
     "[style*='1489398661619384321/1511863801518227588']",
     "[class*='profileEffect']"
-].join(",");
-
-const PROFILE_FRAME_CONTAINER_SELECTOR = [
-    "[class*='profileFrameContainer']",
-    "[class*='custom-profile-frame']"
 ].join(",");
 
 const PROFILE_THEME_EXCLUDED_SELECTOR = [
@@ -507,27 +503,16 @@ function getTargetForShell(shell: HTMLElement): ProfileThemeTarget | null {
 
     if (userId) {
         const imageUrl = getImageUrlForUser(userId);
-        return imageUrl ? { element: getThemeTargetElement(shell), userId, imageUrl } : null;
+        return imageUrl ? { element: shell, userId, imageUrl } : null;
     }
 
     if (isCurrentUserProfileShell(shell)) {
         const fallbackUserId = UserStore.getCurrentUser()?.id ?? getTargetUserId();
         const imageUrl = getImageUrlForUser(fallbackUserId) || getAnyConfiguredImageUrl();
-        return imageUrl ? { element: getThemeTargetElement(shell), userId: fallbackUserId, imageUrl } : null;
+        return imageUrl ? { element: shell, userId: fallbackUserId, imageUrl } : null;
     }
 
     return null;
-}
-
-function getThemeTargetElement(shell: HTMLElement) {
-    if (shell.matches(PROFILE_FRAME_CONTAINER_SELECTOR))
-        return shell;
-
-    const frameContainer = Array
-        .from(shell.querySelectorAll<HTMLElement>(PROFILE_FRAME_CONTAINER_SELECTOR))
-        .find(element => !element.closest(PROFILE_THEME_EXCLUDED_SELECTOR) && !isBlockedProfileArea(element));
-
-    return frameContainer ?? shell;
 }
 
 function addTargetFromElement(targets: Map<HTMLElement, ProfileThemeTarget>, element: Element) {
@@ -1094,7 +1079,7 @@ function DebugProfileThemeSettings() {
 }
 
 function ProfileThemeSettings() {
-    return O2CORD_DEBUG ? <DebugProfileThemeSettings /> : <PublicProfileThemeSettings />;
+    return isDebugOwner() ? <DebugProfileThemeSettings /> : <PublicProfileThemeSettings />;
 }
 
 const settings = definePluginSettings({
