@@ -1,8 +1,8 @@
 {
-    "version":  "1.3.30",
-    "hash":  "public-20260805204225",
+    "version":  "1.3.31",
+    "hash":  "public-20260805204639",
     "author":  "o2cord",
-    "message":  "Disable ProfileTheme until further notice",
+    "message":  "Remove ProfileTheme plugin permanently",
     "notes":  [
                   "Public o2cord update package",
                   "ussro2 backgrounds are loaded from backgrounds.json beside this manifest",
