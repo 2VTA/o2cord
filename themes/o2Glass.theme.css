@@ -2,22 +2,23 @@
  * @name o2 Glass
  * @description Windows Explorer style acrylic blur for Discord.
  * @author ! Ryder
- * @version 1.6.2
+ * @version 1.7.0
  */
 
 :root {
-    --o2-window: rgba(18, 22, 22, 0.34);
-    --o2-panel: rgba(18, 22, 22, 0.46);
-    --o2-panel-soft: rgba(18, 22, 22, 0.36);
-    --o2-panel-strong: rgba(18, 22, 22, 0.62);
-    --o2-popout: rgba(18, 22, 22, 0.78);
+    --o2-window: rgba(18, 22, 22, 0.22);
+    --o2-panel: rgba(18, 22, 22, 0.32);
+    --o2-panel-soft: rgba(18, 22, 22, 0.24);
+    --o2-panel-strong: rgba(18, 22, 22, 0.5);
+    --o2-popout: rgba(18, 22, 22, 0.64);
     --o2-border: rgba(255, 255, 255, 0.08);
     --o2-hover: rgba(255, 255, 255, 0.075);
     --o2-selected: rgba(255, 255, 255, 0.12);
     --o2-red: #ff333d;
     --o2-red-hover: #ff4f58;
     --o2-red-active: #d92832;
-    --o2-blur: 18px;
+    --o2-blur: 30px;
+    --o2-blur-strong: 44px;
 
     --background-primary: var(--o2-window) !important;
     --background-secondary: var(--o2-panel-soft) !important;
@@ -158,8 +159,8 @@ body::after,
 [class*="sidebarRegion_"] {
     background-color: var(--o2-panel) !important;
     border-color: var(--o2-border) !important;
-    backdrop-filter: blur(var(--o2-blur)) saturate(1.12);
-    -webkit-backdrop-filter: blur(var(--o2-blur)) saturate(1.12);
+    backdrop-filter: blur(var(--o2-blur)) saturate(1.18);
+    -webkit-backdrop-filter: blur(var(--o2-blur)) saturate(1.18);
 }
 
 /* Scroll areas stay readable but avoid expensive per-row blur. */
@@ -305,8 +306,8 @@ button[class*="lookFilled_"][class*="colorPrimary_"]:active,
 [role="listbox"] {
     background-color: var(--o2-popout) !important;
     border: 1px solid var(--o2-border) !important;
-    backdrop-filter: blur(24px) saturate(1.12);
-    -webkit-backdrop-filter: blur(24px) saturate(1.12);
+    backdrop-filter: blur(var(--o2-blur-strong)) saturate(1.18);
+    -webkit-backdrop-filter: blur(var(--o2-blur-strong)) saturate(1.18);
     box-shadow: none !important;
 }
 
