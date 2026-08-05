@@ -1,8 +1,8 @@
 {
-    "version":  "1.3.25",
-    "hash":  "public-20260805150946",
+    "version":  "1.3.26",
+    "hash":  "public-20260805160615",
     "author":  "o2cord",
-    "message":  "Fix ProfileTheme not showing for other o2cord users, harden recovery after screenshot focus loss, fix layout collision with equipped profile frames",
+    "message":  "Fix profile frame effects bleeding into the account switcher menu (regression from 1.3.25)",
     "notes":  [
                   "Public o2cord update package",
                   "ussro2 backgrounds are loaded from backgrounds.json beside this manifest",
