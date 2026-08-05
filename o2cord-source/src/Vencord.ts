@@ -34,13 +34,14 @@ import { popNotice, showNotice } from "@api/Notices";
 import { openSettingsTabModal, UpdaterTab } from "@components/settings";
 import { IS_WINDOWS } from "@utils/constants";
 import { createAndAppendStyle } from "@utils/css";
+import { relaunch } from "@utils/native";
 import { StartAt } from "@utils/types";
 import { React } from "@webpack/common";
 
 import { NotificationData, showNotification } from "./api/Notifications";
 import { initPluginManager, PMLogger, startAllPlugins } from "./api/PluginManager";
 import { PlainSettings, Settings, SettingsStore } from "./api/Settings";
-import { changes, checkForUpdates, UpdateLogger } from "./utils/updater";
+import { changes, checkForUpdates, update as applyO2Update, UpdateLogger } from "./utils/updater";
 import { onceReady } from "./webpack";
 import { patches } from "./webpack/patchWebpack";
 
@@ -91,8 +92,24 @@ function ensureO2UpdateNoticeStyle() {
     `;
 }
 
-function showO2UpdateNotice() {
+function showO2UpdateNotice(applied: boolean) {
     ensureO2UpdateNoticeStyle();
+
+    if (applied) {
+        showNotice(
+            React.createElement(
+                "span",
+                { className: "o2-update-notice-message" },
+                "o2cord update installed. Relaunch Discord to finish."
+            ),
+            "Relaunch Now",
+            () => {
+                popNotice();
+                relaunch();
+            }
+        );
+        return;
+    }
 
     showNotice(
         React.createElement(
@@ -144,13 +161,26 @@ async function runUpdateCheck() {
         const updateKey = getAvailableUpdateKey();
         if (!shouldShowO2UpdateNotice(updateKey)) return;
 
-        showO2UpdateNotice();
+        let applied = false;
+        try {
+            applied = await applyO2Update();
+        } catch (err) {
+            UpdateLogger.error("Failed to auto-apply o2cord update", err);
+        }
 
-        notify({
-            title: "An o2cord update is available!",
-            body: "Click here to install it",
-            onClick: () => openSettingsTabModal(UpdaterTab!)
-        });
+        showO2UpdateNotice(applied);
+
+        notify(applied
+            ? {
+                title: "o2cord updated!",
+                body: "Click here to relaunch Discord and finish",
+                onClick: relaunch
+            }
+            : {
+                title: "An o2cord update is available!",
+                body: "Click here to install it",
+                onClick: () => openSettingsTabModal(UpdaterTab!)
+            });
     } catch (err) {
         UpdateLogger.error("Failed to check for updates", err);
     }

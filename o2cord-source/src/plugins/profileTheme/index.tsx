@@ -701,12 +701,16 @@ function markProfileTargets() {
     try {
         const targets = new Map<HTMLElement, ProfileThemeTarget>();
 
+        // Only PROFILE_TARGET_SELECTOR seeds a scan of the whole document.
+        // PROFILE_FRAME_SELECTOR includes very generic fragments like
+        // "decoration" and "avatarDecoration" that also match avatar
+        // decorations in voice call tiles, member lists, etc. elsewhere on
+        // the page; walking up from those wrongly turned unrelated UI (like
+        // a voice tile) into a "profile shell". Frame layers inside a real,
+        // already-found shell are still handled fine by the CSS z-index
+        // rules, so this second global scan isn't needed.
         document
             .querySelectorAll<HTMLElement>(PROFILE_TARGET_SELECTOR)
-            .forEach(element => addTargetFromElement(targets, element));
-
-        document
-            .querySelectorAll<HTMLElement>(PROFILE_FRAME_SELECTOR)
             .forEach(element => addTargetFromElement(targets, element));
 
         document.querySelectorAll(`.${TARGET_CLASS}, [${TARGET_ATTR}]`).forEach(element => {
