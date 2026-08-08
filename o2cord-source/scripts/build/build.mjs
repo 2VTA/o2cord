@@ -56,7 +56,7 @@ const nodeCommonOpts = {
     platform: "node",
     target: ["esnext"],
     // @ts-expect-error this is never undefined
-    external: ["electron", "original-fs", "~pluginNatives", ...commonOpts.external]
+    external: ["electron", "original-fs", "~pluginNatives", "koffi", ...commonOpts.external]
 };
 
 const sourceMapFooter = s => watch ? "" : `//# sourceMappingURL=vencord://${s}.js.map`;

@@ -1,24 +1,22 @@
 /*
- * Vencord, a Discord client mod
- * Copyright (c) 2025 Vendicated and contributors
+ * o2cord, a Discord client mod
+ * Copyright (c) 2026 Ryder
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
 import "./settings.css";
 
-import { isPluginEnabled } from "@api/PluginManager";
 import { Divider } from "@components/Divider";
 import { Heading } from "@components/Heading";
 import { resolveError } from "@components/settings/tabs/plugins/components/Common";
-import { debounce } from "@shared/debounce";
 import { classNameFactory } from "@utils/css";
 import { ActivityType } from "@vencord/discord-types/enums";
 import { ApplicationAssetUtils, Button, closeModal, Modal, openModal, Select, Text, TextInput, Toasts, useEffect, useState } from "@webpack/common";
 import type { ReactNode } from "react";
 
-import CustomRPCPlugin, { setRpc, settings, TimestampMode } from ".";
+import { markUpdated, setRpc, settings, StatusDisplayType, TimestampMode } from ".";
 
-const cl = classNameFactory("vc-customRPC-settings-");
+const cl = classNameFactory("vc-o2rpc-settings-");
 
 type SettingsKey = keyof typeof settings.store;
 
@@ -51,17 +49,8 @@ function isAppIdValid(value: string) {
     return true;
 }
 
-const updateRPC = debounce(() => {
-    setRpc(true);
-    if (isPluginEnabled(CustomRPCPlugin.name)) setRpc();
-});
-
-function isStreamLinkDisabled() {
-    return settings.store.type !== ActivityType.STREAMING;
-}
-
 function isStreamLinkValid(value: string) {
-    if (!isStreamLinkDisabled() && !/https?:\/\/(www\.)?(twitch\.tv|youtube\.com)\/\w+/.test(value)) return "Streaming link must be a valid URL.";
+    if (settings.store.type === ActivityType.STREAMING && !/https?:\/\/(www\.)?(twitch\.tv|youtube\.com)\/\w+/.test(value)) return "Streaming link must be a valid URL.";
     if (value && value.length > 512) return "Streaming link must be not longer than 512 characters.";
     return true;
 }
@@ -98,6 +87,80 @@ function PairSetting<T>(props: { data: [TextOption<T>, TextOption<T>]; }) {
     );
 }
 
+function TimestampSection() {
+    const s = settings.use();
+
+    const options = [
+        { value: TimestampMode.NONE, label: "None" },
+        { value: TimestampMode.SINCE_START, label: "Since last connection" },
+        { value: TimestampMode.SINCE_UPDATE, label: "Since last presence update" },
+        { value: TimestampMode.LOCAL_TIME, label: "Your local time" },
+        { value: TimestampMode.CUSTOM, label: "Custom timestamp" }
+    ];
+
+    return (
+        <div className={cl("timestamp")}>
+            <Heading tag="h5">Timestamp</Heading>
+            {options.map(opt => (
+                <label key={opt.value} className={cl("radio-row")}>
+                    <input
+                        type="radio"
+                        name="o2rpc-timestamp-mode"
+                        checked={(s.timestampMode ?? TimestampMode.NONE) === opt.value}
+                        onChange={() => { settings.store.timestampMode = opt.value; markUpdated(); }}
+                    />
+                    {opt.label}
+                </label>
+            ))}
+
+            {s.timestampMode === TimestampMode.CUSTOM && (
+                <div className={cl("pair", "timestamp-custom")}>
+                    <SingleSetting
+                        settingsKey="startTime" label="Start Timestamp (in milliseconds)"
+                        transform={parseNumber} isValid={isNumberValid}
+                    />
+                    <SingleSetting
+                        settingsKey="endTime" label="End Timestamp (in milliseconds)"
+                        transform={parseNumber} isValid={isNumberValid}
+                    />
+                </div>
+            )}
+        </div>
+    );
+}
+
+function ImageGroup({ title, keySettingsKey, textSettingsKey, urlSettingsKey }: {
+    title: string;
+    keySettingsKey: SettingsKey;
+    textSettingsKey: SettingsKey;
+    urlSettingsKey: SettingsKey;
+}) {
+    return (
+        <div className={cl("image-group")}>
+            <Heading tag="h5">{title}</Heading>
+            <div className={cl("pair")}>
+                <SingleSetting
+                    settingsKey={keySettingsKey} label="Key"
+                    isValid={isImageKeyValid}
+                    action={<BrowseAssetsButton settingsKey={keySettingsKey} />}
+                />
+                <SingleSetting settingsKey={textSettingsKey} label="Text" isValid={maxLength128} />
+            </div>
+            <SingleSetting settingsKey={urlSettingsKey} label="URL" isValid={isUrlValid} />
+        </div>
+    );
+}
+
+function ActionButtons() {
+    return (
+        <div className={cl("actions")}>
+            <Button onClick={() => setRpc()}>Connect</Button>
+            <Button color={Button.Colors.RED} onClick={() => setRpc(true)}>Disconnect</Button>
+            <Button onClick={() => markUpdated()}>Update Presence</Button>
+        </div>
+    );
+}
+
 function SingleSetting<T>({ settingsKey, label, disabled, isValid, transform, action }: TextOption<T>) {
     const [state, setState] = useState(settings.store[settingsKey] ?? "");
     const [error, setError] = useState<string | null>(null);
@@ -112,7 +175,7 @@ function SingleSetting<T>({ settingsKey, label, disabled, isValid, transform, ac
 
         if (valid === true) {
             settings.store[settingsKey] = newValue;
-            updateRPC();
+            markUpdated();
         }
     }
 
@@ -130,6 +193,24 @@ function SingleSetting<T>({ settingsKey, label, disabled, isValid, transform, ac
                 {action}
             </div>
             {error && <Text className={cl("error")} variant="text-sm/normal">{error}</Text>}
+        </div>
+    );
+}
+
+function SelectSetting<T>({ settingsKey, label, options, disabled }: SelectOption<T>) {
+    return (
+        <div className={cl("single", { disabled })}>
+            <Heading tag="h5">{label}</Heading>
+            <Select
+                placeholder={"Select an option"}
+                options={options}
+                maxVisibleItems={5}
+                closeOnSelect={true}
+                select={v => { settings.store[settingsKey] = v; markUpdated(); }}
+                isSelected={v => v === settings.store[settingsKey]}
+                serialize={v => String(v)}
+                isDisabled={disabled}
+            />
         </div>
     );
 }
@@ -182,17 +263,13 @@ function BrowseAssetsButton({ settingsKey, disabled }: { settingsKey: SettingsKe
 
     function open() {
         if (!appID) {
-            Toasts.show({
-                message: "Set an Application ID first.",
-                id: Toasts.genId(),
-                type: Toasts.Type.FAILURE
-            });
+            Toasts.show({ message: "Set an Application ID first.", id: Toasts.genId(), type: Toasts.Type.FAILURE });
             return;
         }
 
         openAssetPicker(appID, name => {
             settings.store[settingsKey] = name as any;
-            updateRPC();
+            markUpdated();
         });
     }
 
@@ -203,173 +280,90 @@ function BrowseAssetsButton({ settingsKey, disabled }: { settingsKey: SettingsKe
     );
 }
 
-function SelectSetting<T>({ settingsKey, label, options, disabled }: SelectOption<T>) {
-    return (
-        <div className={cl("single", { disabled })}>
-            <Heading tag="h5">{label}</Heading>
-            <Select
-                placeholder={"Select an option"}
-                options={options}
-                maxVisibleItems={5}
-                closeOnSelect={true}
-                select={v => settings.store[settingsKey] = v}
-                isSelected={v => v === settings.store[settingsKey]}
-                serialize={v => String(v)}
-                isDisabled={disabled}
-            />
-        </div>
-    );
-}
-
 export function RPCSettings() {
     const s = settings.use();
 
     return (
         <div className={cl("root")}>
-            <SelectSetting
-                settingsKey="type"
-                label="Activity Type"
-                options={[
-                    {
-                        label: "Playing",
-                        value: ActivityType.PLAYING,
-                        default: true
-                    },
-                    {
-                        label: "Streaming",
-                        value: ActivityType.STREAMING
-                    },
-                    {
-                        label: "Listening",
-                        value: ActivityType.LISTENING
-                    },
-                    {
-                        label: "Watching",
-                        value: ActivityType.WATCHING
-                    },
-                    {
-                        label: "Competing",
-                        value: ActivityType.COMPETING
-                    }
-                ]}
-            />
+            <div className={cl("triple")}>
+                <SingleSetting settingsKey="appID" label="ID" isValid={isAppIdValid} />
+                <SelectSetting
+                    settingsKey="type"
+                    label="Type"
+                    options={[
+                        { label: "Playing", value: ActivityType.PLAYING, default: true },
+                        { label: "Streaming", value: ActivityType.STREAMING },
+                        { label: "Listening", value: ActivityType.LISTENING },
+                        { label: "Watching", value: ActivityType.WATCHING },
+                        { label: "Competing", value: ActivityType.COMPETING }
+                    ]}
+                />
+                <SelectSetting
+                    settingsKey="displayType"
+                    label="Display"
+                    options={[
+                        { label: "Name", value: StatusDisplayType.NAME, default: true },
+                        { label: "Details", value: StatusDisplayType.DETAILS },
+                        { label: "State", value: StatusDisplayType.STATE }
+                    ]}
+                />
+            </div>
+
+            <SingleSetting settingsKey="name" label="Name" isValid={makeValidator(128, true)} />
 
             <PairSetting data={[
-                { settingsKey: "appID", label: "Application ID", isValid: isAppIdValid },
-                { settingsKey: "appName", label: "Application Name", isValid: makeValidator(128, true) },
+                { settingsKey: "details", label: "Details", isValid: maxLength128 },
+                { settingsKey: "detailsURL", label: "URL", isValid: isUrlValid },
             ]} />
 
             <PairSetting data={[
-                { settingsKey: "details", label: "Detail (line 1)", isValid: maxLength128 },
-                { settingsKey: "detailsURL", label: "Detail URL", isValid: isUrlValid },
-            ]} />
-
-            <PairSetting data={[
-                { settingsKey: "state", label: "State (line 2)", isValid: maxLength128 },
-                { settingsKey: "stateURL", label: "State URL", isValid: isUrlValid },
+                { settingsKey: "state", label: "State", isValid: maxLength128 },
+                { settingsKey: "stateURL", label: "URL", isValid: isUrlValid },
             ]} />
 
             <SingleSetting
                 settingsKey="streamLink"
-                label="Stream Link (Twitch or YouTube, only if activity type is Streaming)"
+                label="Stream Link (Twitch or YouTube, only if Type is Streaming)"
                 disabled={s.type !== ActivityType.STREAMING}
                 isValid={isStreamLinkValid}
             />
 
             <PairSetting data={[
                 {
-                    settingsKey: "partySize",
-                    label: "Party Size",
-                    transform: parseNumber,
-                    isValid: isNumberValid,
+                    settingsKey: "partySize", label: "Party",
+                    transform: parseNumber, isValid: isNumberValid,
                     disabled: s.type !== ActivityType.PLAYING,
                 },
                 {
-                    settingsKey: "partyMaxSize",
-                    label: "Maximum Party Size",
-                    transform: parseNumber,
-                    isValid: isNumberValid,
+                    settingsKey: "partyMaxSize", label: "of",
+                    transform: parseNumber, isValid: isNumberValid,
                     disabled: s.type !== ActivityType.PLAYING,
                 },
             ]} />
 
             <Divider />
 
-            <PairSetting data={[
-                {
-                    settingsKey: "imageBig",
-                    label: "Large Image URL/Key",
-                    isValid: isImageKeyValid,
-                    action: <BrowseAssetsButton settingsKey="imageBig" />
-                },
-                { settingsKey: "imageBigTooltip", label: "Large Image Text", isValid: maxLength128 },
-            ]} />
-            <SingleSetting settingsKey="imageBigURL" label="Large Image clickable URL" isValid={isUrlValid} />
+            <TimestampSection />
 
-            <PairSetting data={[
-                {
-                    settingsKey: "imageSmall",
-                    label: "Small Image URL/Key",
-                    isValid: isImageKeyValid,
-                    action: <BrowseAssetsButton settingsKey="imageSmall" />
-                },
-                { settingsKey: "imageSmallTooltip", label: "Small Image Text", isValid: maxLength128 },
-            ]} />
-            <SingleSetting settingsKey="imageSmallURL" label="Small Image clickable URL" isValid={isUrlValid} />
+            <Divider />
+
+            <ImageGroup title="Large Image" keySettingsKey="imageBig" textSettingsKey="imageBigTooltip" urlSettingsKey="imageBigURL" />
+            <ImageGroup title="Small Image" keySettingsKey="imageSmall" textSettingsKey="imageSmallTooltip" urlSettingsKey="imageSmallURL" />
 
             <Divider />
 
             <PairSetting data={[
-                { settingsKey: "buttonOneText", label: "Button1 Text", isValid: makeValidator(31) },
-                { settingsKey: "buttonOneURL", label: "Button1 URL", isValid: isUrlValid },
+                { settingsKey: "buttonOneText", label: "Button 1 Text", isValid: makeValidator(31) },
+                { settingsKey: "buttonOneURL", label: "Button 1 URL", isValid: isUrlValid },
             ]} />
             <PairSetting data={[
-                { settingsKey: "buttonTwoText", label: "Button2 Text", isValid: makeValidator(31) },
-                { settingsKey: "buttonTwoURL", label: "Button2 URL", isValid: isUrlValid },
+                { settingsKey: "buttonTwoText", label: "Button 2 Text", isValid: makeValidator(31) },
+                { settingsKey: "buttonTwoURL", label: "Button 2 URL", isValid: isUrlValid },
             ]} />
 
             <Divider />
 
-            <SelectSetting
-                settingsKey="timestampMode"
-                label="Timestamp Mode"
-                options={[
-                    {
-                        label: "None",
-                        value: TimestampMode.NONE,
-                        default: true
-                    },
-                    {
-                        label: "Since discord open",
-                        value: TimestampMode.NOW
-                    },
-                    {
-                        label: "Same as your current time (not reset after 24h)",
-                        value: TimestampMode.TIME
-                    },
-                    {
-                        label: "Custom",
-                        value: TimestampMode.CUSTOM
-                    }
-                ]}
-            />
-
-            <PairSetting data={[
-                {
-                    settingsKey: "startTime",
-                    label: "Start Timestamp (in milliseconds)",
-                    transform: parseNumber,
-                    isValid: isNumberValid,
-                    disabled: s.timestampMode !== TimestampMode.CUSTOM,
-                },
-                {
-                    settingsKey: "endTime",
-                    label: "End Timestamp (in milliseconds)",
-                    transform: parseNumber,
-                    isValid: isNumberValid,
-                    disabled: s.timestampMode !== TimestampMode.CUSTOM,
-                },
-            ]} />
+            <ActionButtons />
         </div>
     );
 }

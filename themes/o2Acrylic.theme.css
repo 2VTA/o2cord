@@ -1,0 +1,224 @@
+/**
+ * @name o2 Acrylic
+ * @description True see-through acrylic for Discord. Pairs with Settings -> Windows Material -> Acrylic,
+ *              which does the actual blur at the OS/window level (cheap, GPU-composited by Windows).
+ *              This theme only sets transparent backgrounds so that blur shows through - it does NOT use
+ *              backdrop-filter anywhere, so it stays smooth even with heavy blur/large windows.
+ * @author ! Ryder
+ * @version 1.0.0
+ */
+
+:root {
+    /* Overall glass strength. 0 = fully see-through, 1 = solid. Meant to be
+       driven live by the o2Acrylic companion plugin's slider. */
+    --o2-glass-alpha: 0.28;
+    /* Base tint color (neutral dark). */
+    --o2-glass-rgb: 18, 20, 24;
+    /* Accent color. The plugin flips this between a color and a neutral
+       gray for the "colored / no color" toggle. */
+    --o2-accent: 88, 101, 242;
+
+    --o2-window: rgba(var(--o2-glass-rgb), calc(var(--o2-glass-alpha) * 0.75));
+    --o2-panel: rgba(var(--o2-glass-rgb), calc(var(--o2-glass-alpha) * 1.05));
+    --o2-panel-soft: rgba(var(--o2-glass-rgb), calc(var(--o2-glass-alpha) * 0.85));
+    --o2-panel-strong: rgba(var(--o2-glass-rgb), calc(var(--o2-glass-alpha) * 1.8));
+    --o2-popout: rgba(var(--o2-glass-rgb), calc(var(--o2-glass-alpha) * 2.4 + 0.1));
+    --o2-border: rgba(255, 255, 255, 0.08);
+    --o2-hover: rgba(255, 255, 255, 0.075);
+    --o2-selected: rgba(255, 255, 255, 0.12);
+
+    --background-primary: var(--o2-window) !important;
+    --background-secondary: var(--o2-panel-soft) !important;
+    --background-secondary-alt: var(--o2-panel) !important;
+    --background-tertiary: var(--o2-panel) !important;
+    --background-floating: var(--o2-popout) !important;
+    --bg-base-primary: var(--o2-window) !important;
+    --bg-base-secondary: var(--o2-panel-soft) !important;
+    --bg-base-tertiary: var(--o2-panel) !important;
+    --bg-surface-overlay: var(--o2-popout) !important;
+    --channeltextarea-background: var(--o2-panel-strong) !important;
+    --input-background: var(--o2-panel-strong) !important;
+    --modal-background: var(--o2-popout) !important;
+    --modal-footer-background: var(--o2-panel) !important;
+
+    --text-normal: #f2f3f5 !important;
+    --text-muted: #b5bac1 !important;
+    --text-link: #9ecbff !important;
+    --header-primary: #ffffff !important;
+    --header-secondary: #c9cdd2 !important;
+    --interactive-normal: #dcdee1 !important;
+    --interactive-hover: #ffffff !important;
+    --interactive-active: #ffffff !important;
+
+    --brand-500: rgb(var(--o2-accent)) !important;
+    --brand-new: rgb(var(--o2-accent)) !important;
+    --button-positive-background: rgb(var(--o2-accent)) !important;
+    --button-positive-background-hover: rgba(var(--o2-accent), 0.85) !important;
+    --button-positive-background-active: rgba(var(--o2-accent), 0.7) !important;
+    --button-secondary-background: rgba(var(--o2-accent), 0.22) !important;
+    --button-secondary-background-hover: rgba(var(--o2-accent), 0.3) !important;
+    --text-brand: rgb(var(--o2-accent)) !important;
+    --control-brand-foreground: rgb(var(--o2-accent)) !important;
+    --mention-background: rgba(var(--o2-accent), 0.16) !important;
+    --mention-foreground: rgb(var(--o2-accent)) !important;
+    --background-mentioned: rgba(var(--o2-accent), 0.14) !important;
+    --background-mentioned-hover: rgba(var(--o2-accent), 0.22) !important;
+}
+
+/* Strip Discord's own opaque app background so the OS-composited
+   Acrylic/Mica blur is what shows through, not a solid color. */
+html,
+body,
+#app-mount,
+[class*="appMount"],
+[class*="app_"],
+[class*="bg_"] {
+    background: transparent !important;
+    background-color: transparent !important;
+}
+
+body::before,
+body::after,
+#app-mount::before,
+#app-mount::after {
+    display: none !important;
+}
+
+/* Everything below is plain translucent color - no backdrop-filter. The
+   blur itself comes from Windows compositing behind the window. */
+[class*="base_"],
+[class*="layer_"],
+[class*="chat_"],
+[class*="chatContent_"],
+[class*="container_"],
+[class*="applicationStore_"],
+[class*="pageWrapper_"],
+[class*="shop_"],
+[class*="content_"],
+[class*="form_"] {
+    background-color: var(--o2-window) !important;
+}
+
+[class*="guilds_"],
+[class*="tree_"],
+[class*="sidebar_"],
+[class*="privateChannels_"],
+[class*="members_"],
+[class*="membersWrap_"],
+[class*="peopleColumn_"],
+[class*="nowPlayingColumn_"],
+[class*="panels_"],
+[class*="title_"],
+[class*="header_"],
+[class*="toolbar_"],
+[class*="standardSidebarView_"],
+[class*="contentRegion_"],
+[class*="sidebarRegion_"] {
+    background-color: var(--o2-panel) !important;
+    border-color: var(--o2-border) !important;
+}
+
+[class*="scroller_"],
+[class*="messagesWrapper_"],
+[class*="thin_"],
+[class*="auto_"],
+[class*="none_"] {
+    background-color: var(--o2-panel-soft) !important;
+}
+
+[class*="channelTextArea_"],
+[class*="scrollableContainer_"],
+[class*="searchBar_"],
+[class*="input_"],
+[class*="itemCard_"],
+[class*="card_"],
+[class*="embed_"],
+[class*="wrapper_"][class*="searchBar_"] {
+    background-color: var(--o2-panel-strong) !important;
+    border: 1px solid var(--o2-border) !important;
+    box-shadow: none !important;
+}
+
+[id^="chat-messages-"],
+[class*="message_"],
+[class*="messageListItem_"],
+[class*="attachment_"],
+[class*="messageAttachment_"],
+[class*="imageWrapper_"],
+[class*="mediaAttachmentsContainer_"],
+[class*="visualMediaItemContainer_"],
+[class*="oneByOneGrid_"],
+[class*="mosaicItem_"],
+[class*="lazyImgContainer_"],
+[class*="message_"] [class*="wrapper_"],
+[class*="message_"] [class*="container_"],
+[class*="message_"] [class*="grid_"],
+[class*="message_"] [class*="clickableWrapper_"] {
+    background: transparent !important;
+    background-color: transparent !important;
+    border-color: transparent !important;
+    box-shadow: none !important;
+}
+
+[class*="message_"]:hover,
+[class*="messageListItem_"]:hover {
+    background-color: rgba(255, 255, 255, 0.045) !important;
+}
+
+[class*="selected_"],
+[class*="modeSelected_"],
+[class*="focused_"],
+[class*="active_"],
+[aria-selected="true"],
+[aria-current="page"],
+[class*="modeSelected_"] [class*="link_"],
+[class*="selected_"] [class*="layout_"],
+[aria-selected="true"] [class*="layout_"],
+[aria-selected="true"] [class*="link_"] {
+    background-color: var(--o2-selected) !important;
+    box-shadow: none !important;
+}
+
+[class*="member_"]:hover,
+[class*="interactive_"]:hover,
+[class*="link_"]:hover,
+[class*="item_"]:hover,
+[class*="layout_"]:hover,
+[role="button"]:hover {
+    background-color: var(--o2-hover) !important;
+}
+
+button[class*="lookFilled_"][class*="colorBrand_"],
+[class*="button_"][class*="lookFilled_"][class*="colorBrand_"] {
+    background: rgb(var(--o2-accent)) !important;
+    background-color: rgb(var(--o2-accent)) !important;
+    color: #ffffff !important;
+}
+
+button[class*="lookFilled_"][class*="colorBrand_"]:hover,
+[class*="button_"][class*="lookFilled_"][class*="colorBrand_"]:hover {
+    background: rgba(var(--o2-accent), 0.85) !important;
+    background-color: rgba(var(--o2-accent), 0.85) !important;
+}
+
+[class*="modal_"],
+[class*="root_"],
+[class*="popout_"],
+[class*="menu_"],
+[class*="drawerSizingWrapper_"],
+[class*="autocomplete_"],
+[class*="messagesPopoutWrap_"],
+[class*="container_"][role="dialog"],
+[role="dialog"],
+[role="menu"],
+[role="listbox"] {
+    background-color: var(--o2-popout) !important;
+    border: 1px solid var(--o2-border) !important;
+    box-shadow: none !important;
+}
+
+[class*="footer_"],
+[class*="body_"],
+[class*="scrollerBase_"] {
+    background-color: transparent !important;
+}

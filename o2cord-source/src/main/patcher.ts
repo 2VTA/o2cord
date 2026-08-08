@@ -21,6 +21,7 @@ import electron, { app, BrowserWindowConstructorOptions, Menu } from "electron";
 import { dirname, join } from "path";
 
 import { RendererSettings } from "./settings";
+import { applyNativeBackdrop } from "./utils/acrylic";
 import { IS_VANILLA } from "./utils/constants";
 
 function isBrokenPipeError(err: unknown) {
@@ -152,6 +153,14 @@ if (!IS_VANILLA) {
             process.env.DISCORD_PRELOAD = original;
 
             super(options);
+
+            if (process.platform === "win32" && windowsMaterial && windowsMaterial !== "none") {
+                try {
+                    applyNativeBackdrop(this, windowsMaterial);
+                } catch {
+                    // Electron's own backgroundMaterial option above is the fallback.
+                }
+            }
 
             if (disableMinSize) {
                 // Disable the Electron call entirely so that Discord can't dynamically change the size
