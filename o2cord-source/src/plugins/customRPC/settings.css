@@ -21,6 +21,17 @@
     gap: 0.5em;
 }
 
+.vc-customRPC-settings-input-row {
+    display: flex;
+    gap: 0.5em;
+    align-items: center;
+
+    & > div:first-child {
+        flex: 1 1 auto;
+        min-width: 0;
+    }
+}
+
 .vc-customRPC-settings-disabled {
     opacity: 0.5;
     cursor: not-allowed;
@@ -28,4 +39,75 @@
 
 .vc-customRPC-settings-error {
     color: var(--text-feedback-critical);
+}
+
+.vc-customRPC-fulltab {
+    display: flex;
+    align-items: flex-start;
+    gap: 24px;
+}
+
+.vc-customRPC-fulltab-form {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.vc-customRPC-preview {
+    position: sticky;
+    top: 0;
+    flex: 0 0 284px;
+    width: 284px;
+}
+
+.vc-customRPC-preview-card {
+    margin-top: 8px;
+    width: 284px;
+    min-height: 120px;
+    border-radius: 8px;
+    background: var(--background-mod-muted, var(--background-secondary));
+    overflow: hidden;
+}
+
+.vc-customRPC-preview-empty {
+    padding: 16px;
+    color: var(--text-muted);
+}
+
+.vc-customRPC-settings-asset-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+    gap: 12px;
+    padding: 16px;
+    max-height: 60vh;
+    overflow-y: auto;
+}
+
+.vc-customRPC-settings-asset-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    padding: 8px;
+    border-radius: 6px;
+    cursor: pointer;
+    text-align: center;
+
+    &:hover {
+        background: var(--background-modifier-hover);
+    }
+
+    & img {
+        width: 64px;
+        height: 64px;
+        border-radius: 8px;
+        object-fit: cover;
+        background: var(--background-secondary);
+    }
+
+    & > div {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        width: 100%;
+    }
 }

@@ -16,8 +16,10 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
+import { addHeaderBarButton, HeaderBarButton, removeHeaderBarButton } from "@api/HeaderBar";
 import { definePluginSettings } from "@api/Settings";
 import { getUserSettingLazy } from "@api/UserSettings";
+import { openSettingsTabModal } from "@components/settings/tabs/BaseTab";
 import { Divider } from "@components/Divider";
 import { ErrorCard } from "@components/ErrorCard";
 import { Flex } from "@components/Flex";
@@ -33,7 +35,26 @@ import { ActivityType } from "@vencord/discord-types/enums";
 import { findByCodeLazy, findComponentByCodeLazy } from "@webpack";
 import { ApplicationAssetUtils, Button, FluxDispatcher, Forms, React, UserStore } from "@webpack/common";
 
+import CustomRPCFullTab from "./FullTab";
 import { RPCSettings } from "./RpcSettings";
+
+function RpcHeaderIcon(props: { width?: number; height?: number; }) {
+    return (
+        <svg width={props.width ?? 18} height={props.height ?? 18} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path
+                d="M6.5 4h11A4.5 4.5 0 0 1 22 8.5v7A4.5 4.5 0 0 1 17.5 20h-11A4.5 4.5 0 0 1 2 15.5v-7A4.5 4.5 0 0 1 6.5 4Zm0 2A2.5 2.5 0 0 0 4 8.5v7A2.5 2.5 0 0 0 6.5 18h11a2.5 2.5 0 0 0 2.5-2.5v-7A2.5 2.5 0 0 0 17.5 6h-11Z"
+                fill="currentColor"
+            />
+            <path d="M7 8.5h2v2h2v2H9v2H7v-2H5v-2h2v-2Z" fill="currentColor" />
+            <circle cx="17.5" cy="10" r="1.4" fill="currentColor" />
+            <circle cx="14.5" cy="13" r="1.4" fill="currentColor" />
+        </svg>
+    );
+}
+
+function openCustomRPCTab() {
+    openSettingsTabModal(CustomRPCFullTab);
+}
 
 const useProfileThemeStyle = findByCodeLazy("profileThemeStyle:", "--profile-gradient-primary-color");
 const ActivityView = findComponentByCodeLazy(".party?(0", "USER_PROFILE_ACTIVITY");
@@ -82,7 +103,7 @@ export const settings = definePluginSettings({
     partyMaxSize?: number;
 }>();
 
-async function createActivity(): Promise<Activity | undefined> {
+export async function createActivity(): Promise<Activity | undefined> {
     const {
         appID,
         appName,
@@ -220,8 +241,20 @@ export default definePlugin({
     requiresRestart: false,
     settings,
 
-    start: setRpc,
-    stop: () => setRpc(true),
+    start: () => {
+        setRpc();
+        addHeaderBarButton("customRPC", () => (
+            <HeaderBarButton
+                icon={RpcHeaderIcon}
+                tooltip="Custom Rich Presence"
+                onClick={openCustomRPCTab}
+            />
+        ));
+    },
+    stop: () => {
+        setRpc(true);
+        removeHeaderBarButton("customRPC");
+    },
 
     // Discord hides buttons on your own Rich Presence for some reason. This patch disables that behaviour
     patches: [

@@ -33,6 +33,14 @@ try {
 
     node --require=./scripts/suppressExperimentalWarnings.js scripts/build/build.mjs
     Assert-LastCommand "o2cord public build"
+
+    # koffi (native DWM/acrylic bindings) is marked external in esbuild, so
+    # its runtime files need to ship alongside patcher.js as a real
+    # node_modules folder for `require("koffi")` to resolve after extraction.
+    $KoffiDest = Join-Path $Source "dist\node_modules"
+    New-Item -ItemType Directory -Force -Path (Join-Path $KoffiDest "@koromix") | Out-Null
+    Copy-Item -LiteralPath (Join-Path $Source "node_modules\koffi") -Destination (Join-Path $KoffiDest "koffi") -Recurse -Force
+    Copy-Item -LiteralPath (Join-Path $Source "node_modules\@koromix\koffi-win32-x64") -Destination (Join-Path $KoffiDest "@koromix\koffi-win32-x64") -Recurse -Force
 } finally {
     Pop-Location
 }

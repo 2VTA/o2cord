@@ -13,7 +13,8 @@ import { resolveError } from "@components/settings/tabs/plugins/components/Commo
 import { debounce } from "@shared/debounce";
 import { classNameFactory } from "@utils/css";
 import { ActivityType } from "@vencord/discord-types/enums";
-import { Select, Text, TextInput, useState } from "@webpack/common";
+import { ApplicationAssetUtils, Button, closeModal, Modal, openModal, Select, Text, TextInput, Toasts, useEffect, useState } from "@webpack/common";
+import type { ReactNode } from "react";
 
 import CustomRPCPlugin, { setRpc, settings, TimestampMode } from ".";
 
@@ -27,6 +28,7 @@ interface TextOption<T> {
     disabled?: boolean;
     transform?: (value: string) => T;
     isValid?: (value: T) => true | string;
+    action?: ReactNode;
 }
 
 interface SelectOption<T> {
@@ -80,7 +82,6 @@ function isUrlValid(value: string) {
 }
 
 function isImageKeyValid(value: string) {
-    if (/https?:\/\/(cdn|media)\.discordapp\.(com|net)\//.test(value)) return "Don't use a Discord link. Use an Imgur image link instead.";
     if (/https?:\/\/(?!i\.)?imgur\.com\//.test(value)) return "Imgur link must be a direct link to the image (e.g. https://i.imgur.com/...). Right click the image and click 'Copy image address'";
     if (/https?:\/\/(?!media\.)?tenor\.com\//.test(value)) return "Tenor link must be a direct link to the image (e.g. https://media.tenor.com/...). Right click the GIF and click 'Copy image address'";
     return true;
@@ -97,7 +98,7 @@ function PairSetting<T>(props: { data: [TextOption<T>, TextOption<T>]; }) {
     );
 }
 
-function SingleSetting<T>({ settingsKey, label, disabled, isValid, transform }: TextOption<T>) {
+function SingleSetting<T>({ settingsKey, label, disabled, isValid, transform, action }: TextOption<T>) {
     const [state, setState] = useState(settings.store[settingsKey] ?? "");
     const [error, setError] = useState<string | null>(null);
 
@@ -118,15 +119,87 @@ function SingleSetting<T>({ settingsKey, label, disabled, isValid, transform }: 
     return (
         <div className={cl("single", { disabled })}>
             <Heading tag="h5">{label}</Heading>
-            <TextInput
-                type="text"
-                placeholder={"Enter a value"}
-                value={state}
-                onChange={handleChange}
-                disabled={disabled}
-            />
+            <div className={cl("input-row")}>
+                <TextInput
+                    type="text"
+                    placeholder={"Enter a value"}
+                    value={state}
+                    onChange={handleChange}
+                    disabled={disabled}
+                />
+                {action}
+            </div>
             {error && <Text className={cl("error")} variant="text-sm/normal">{error}</Text>}
         </div>
+    );
+}
+
+interface AppAsset {
+    id: string;
+    name: string;
+}
+
+function assetImageUrl(appID: string, assetId: string) {
+    return `https://cdn.discordapp.com/app-assets/${appID}/${assetId}.png`;
+}
+
+function openAssetPicker(appID: string, onPick: (name: string) => void) {
+    const key = openModal(props => (
+        <Modal {...props} size="medium" title="Choose an Asset">
+            <AssetPickerBody appID={appID} onPick={name => { onPick(name); closeModal(key); }} />
+        </Modal>
+    ));
+}
+
+function AssetPickerBody({ appID, onPick }: { appID: string; onPick: (name: string) => void; }) {
+    const [assets, setAssets] = useState<AppAsset[] | null>(null);
+    const [error, setError] = useState<string | null>(null);
+
+    useEffect(() => {
+        ApplicationAssetUtils.getAssets(appID)
+            .then((result: AppAsset[]) => setAssets(result ?? []))
+            .catch(() => setError("Could not load assets for this Application ID."));
+    }, [appID]);
+
+    if (error) return <Text className={cl("error")} variant="text-md/normal">{error}</Text>;
+    if (!assets) return <Text variant="text-md/normal">Loading...</Text>;
+    if (!assets.length) return <Text variant="text-md/normal">This application has no uploaded Rich Presence assets yet. Add some on the Developer Portal first.</Text>;
+
+    return (
+        <div className={cl("asset-grid")}>
+            {assets.map(asset => (
+                <div key={asset.id} className={cl("asset-item")} onClick={() => onPick(asset.name)}>
+                    <img src={assetImageUrl(appID, asset.id)} alt={asset.name} />
+                    <Text variant="text-sm/normal">{asset.name}</Text>
+                </div>
+            ))}
+        </div>
+    );
+}
+
+function BrowseAssetsButton({ settingsKey, disabled }: { settingsKey: SettingsKey; disabled?: boolean; }) {
+    const appID = settings.store.appID;
+
+    function open() {
+        if (!appID) {
+            Toasts.show({
+                message: "Set an Application ID first.",
+                id: Toasts.genId(),
+                type: Toasts.Type.FAILURE
+            });
+            return;
+        }
+
+        openAssetPicker(appID, name => {
+            settings.store[settingsKey] = name as any;
+            updateRPC();
+        });
+    }
+
+    return (
+        <Button size={Button.Sizes.SMALL} disabled={disabled} onClick={open}>
+            Browse Assets
+        </Button>
     );
 }
 
@@ -223,13 +296,23 @@ export function RPCSettings() {
             <Divider />
 
             <PairSetting data={[
-                { settingsKey: "imageBig", label: "Large Image URL/Key", isValid: isImageKeyValid },
+                {
+                    settingsKey: "imageBig",
+                    label: "Large Image URL/Key",
+                    isValid: isImageKeyValid,
+                    action: <BrowseAssetsButton settingsKey="imageBig" />
+                },
                 { settingsKey: "imageBigTooltip", label: "Large Image Text", isValid: maxLength128 },
             ]} />
             <SingleSetting settingsKey="imageBigURL" label="Large Image clickable URL" isValid={isUrlValid} />
 
             <PairSetting data={[
-                { settingsKey: "imageSmall", label: "Small Image URL/Key", isValid: isImageKeyValid },
+                {
+                    settingsKey: "imageSmall",
+                    label: "Small Image URL/Key",
+                    isValid: isImageKeyValid,
+                    action: <BrowseAssetsButton settingsKey="imageSmall" />
+                },
                 { settingsKey: "imageSmallTooltip", label: "Small Image Text", isValid: maxLength128 },
             ]} />
             <SingleSetting settingsKey="imageSmallURL" label="Small Image clickable URL" isValid={isUrlValid} />
