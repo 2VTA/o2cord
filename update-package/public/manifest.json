@@ -1,8 +1,8 @@
 {
-    "version":  "1.4.0",
-    "hash":  "public-20260808164758",
+    "version":  "1.4.1",
+    "hash":  "public-20260808180505",
     "author":  "o2cord",
-    "message":  "Add native Windows Acrylic/Mica support, o2Acrylic theme, o2RichPresence editor with header button, and CustomRPC improvements",
+    "message":  "Remove o2RichPresence plugin, re-enable CustomRPC",
     "notes":  [
                   "Public o2cord update package",
                   "ussro2 backgrounds are loaded from backgrounds.json beside this manifest",
