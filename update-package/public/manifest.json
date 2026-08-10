@@ -1,8 +1,8 @@
 {
-    "version":  "1.4.1",
-    "hash":  "public-20260808180505",
+    "version":  "1.4.2",
+    "hash":  "public-20260810223731",
     "author":  "o2cord",
-    "message":  "Remove o2RichPresence plugin, re-enable CustomRPC",
+    "message":  "Add ProfileImages toggle for profile background theme",
     "notes":  [
                   "Public o2cord update package",
                   "ussro2 backgrounds are loaded from backgrounds.json beside this manifest",
