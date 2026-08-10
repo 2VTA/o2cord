@@ -53,6 +53,10 @@ const MANAGED_PLUGINS: ManagedPlugin[] = [
     {
         name: "ussro2",
         description: "Local-only profile backgrounds saved on your own client"
+    },
+    {
+        name: "ProfileTheme",
+        description: "Private controls for the public ProfileTheme image/target (hidden from the normal plugin list)"
     }
 ];
 
