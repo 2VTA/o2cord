@@ -656,7 +656,7 @@ sealed class InstallerForm : Form
     {
         Log($"{(repair ? "Repairing" : "Installing")} {target.Variant.DisplayName}...");
         Log($"Target app: {target.LatestApp}");
-        CloseDiscord();
+        CloseDiscord(target);
 
         ExtractDist(distDir);
 
@@ -702,7 +702,7 @@ sealed class InstallerForm : Form
     private void Uninstall(InstallTarget target)
     {
         Log($"Uninstalling from {target.Variant.DisplayName}...");
-        CloseDiscord();
+        CloseDiscord(target);
 
         var appAsar = Path.Combine(target.Resources, "app.asar");
         var backup = Path.Combine(target.Resources, "_app.asar");
@@ -880,35 +880,65 @@ sealed class InstallerForm : Form
         throw new InvalidOperationException($"{label} failed after retries: {last?.Message}", last);
     }
 
-    private void CloseDiscord()
+    // Only closes the selected Discord variant (by process name) and Update.exe
+    // instances running out of that variant's own install root - other installed
+    // Discord branches (e.g. Stable while patching Canary) are left untouched.
+    private void CloseDiscord(InstallTarget target)
     {
-        var names = new[] { "Update" }
-            .Concat(variants.Select(variant => variant.ProcessName))
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .ToArray();
+        bool IsOwnUpdateProcess(Process process)
+        {
+            string? path = null;
+            try { path = process.MainModule?.FileName; }
+            catch { /* access denied on foreign-user or elevated processes */ }
+
+            return path is not null && path.StartsWith(target.Root, StringComparison.OrdinalIgnoreCase);
+        }
 
         for (var pass = 0; pass < 5; pass++)
         {
             var foundAny = false;
-            foreach (var name in names)
+
+            foreach (var process in Process.GetProcessesByName(target.Variant.ProcessName))
             {
-                foreach (var process in Process.GetProcessesByName(name))
+                foundAny = true;
+                try
                 {
-                    foundAny = true;
-                    try
-                    {
-                        Log($"Closing {name} (PID {process.Id})...");
-                        process.Kill(true);
-                        process.WaitForExit(5000);
-                    }
-                    catch (Exception ex)
-                    {
-                        Log($"Could not close {name} (PID {process.Id}): {ex.Message}");
-                    }
-                    finally
-                    {
-                        process.Dispose();
-                    }
+                    Log($"Closing {target.Variant.ProcessName} (PID {process.Id})...");
+                    process.Kill(true);
+                    process.WaitForExit(5000);
+                }
+                catch (Exception ex)
+                {
+                    Log($"Could not close {target.Variant.ProcessName} (PID {process.Id}): {ex.Message}");
+                }
+                finally
+                {
+                    process.Dispose();
+                }
+            }
+
+            foreach (var process in Process.GetProcessesByName("Update"))
+            {
+                if (!IsOwnUpdateProcess(process))
+                {
+                    process.Dispose();
+                    continue;
+                }
+
+                foundAny = true;
+                try
+                {
+                    Log($"Closing Update (PID {process.Id})...");
+                    process.Kill(true);
+                    process.WaitForExit(5000);
+                }
+                catch (Exception ex)
+                {
+                    Log($"Could not close Update (PID {process.Id}): {ex.Message}");
+                }
+                finally
+                {
+                    process.Dispose();
                 }
             }
 
@@ -917,11 +947,9 @@ sealed class InstallerForm : Form
             Thread.Sleep(700);
         }
 
-        var remaining = names.Where(name => Process.GetProcessesByName(name).Length > 0).ToArray();
-        if (remaining.Length > 0)
+        if (Process.GetProcessesByName(target.Variant.ProcessName).Length > 0)
             throw new InvalidOperationException(
-                "Discord is still running and locking its files. Close it from Task Manager, then run Repair again. " +
-                "Remaining: " + string.Join(", ", remaining)
+                $"{target.Variant.DisplayName} is still running and locking its files. Close it from Task Manager, then run Repair again."
             );
     }
 
