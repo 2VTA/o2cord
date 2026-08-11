@@ -1,8 +1,8 @@
 {
-    "version":  "1.4.2",
-    "hash":  "public-20260810223731",
+    "version":  "1.4.3",
+    "hash":  "public-20260811031300",
     "author":  "o2cord",
-    "message":  "Add ProfileImages toggle for profile background theme",
+    "message":  "Fix profile theme text legibility over background images",
     "notes":  [
                   "Public o2cord update package",
                   "ussro2 backgrounds are loaded from backgrounds.json beside this manifest",
