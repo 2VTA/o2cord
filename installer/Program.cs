@@ -62,10 +62,10 @@ sealed class InstallerForm : Form
         var icon = LoadLogoIcon();
         if (icon is not null) Icon = icon;
 
-        Width = 1080;
-        Height = 760;
+        Width = 1120;
+        Height = 840;
         StartPosition = FormStartPosition.CenterScreen;
-        MinimumSize = new Size(1000, 700);
+        MinimumSize = new Size(1020, 760);
         BackColor = Background;
         ForeColor = Color.WhiteSmoke;
         Font = new Font("Segoe UI", 11);
@@ -73,14 +73,18 @@ sealed class InstallerForm : Form
         var root = new TableLayoutPanel
         {
             Dock = DockStyle.Fill,
-            Padding = new Padding(18),
+            Padding = new Padding(20),
             ColumnCount = 1,
             RowCount = 3,
             BackColor = Background,
         };
-        root.RowStyles.Add(new RowStyle(SizeType.Absolute, 132));
-        root.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-        root.RowStyles.Add(new RowStyle(SizeType.Absolute, 126));
+        // Header stays a fixed height; the body (targets/actions) and the log
+        // split the rest proportionally instead of pinning the log to a stingy
+        // fixed height, so extra window height doesn't just pile up as dead
+        // space under the action buttons.
+        root.RowStyles.Add(new RowStyle(SizeType.Absolute, 118));
+        root.RowStyles.Add(new RowStyle(SizeType.Percent, 60));
+        root.RowStyles.Add(new RowStyle(SizeType.Percent, 40));
         Controls.Add(root);
 
         var headerCard = new RoundedPanel
@@ -90,8 +94,8 @@ sealed class InstallerForm : Form
             FillTop = Color.FromArgb(18, 24, 40),
             FillBottom = Color.FromArgb(10, 14, 26),
             BorderColor = Color.FromArgb(62, 76, 118),
-            Padding = new Padding(16),
-            Margin = new Padding(0, 0, 0, 16)
+            Padding = new Padding(18, 14, 18, 14),
+            Margin = new Padding(0, 0, 0, 18)
         };
         var header = new TableLayoutPanel
         {
@@ -188,7 +192,7 @@ sealed class InstallerForm : Form
             Dock = DockStyle.Fill,
             ColumnCount = 2,
             RowCount = 1,
-            Margin = new Padding(0, 0, 0, 16),
+            Margin = new Padding(0, 0, 0, 18),
             BackColor = Color.Transparent,
         };
         body.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 330));
@@ -202,8 +206,8 @@ sealed class InstallerForm : Form
             FillTop = Color.FromArgb(17, 23, 38),
             FillBottom = Color.FromArgb(10, 14, 25),
             BorderColor = Stroke,
-            Padding = new Padding(16),
-            Margin = new Padding(0, 0, 14, 0),
+            Padding = new Padding(18),
+            Margin = new Padding(0, 0, 18, 0),
         };
 
         var targetArea = new TableLayoutPanel
@@ -272,8 +276,8 @@ sealed class InstallerForm : Form
             FillTop = Color.FromArgb(18, 25, 43),
             FillBottom = Color.FromArgb(10, 15, 27),
             BorderColor = Stroke,
-            Padding = new Padding(16),
-            Margin = new Padding(0, 0, 0, 14),
+            Padding = new Padding(18),
+            Margin = new Padding(0, 0, 0, 18),
         };
         var versions = MakeText(
             $"Installer v{Application.ProductVersion}" + (IsDebugBuild() ? " Debug" : " Public") + Environment.NewLine +
@@ -295,7 +299,7 @@ sealed class InstallerForm : Form
             FillTop = Color.FromArgb(17, 23, 38),
             FillBottom = Color.FromArgb(10, 14, 25),
             BorderColor = Stroke,
-            Padding = new Padding(16),
+            Padding = new Padding(18),
         };
         var actions = new TableLayoutPanel
         {
@@ -347,9 +351,26 @@ sealed class InstallerForm : Form
             FillTop = Color.FromArgb(8, 12, 20),
             FillBottom = Color.FromArgb(4, 7, 12),
             BorderColor = Stroke,
-            Padding = new Padding(10),
+            Padding = new Padding(16, 14, 16, 16),
             Margin = new Padding(0),
         };
+
+        var logArea = new TableLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            RowCount = 2,
+            ColumnCount = 1,
+            BackColor = Color.Transparent,
+            Margin = new Padding(0),
+        };
+        logArea.RowStyles.Add(new RowStyle(SizeType.Absolute, 26));
+        logArea.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+
+        var logTitle = MakeText("Activity Log", 280);
+        logTitle.Font = new Font("Segoe UI Variable Display", 13, FontStyle.Bold);
+        logTitle.ForeColor = Color.White;
+        logTitle.Margin = new Padding(0);
+        logArea.Controls.Add(logTitle, 0, 0);
 
         logBox.Dock = DockStyle.Fill;
         logBox.Multiline = true;
@@ -358,10 +379,12 @@ sealed class InstallerForm : Form
         logBox.BackColor = Color.FromArgb(4, 7, 12);
         logBox.ForeColor = Color.FromArgb(216, 227, 246);
         logBox.BorderStyle = BorderStyle.None;
-        logBox.Margin = new Padding(0);
-        logBox.Font = new Font("Cascadia Mono", 8);
+        logBox.Margin = new Padding(0, 8, 0, 0);
+        logBox.Font = new Font("Cascadia Mono", 9);
         logBox.Visible = true;
-        logCard.Controls.Add(logBox);
+        logArea.Controls.Add(logBox, 0, 1);
+
+        logCard.Controls.Add(logArea);
         root.Controls.Add(logCard);
 
         updateButton.Click += (_, _) => RunSelected("update");
