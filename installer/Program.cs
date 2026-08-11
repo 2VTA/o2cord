@@ -31,7 +31,7 @@ sealed class InstallerForm : Form
         new("Canary", "DiscordCanary", "DiscordCanary"),
     };
 
-    private readonly FlowLayoutPanel targetList = new();
+    private readonly TableLayoutPanel targetList = new();
     private readonly TextBox customLocation = new();
     private readonly TextBox logBox = new();
     private readonly Button updateButton = new RoundedButton();
@@ -58,6 +58,11 @@ sealed class InstallerForm : Form
 
     public InstallerForm(string[] commandLineArgs)
     {
+        // Without this, WinForms only repaints the strips newly exposed by a
+        // resize, leaving stale slivers of the old frame behind (the ghosting
+        // seen around the header and action buttons when the window resizes).
+        SetStyle(ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer | ControlStyles.ResizeRedraw | ControlStyles.UserPaint, true);
+
         Text = IsDebugBuild() ? "o2cord Installer Debug" : "o2cord Installer";
         var icon = LoadLogoIcon();
         if (icon is not null) Icon = icon;
@@ -104,19 +109,23 @@ sealed class InstallerForm : Form
             RowCount = 1,
             BackColor = Background,
         };
-        header.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 78));
+        header.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 64));
         header.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-        header.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 158));
-        header.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 154));
+        header.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 132));
+        header.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 140));
 
+        // These three cells are left with the default Anchor (None) and a
+        // fixed Size instead of Dock+hand-tuned margins, so TableLayoutPanel
+        // centers them in the row automatically no matter the header height -
+        // that hand-tuned-margin mismatch is what clipped the badge/button
+        // before.
         var logoWrap = new RoundedPanel
         {
-            Radius = 16,
+            Radius = 14,
             FillTop = Color.FromArgb(9, 12, 22),
             FillBottom = Color.Black,
             BorderColor = Color.FromArgb(72, 83, 124),
-            Dock = DockStyle.Fill,
-            Margin = new Padding(0, 6, 16, 6),
+            Size = new Size(58, 58),
         };
         var logoBox = new PictureBox
         {
@@ -131,21 +140,20 @@ sealed class InstallerForm : Form
         var titleBlock = new TableLayoutPanel
         {
             Dock = DockStyle.Fill,
-            RowCount = 3,
+            RowCount = 2,
             ColumnCount = 1,
             Margin = new Padding(0),
             BackColor = Color.Transparent,
         };
-        titleBlock.RowStyles.Add(new RowStyle(SizeType.Absolute, 48));
-        titleBlock.RowStyles.Add(new RowStyle(SizeType.Absolute, 24));
-        titleBlock.RowStyles.Add(new RowStyle(SizeType.Absolute, 0));
+        titleBlock.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+        titleBlock.RowStyles.Add(new RowStyle(SizeType.Absolute, 22));
 
         var title = new Label
         {
             Text = "o2cord Installer",
             Dock = DockStyle.Fill,
             TextAlign = ContentAlignment.BottomLeft,
-            Font = new Font("Segoe UI Variable Display", 26, FontStyle.Bold),
+            Font = new Font("Segoe UI Variable Display", 24, FontStyle.Bold),
             ForeColor = Color.White,
         };
         titleBlock.Controls.Add(title, 0, 0);
@@ -153,34 +161,34 @@ sealed class InstallerForm : Form
         var subtitle = MakeText("Patch Discord cleanly with a bundled o2cord loader.", 520);
         subtitle.ForeColor = MutedText;
         subtitle.Font = new Font("Segoe UI", 9, FontStyle.Regular);
-        subtitle.Margin = new Padding(0, 0, 0, 0);
+        subtitle.Margin = new Padding(0);
         titleBlock.Controls.Add(subtitle, 0, 1);
 
         header.Controls.Add(titleBlock, 1, 0);
 
         var buildBadge = new RoundedPanel
         {
-            Dock = DockStyle.Fill,
-            Margin = new Padding(8, 22, 10, 22),
-            Radius = 12,
+            Size = new Size(112, 30),
+            Radius = 15,
             FillTop = IsDebugBuild() ? Color.FromArgb(89, 58, 186) : Color.FromArgb(28, 128, 91),
             FillBottom = IsDebugBuild() ? Color.FromArgb(58, 39, 126) : Color.FromArgb(19, 84, 62),
             BorderColor = Color.FromArgb(60, Color.White),
         };
         var buildBadgeText = new Label
         {
-            Text = IsDebugBuild() ? "PRIVATE DEBUG" : "PUBLIC BUILD",
+            Text = IsDebugBuild() ? "DEBUG BUILD" : "PUBLIC BUILD",
             Dock = DockStyle.Fill,
             TextAlign = ContentAlignment.MiddleCenter,
             ForeColor = Color.White,
             BackColor = Color.Transparent,
-            Font = new Font("Segoe UI", 9, FontStyle.Bold),
+            Font = new Font("Segoe UI", 8.5f, FontStyle.Bold),
         };
         buildBadge.Controls.Add(buildBadgeText);
         header.Controls.Add(buildBadge, 2, 0);
 
         var openDir = MakeButton("Open Folder", Primary);
-        openDir.Margin = new Padding(0, 22, 0, 22);
+        openDir.Size = new Size(124, 38);
+        openDir.Margin = new Padding(0);
         openDir.Click += (_, _) => OpenDirectory(distDir);
         header.Controls.Add(openDir, 3, 0);
 
@@ -236,14 +244,20 @@ sealed class InstallerForm : Form
         selectHint.Margin = new Padding(0, 0, 0, 8);
         targetArea.Controls.Add(selectHint, 0, 1);
 
+        // A single-column TableLayoutPanel: each row's control is Dock=Fill,
+        // so it always exactly matches the available width. The previous
+        // FlowLayoutPanel needed a manual width recalculation on every resize
+        // (accounting for the scrollbar, which it got wrong when no
+        // scrollbar was actually showing) and that's what produced the
+        // horizontal scrollbar/overflow glitch.
         targetList.Dock = DockStyle.Fill;
-        targetList.FlowDirection = FlowDirection.TopDown;
-        targetList.WrapContents = false;
+        targetList.ColumnCount = 1;
         targetList.AutoScroll = true;
-        targetList.AutoSize = false;
         targetList.BackColor = Color.Transparent;
         targetList.Padding = new Padding(0, 2, 0, 0);
-        targetList.SizeChanged += (_, _) => ResizeTargetButtons();
+        targetList.Margin = new Padding(0);
+        targetList.ColumnStyles.Clear();
+        targetList.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
         targetArea.Controls.Add(targetList, 0, 2);
 
         customLocation.Dock = DockStyle.Fill;
@@ -328,11 +342,14 @@ sealed class InstallerForm : Form
         repairButton.Text = "Repair";
         uninstallButton.Text = "Uninstall";
         refreshButton.Text = "Refresh";
-        ConfigureButton(updateButton, Color.FromArgb(58, 140, 255));
-        ConfigureButton(installButton, Success);
-        ConfigureButton(repairButton, Primary);
-        ConfigureButton(uninstallButton, Danger);
-        ConfigureButton(refreshButton, Color.FromArgb(34, 45, 68));
+        // One accent colour for the two "make it happen" actions, outline
+        // buttons for everything secondary - down from five competing solid
+        // colours to a palette that reads as one coherent set.
+        ConfigureButton(installButton, Primary);
+        ConfigureOutlineButton(updateButton, Primary);
+        ConfigureOutlineButton(repairButton, MutedText);
+        ConfigureOutlineButton(uninstallButton, Danger);
+        ConfigureOutlineButton(refreshButton, MutedText);
         actions.Controls.Add(updateButton, 0, 1);
         actions.SetColumnSpan(updateButton, 2);
         actions.Controls.Add(installButton, 0, 2);
@@ -402,15 +419,13 @@ sealed class InstallerForm : Form
 
     protected override void OnPaintBackground(PaintEventArgs e)
     {
-        using var baseBrush = new LinearGradientBrush(ClientRectangle, Color.FromArgb(4, 6, 12), Color.FromArgb(10, 14, 28), 45f);
+        // A single calm diagonal gradient instead of overlapping colour blobs -
+        // reads as a premium dark app shell instead of a busy background.
+        using var baseBrush = new LinearGradientBrush(ClientRectangle, Color.FromArgb(9, 11, 18), Color.FromArgb(15, 17, 27), 60f);
         e.Graphics.FillRectangle(baseBrush, ClientRectangle);
 
-        using var violet = new SolidBrush(Color.FromArgb(34, 139, 92, 246));
-        using var cyan = new SolidBrush(Color.FromArgb(28, 56, 189, 248));
-        using var green = new SolidBrush(Color.FromArgb(20, 32, 201, 151));
-        e.Graphics.FillEllipse(violet, Width - 390, -180, 560, 360);
-        e.Graphics.FillEllipse(cyan, -250, 120, 430, 330);
-        e.Graphics.FillEllipse(green, Width / 2 - 170, Height - 170, 430, 230);
+        using var glow = new SolidBrush(Color.FromArgb(14, Primary));
+        e.Graphics.FillEllipse(glow, Width - 340, -220, 620, 460);
     }
 
     private static bool IsDebugBuild()
@@ -449,6 +464,8 @@ sealed class InstallerForm : Form
     {
         targetButtons.Clear();
         targetList.Controls.Clear();
+        targetList.RowStyles.Clear();
+        targetList.RowCount = 0;
         selectedTargetButton = null;
 
         var detectedTargets = variants
@@ -457,39 +474,36 @@ sealed class InstallerForm : Form
             .ThenBy(entry => entry.Variant.DisplayName == "Stable" ? 0 : entry.Variant.DisplayName == "Canary" ? 1 : 2)
             .ToList();
 
+        void AddRow(Button button, InstallTarget? target)
+        {
+            var row = targetList.RowCount;
+            targetList.RowCount = row + 1;
+            targetList.RowStyles.Add(new RowStyle(SizeType.Absolute, 56));
+            button.Dock = DockStyle.Fill;
+            button.Margin = new Padding(0, 0, 0, 8);
+            targetList.Controls.Add(button, 0, row);
+            targetButtons[button] = target;
+        }
+
         foreach (var entry in detectedTargets)
         {
             var target = entry.Target;
             var button = MakeTargetButton(entry.Variant, target);
-            button.Width = Math.Max(targetList.ClientSize.Width - 8, 270);
             button.Click += (_, _) => SelectTargetButton(button);
-            targetButtons[button] = target;
-            targetList.Controls.Add(button);
+            AddRow(button, target);
 
             if (selectedTargetButton is null && target is not null)
                 SelectTargetButton(button);
         }
 
         customButton = MakeTargetButton("Custom", "Manual resources folder", true, false);
-        customButton.Width = Math.Max(targetList.ClientSize.Width - 8, 270);
         customButton.Click += (_, _) => SelectTargetButton(customButton);
-        targetButtons[customButton] = null;
-        targetList.Controls.Add(customButton);
-        ResizeTargetButtons();
+        AddRow(customButton, null);
 
         if (selectedTargetButton is null)
             SelectTargetButton(customButton);
 
         Log("Targets refreshed.");
-    }
-
-    private void ResizeTargetButtons()
-    {
-        if (targetList.Controls.Count == 0) return;
-
-        var width = Math.Max(targetList.ClientSize.Width - SystemInformation.VerticalScrollBarWidth - 4, 260);
-        foreach (Control control in targetList.Controls)
-            control.Width = width;
     }
 
     private void SelectTargetButton(Button button)
@@ -1074,38 +1088,36 @@ sealed class InstallerForm : Form
             StatusText = status,
             Enabled = enabled,
             AutoSize = false,
-            Height = 46,
+            Height = 56,
             TextAlign = ContentAlignment.MiddleLeft,
             Margin = new Padding(0, 0, 0, 8),
-            Padding = new Padding(14, 0, 10, 0),
             Font = new Font("Segoe UI", 9, FontStyle.Bold),
             Tag = patched ? "patched" : enabled ? "ready" : "missing",
-            Radius = 12,
+            Radius = 10,
         };
 
         ApplyTargetButtonStyle(button, false);
         return button;
     }
 
+    // Flat "settings list row" styling: a tinted background plus a left
+    // accent bar mark the selected row; every other row stays a plain
+    // hairline-free surface so the list reads as one clean group instead of
+    // a stack of separately-bordered boxes.
     private static void ApplyTargetButtonStyle(Button button, bool selected)
     {
         var state = button.Tag as string;
         var enabled = state != "missing";
         var fill = selected
-            ? Color.FromArgb(48, 58, 94)
+            ? Color.FromArgb(30, Primary)
             : enabled
-                ? Color.FromArgb(16, 21, 34)
+                ? Color.FromArgb(17, 22, 35)
                 : Color.FromArgb(12, 15, 23);
         var text = selected
             ? Color.White
             : enabled
                 ? Color.FromArgb(226, 233, 247)
                 : Color.FromArgb(102, 110, 126);
-        var border = selected
-            ? Primary
-            : state == "patched"
-                ? Color.FromArgb(50, 205, 145)
-                : Color.FromArgb(42, 52, 78);
 
         button.BackColor = fill;
         button.ForeColor = text;
@@ -1113,25 +1125,26 @@ sealed class InstallerForm : Form
         if (button is RoundedButton rounded)
         {
             rounded.FillColor = fill;
-            rounded.HoverColor = enabled ? ControlPaint.Light(fill, 0.08f) : fill;
+            rounded.HoverColor = enabled ? (selected ? Color.FromArgb(42, Primary) : Color.FromArgb(24, 30, 46)) : fill;
             rounded.PressedColor = enabled ? ControlPaint.Dark(fill, 0.08f) : fill;
-            rounded.BorderColor = border;
+            rounded.BorderColor = Primary;
             rounded.TextColor = text;
             if (button is TargetButton targetButton)
             {
+                targetButton.IsSelected = selected;
                 targetButton.TargetColor = text;
                 targetButton.StatusColor = state == "patched"
                     ? Color.FromArgb(91, 232, 174)
                     : state == "ready"
                         ? Color.FromArgb(126, 215, 255)
                         : Color.FromArgb(112, 121, 140);
-                targetButton.AccentColor = border;
+                targetButton.AccentColor = Primary;
             }
             rounded.Invalidate();
         }
         else
         {
-            button.FlatAppearance.BorderColor = border;
+            button.FlatAppearance.BorderColor = Primary;
         }
     }
 
@@ -1202,6 +1215,32 @@ sealed class InstallerForm : Form
             rounded.PressedColor = ControlPaint.Dark(color, 0.10f);
             rounded.BorderColor = Color.FromArgb(40, Color.White);
             rounded.TextColor = Color.White;
+        }
+    }
+
+    // A quiet, low-emphasis counterpart to ConfigureButton: a tinted-glass
+    // fill instead of a solid block, used for every action that isn't the
+    // main "make it happen" one.
+    private static void ConfigureOutlineButton(Button button, Color color)
+    {
+        button.Width = 210;
+        button.Height = 44;
+        button.Dock = DockStyle.Fill;
+        button.Margin = new Padding(6);
+        button.FlatStyle = FlatStyle.Flat;
+        button.FlatAppearance.BorderSize = 0;
+        button.BackColor = Color.Transparent;
+        button.ForeColor = color;
+        button.Font = new Font("Segoe UI", 9, FontStyle.Bold);
+
+        if (button is RoundedButton rounded)
+        {
+            rounded.Radius = 12;
+            rounded.FillColor = Color.FromArgb(14, color);
+            rounded.HoverColor = Color.FromArgb(30, color);
+            rounded.PressedColor = Color.FromArgb(46, color);
+            rounded.BorderColor = Color.FromArgb(130, color);
+            rounded.TextColor = color;
         }
     }
 }
@@ -1314,7 +1353,12 @@ sealed class TargetButton : RoundedButton
     public Color TargetColor { get; set; } = Color.White;
     public Color StatusColor { get; set; } = Color.FromArgb(126, 215, 255);
     public Color AccentColor { get; set; } = Color.FromArgb(48, 59, 86);
+    public bool IsSelected { get; set; }
 
+    // Flat "settings row" card: a plain tinted surface, a left accent bar
+    // when selected, and a status dot + label instead of the old
+    // letter-badge-plus-bordered-pill treatment - fewer competing shapes,
+    // reads as one clean list rather than a stack of separate widgets.
     protected override void OnPaint(PaintEventArgs e)
     {
         e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
@@ -1330,66 +1374,25 @@ sealed class TargetButton : RoundedButton
 
         var fillColor = !Enabled ? Color.FromArgb(12, 15, 23) : FillColor;
         using var path = RoundedRect(rect, Radius);
-        using var fill = new LinearGradientBrush(rect, ControlPaint.Light(fillColor, 0.03f), fillColor, LinearGradientMode.Vertical);
-        using var border = new Pen(BorderColor, 1);
-        e.Graphics.FillPath(fill, path);
-        e.Graphics.DrawPath(border, path);
+        using (var fill = new SolidBrush(fillColor))
+            e.Graphics.FillPath(fill, path);
 
-        if (Enabled)
+        if (IsSelected)
         {
-            using var shine = new Pen(Color.FromArgb(22, Color.White), 1);
-            e.Graphics.DrawLine(shine, 14, 1, rect.Width - 14, 1);
+            var barRect = new Rectangle(rect.Left + 1, rect.Top + 8, 3, rect.Height - 16);
+            using var barPath = RoundedRect(barRect, 2);
+            using var barBrush = new SolidBrush(AccentColor);
+            e.Graphics.FillPath(barBrush, barPath);
         }
 
-        var iconRect = new Rectangle(14, 10, 26, 26);
-        using (var iconPath = RoundedRect(iconRect, 8))
-        using (var iconFill = new LinearGradientBrush(iconRect, Color.FromArgb(52, AccentColor), Color.FromArgb(18, AccentColor), LinearGradientMode.Vertical))
-        using (var iconStroke = new Pen(Enabled ? Color.FromArgb(190, AccentColor) : Color.FromArgb(70, 78, 94), 1))
-        {
-            e.Graphics.FillPath(iconFill, iconPath);
-            e.Graphics.DrawPath(iconStroke, iconPath);
-        }
+        var textLeft = 20;
+        var titleRect = new Rectangle(textLeft, 8, rect.Width - textLeft - 110, 20);
+        var hintRect = new Rectangle(textLeft, 29, rect.Width - textLeft - 110, 16);
+        var statusRect = new Rectangle(rect.Width - 100, 0, 92, rect.Height);
 
-        using var iconFont = new Font("Segoe UI", 9, FontStyle.Bold);
-        var iconText = TargetName.Equals("Custom", StringComparison.OrdinalIgnoreCase)
-            ? "+"
-            : TargetName.Equals("Canary", StringComparison.OrdinalIgnoreCase)
-                ? "C"
-                : TargetName.Equals("PTB", StringComparison.OrdinalIgnoreCase)
-                    ? "P"
-                    : "D";
-        TextRenderer.DrawText(
-            e.Graphics,
-            iconText,
-            iconFont,
-            iconRect,
-            Enabled ? TargetColor : Color.FromArgb(88, 96, 112),
-            TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter
-        );
-
-        var titleRect = new Rectangle(50, 6, rect.Width - 140, 21);
-        var hintRect = new Rectangle(50, 26, rect.Width - 140, 16);
-        var statusRect = new Rectangle(rect.Width - 86, 12, 72, 22);
-
-        using var titleFont = new Font("Segoe UI", 8.5f, FontStyle.Bold);
-        using var statusFont = new Font("Segoe UI", 7, FontStyle.Bold);
-        using var hintFont = new Font("Segoe UI", 7, FontStyle.Regular);
-
-        var isReady = StatusText.Equals("ready", StringComparison.OrdinalIgnoreCase);
-        var isPatched = StatusText.Equals("patched", StringComparison.OrdinalIgnoreCase);
-        var statusBack = isPatched
-            ? Color.FromArgb(42, 25, 195, 139)
-            : isReady
-                ? Color.FromArgb(40, 58, 140, 255)
-                : Color.FromArgb(22, 24, 30, 42);
-
-        using (var statusPath = RoundedRect(statusRect, 11))
-        using (var statusFill = new SolidBrush(statusBack))
-        using (var statusStroke = new Pen(Enabled ? Color.FromArgb(105, AccentColor) : Color.FromArgb(36, 43, 56), 1))
-        {
-            e.Graphics.FillPath(statusFill, statusPath);
-            e.Graphics.DrawPath(statusStroke, statusPath);
-        }
+        using var titleFont = new Font("Segoe UI", 9.5f, FontStyle.Bold);
+        using var statusFont = new Font("Segoe UI", 7.5f, FontStyle.Bold);
+        using var hintFont = new Font("Segoe UI", 7.5f, FontStyle.Regular);
 
         TextRenderer.DrawText(
             e.Graphics,
@@ -1401,18 +1404,25 @@ sealed class TargetButton : RoundedButton
         );
         TextRenderer.DrawText(
             e.Graphics,
-            StatusText,
-            statusFont,
-            statusRect,
-            Enabled ? StatusColor : Color.FromArgb(82, 90, 106),
-            TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis
-        );
-        TextRenderer.DrawText(
-            e.Graphics,
             TargetName.Equals("Custom", StringComparison.OrdinalIgnoreCase) ? "Manual resources folder" : "Detected install",
             hintFont,
             hintRect,
             Enabled ? Color.FromArgb(128, 140, 164) : Color.FromArgb(70, 78, 94),
+            TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis
+        );
+
+        var dotColor = Enabled ? StatusColor : Color.FromArgb(70, 78, 94);
+        var dotRect = new Rectangle(statusRect.Left, statusRect.Top + statusRect.Height / 2 - 3, 6, 6);
+        using (var dotBrush = new SolidBrush(dotColor))
+            e.Graphics.FillEllipse(dotBrush, dotRect);
+
+        var statusTextRect = new Rectangle(dotRect.Right + 6, statusRect.Top, statusRect.Right - dotRect.Right - 6, statusRect.Height);
+        TextRenderer.DrawText(
+            e.Graphics,
+            StatusText,
+            statusFont,
+            statusTextRect,
+            Enabled ? Color.FromArgb(190, 198, 216) : Color.FromArgb(82, 90, 106),
             TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis
         );
     }
