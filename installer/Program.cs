@@ -1104,7 +1104,7 @@ sealed class InstallerForm : Form
         var state = button.Tag as string;
         var enabled = state != "missing";
         var fill = selected
-            ? Color.FromArgb(30, Primary)
+            ? BlendOverDark(Primary, 30)
             : enabled
                 ? Color.FromArgb(17, 22, 35)
                 : Color.FromArgb(12, 15, 23);
@@ -1188,6 +1188,19 @@ sealed class InstallerForm : Form
         button.Font = new Font("Segoe UI", 10, FontStyle.Regular);
     }
 
+    // Pre-composites a translucent tint into a fully opaque colour instead of
+    // storing the tint itself. These custom-painted controls sit behind
+    // several BackColor=Transparent layout panels whose "clear to parent"
+    // step is a no-op, so a real alpha-blended fill has nothing reliable
+    // underneath it to blend against.
+    private static Color BlendOverDark(Color overlay, int alpha)
+    {
+        var basis = Color.FromArgb(14, 19, 32);
+        var a = alpha / 255f;
+        int Mix(int baseChannel, int overlayChannel) => (int)Math.Round(overlayChannel * a + baseChannel * (1 - a));
+        return Color.FromArgb(255, Mix(basis.R, overlay.R), Mix(basis.G, overlay.G), Mix(basis.B, overlay.B));
+    }
+
     private static void ConfigureButton(Button button, Color color)
     {
         button.Width = 210;
@@ -1231,9 +1244,9 @@ sealed class InstallerForm : Form
         if (button is RoundedButton rounded)
         {
             rounded.Radius = 12;
-            rounded.FillColor = Color.FromArgb(14, color);
-            rounded.HoverColor = Color.FromArgb(30, color);
-            rounded.PressedColor = Color.FromArgb(46, color);
+            rounded.FillColor = BlendOverDark(color, 14);
+            rounded.HoverColor = BlendOverDark(color, 30);
+            rounded.PressedColor = BlendOverDark(color, 46);
             rounded.BorderColor = Color.FromArgb(130, color);
             rounded.TextColor = color;
         }
@@ -1290,14 +1303,29 @@ class RoundedButton : Button
         base.OnMouseUp(e);
     }
 
+    // Every container in this UI between a button and its card is a
+    // TableLayoutPanel with BackColor = Transparent (for layout only, not
+    // real alpha compositing). Clearing to Parent.BackColor directly is a
+    // silent no-op against a fully-transparent colour, which left whatever
+    // GDI had last drawn in that screen region - including an unrelated
+    // control's last frame - showing through under any translucent fill.
+    // Walk up to the nearest actually-opaque ancestor instead.
+    protected static Color ResolveOpaqueBackColor(Control? control)
+    {
+        while (control is not null)
+        {
+            if (control.BackColor.A == 255) return control.BackColor;
+            control = control.Parent;
+        }
+
+        return Color.Black;
+    }
+
     protected override void OnPaint(PaintEventArgs e)
     {
         e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
-        if (Parent is not null)
-        {
-            using var parentBrush = new SolidBrush(Parent.BackColor);
+        using (var parentBrush = new SolidBrush(ResolveOpaqueBackColor(Parent)))
             e.Graphics.FillRectangle(parentBrush, ClientRectangle);
-        }
 
         var rect = ClientRectangle;
         rect.Width -= 1;
@@ -1357,11 +1385,8 @@ sealed class TargetButton : RoundedButton
     protected override void OnPaint(PaintEventArgs e)
     {
         e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
-        if (Parent is not null)
-        {
-            using var parentBrush = new SolidBrush(Parent.BackColor);
+        using (var parentBrush = new SolidBrush(ResolveOpaqueBackColor(Parent)))
             e.Graphics.FillRectangle(parentBrush, ClientRectangle);
-        }
 
         var rect = ClientRectangle;
         rect.Width -= 1;
@@ -1449,11 +1474,21 @@ sealed class RoundedPanel : Panel
         BackColor = Color.Transparent;
     }
 
+    private static Color ResolveOpaqueBackColor(Control? control)
+    {
+        while (control is not null)
+        {
+            if (control.BackColor.A == 255) return control.BackColor;
+            control = control.Parent;
+        }
+
+        return Color.Black;
+    }
+
     protected override void OnPaintBackground(PaintEventArgs e)
     {
-        if (Parent is not null)
         {
-            using var parentBrush = new SolidBrush(Parent.BackColor);
+            using var parentBrush = new SolidBrush(ResolveOpaqueBackColor(Parent));
             e.Graphics.FillRectangle(parentBrush, ClientRectangle);
         }
     }
