@@ -58,11 +58,6 @@ sealed class InstallerForm : Form
 
     public InstallerForm(string[] commandLineArgs)
     {
-        // Without this, WinForms only repaints the strips newly exposed by a
-        // resize, leaving stale slivers of the old frame behind (the ghosting
-        // seen around the header and action buttons when the window resizes).
-        SetStyle(ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer | ControlStyles.ResizeRedraw | ControlStyles.UserPaint, true);
-
         Text = IsDebugBuild() ? "o2cord Installer Debug" : "o2cord Installer";
         var icon = LoadLogoIcon();
         if (icon is not null) Icon = icon;
