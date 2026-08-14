@@ -13,27 +13,27 @@ import { classNameFactory } from "@utils/css";
 import { Margins } from "@utils/margins";
 import { useForceUpdater } from "@utils/react";
 import { makeRange } from "@utils/types";
+import { findLazy } from "@webpack";
 import { React, Select, showToast, Slider } from "@webpack/common";
+import { ComponentType, Ref, SyntheticEvent } from "react";
 
-import { deleteAudio, getAllAudio, MAX_AUDIO_FILE_BYTES, saveAudio, StoredAudioFile } from "./audioStore";
+import { deleteAudio, getAllAudio, saveAudio, StoredAudioFile } from "./audioStore";
 import { ensureDataURICached } from "./index";
 import { SoundOverride, SoundType } from "./types";
 
+type FileInput = ComponentType<{
+    ref: Ref<HTMLInputElement>;
+    onChange: (e: SyntheticEvent<HTMLInputElement>) => void;
+    multiple?: boolean;
+    filters?: { name?: string; extensions: string[]; }[];
+}>;
+
 const AUDIO_EXTENSIONS = ["mp3", "wav", "ogg", "m4a", "aac", "flac", "webm", "wma", "mp4"];
 const cl = classNameFactory("vc-custom-sounds-");
+const FileInput: FileInput = findLazy(m => m.prototype?.activateUploadDialogue && m.prototype.setRef);
 
 const capitalizeWords = (str: string) =>
     str.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
-
-function readSelectValue(value: unknown): string {
-    if (typeof value === "string") return value;
-    if (value && typeof value === "object" && "value" in value) {
-        const rawValue = (value as { value?: unknown; }).value;
-        return typeof rawValue === "string" ? rawValue : "";
-    }
-
-    return "";
-}
 
 export function SoundOverrideComponent({ type, override, onChange }: {
     type: SoundType;
@@ -46,37 +46,26 @@ export function SoundOverrideComponent({ type, override, onChange }: {
     const [files, setFiles] = React.useState<Record<string, StoredAudioFile>>({});
 
     React.useEffect(() => {
-        getAllAudio()
-            .then(files => setFiles(files ?? {}))
-            .catch(error => {
-                console.error("[CustomSounds] Failed to load audio files:", error);
-                showToast("CustomSounds could not load saved audio files.");
-                setFiles({});
-            });
+        getAllAudio().then(setFiles);
     }, []);
 
     const saveAndNotify = async () => {
-        try {
-            await onChange();
-            update();
-        } catch (error) {
-            console.error("[CustomSounds] Failed to save override:", error);
-            showToast("CustomSounds could not save this setting.");
-        }
+        await onChange();
+        update();
     };
 
     const previewSound = async () => {
-        try {
-            sound.current?.stop();
+        sound.current?.stop();
 
-            if (!override.enabled) {
-                sound.current = playAudio(type.id);
-                return;
-            }
+        if (!override.enabled) {
+            sound.current = playAudio(type.id);
+            return;
+        }
 
-            const { selectedSound } = override;
+        const { selectedSound } = override;
 
-            if (selectedSound === "custom" && override.selectedFileId) {
+        if (selectedSound === "custom" && override.selectedFileId) {
+            try {
                 const dataUri = await ensureDataURICached(override.selectedFileId);
 
                 if (!dataUri || !dataUri.startsWith("data:audio/")) {
@@ -90,26 +79,20 @@ export function SoundOverrideComponent({ type, override, onChange }: {
                         showToast("Error playing custom sound. File may be corrupted.");
                     }
                 });
-            } else if (selectedSound === "default") {
-                sound.current = playAudio(type.id);
-            } else {
-                sound.current = playAudio(selectedSound);
+            } catch (error) {
+                console.error("[CustomSounds] Error in previewSound:", error);
+                showToast("Error playing sound.");
             }
-        } catch (error) {
-            console.error("[CustomSounds] Error in previewSound:", error);
-            showToast("Error playing sound.");
+        } else if (selectedSound === "default") {
+            sound.current = playAudio(type.id);
+        } else {
+            sound.current = playAudio(selectedSound);
         }
     };
 
     const uploadFile = async (event: React.ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0];
         if (!file) return;
-
-        if (file.size > MAX_AUDIO_FILE_BYTES) {
-            showToast("Audio file is too large. Use a short sound under 2 MB.");
-            event.target.value = "";
-            return;
-        }
 
         const fileExtension = file.name.split(".").pop()?.toLowerCase();
         if (!fileExtension || !AUDIO_EXTENSIONS.includes(fileExtension)) {
@@ -173,6 +156,8 @@ export function SoundOverrideComponent({ type, override, onChange }: {
                 title={type.name}
                 value={override.enabled || false}
                 onChange={async val => {
+                    console.log(`[CustomSounds] Setting ${type.id} enabled to:`, val);
+
                     override.enabled = val;
 
                     if (val && override.selectedSound === "custom" && override.selectedFileId) {
@@ -185,6 +170,7 @@ export function SoundOverrideComponent({ type, override, onChange }: {
                     }
 
                     await saveAndNotify();
+                    console.log("[CustomSounds] After setting enabled, override.enabled =", override.enabled);
                 }}
                 className={Margins.bottom16}
                 hideBorder
@@ -213,13 +199,10 @@ export function SoundOverrideComponent({ type, override, onChange }: {
                             markers={makeRange(0, 100, 10)}
                             initialValue={override.volume}
                             onValueChange={val => {
-                                const volume = Math.max(0, Math.min(100, Number(val) || 0));
-                                sound.current && (sound.current.volume = volume);
-                                override.volume = volume;
+                                sound.current && (sound.current.volume = val);
+                                override.volume = val;
                                 saveAndNotify();
                             }}
-                            minValue={0}
-                            maxValue={100}
                             disabled={!override.enabled}
                         />
                     </div>
@@ -234,10 +217,9 @@ export function SoundOverrideComponent({ type, override, onChange }: {
                             ]}
                             isSelected={v => v === override.selectedSound}
                             select={async v => {
-                                const selectedSound = readSelectValue(v) || "default";
-                                override.selectedSound = selectedSound;
+                                override.selectedSound = v;
 
-                                if (selectedSound === "custom" && override.selectedFileId) {
+                                if (v === "custom" && override.selectedFileId) {
                                     try {
                                         await ensureDataURICached(override.selectedFileId);
                                     } catch (error) {
@@ -248,7 +230,7 @@ export function SoundOverrideComponent({ type, override, onChange }: {
 
                                 await saveAndNotify();
                             }}
-                            serialize={value => readSelectValue(value)}
+                            serialize={opt => opt.value}
                         />
                     </div>
 
@@ -256,7 +238,6 @@ export function SoundOverrideComponent({ type, override, onChange }: {
                         <>
                             <div className={Margins.bottom8}>
                                 <Heading>Custom File</Heading>
-                                <div className={cl("hint")}>Use short audio files under 2 MB.</div>
                                 <Select
                                     options={[
                                         { value: "", label: "Select a file..." },
@@ -264,17 +245,16 @@ export function SoundOverrideComponent({ type, override, onChange }: {
                                     ]}
                                     isSelected={v => v === (override.selectedFileId || "")}
                                     select={async id => {
-                                        const selectedFileId = readSelectValue(id);
-                                        if (!selectedFileId) {
+                                        if (!id) {
                                             override.selectedFileId = undefined;
                                         } else {
-                                            override.selectedFileId = selectedFileId;
-                                            await ensureDataURICached(selectedFileId);
+                                            override.selectedFileId = id;
+                                            await ensureDataURICached(id);
                                         }
 
                                         await saveAndNotify();
                                     }}
-                                    serialize={value => readSelectValue(value)}
+                                    serialize={opt => opt.value}
                                 />
                             </div>
                             <input

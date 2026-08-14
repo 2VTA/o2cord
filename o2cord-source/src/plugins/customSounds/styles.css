@@ -35,14 +35,17 @@
     margin-bottom: 16px;
 }
 
-.vc-custom-sounds-sound-picker {
+.vc-custom-sounds-search {
     margin-bottom: 16px;
 }
 
-.vc-custom-sounds-hint {
-    color: var(--text-muted);
-    font-size: 12px;
-    margin: 4px 0 8px;
+.vc-custom-sounds-search input {
+    width: 100%;
+    padding: 8px;
+    background: var(--input-background-default, var(--input-background));
+    border: none;
+    border-radius: 3px;
+    color: var(--text-default);
 }
 
 .vc-custom-sounds-sounds-list {

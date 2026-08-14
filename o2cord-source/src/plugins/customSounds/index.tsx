@@ -10,14 +10,13 @@ import { AudioProcessor, PreprocessAudioData } from "@api/AudioPlayer";
 import { get as getFromDataStore } from "@api/DataStore";
 import { definePluginSettings } from "@api/Settings";
 import { Button } from "@components/Button";
-import ErrorBoundary from "@components/ErrorBoundary";
 import { Heading } from "@components/Heading";
 import { Devs } from "@utils/constants";
 import { classNameFactory } from "@utils/css";
 import definePlugin, { OptionType, StartAt } from "@utils/types";
-import { React, Select, showToast } from "@webpack/common";
+import { React, showToast, TextInput } from "@webpack/common";
 
-import { clearAudioStore, getAllAudio, getAudioDataURI } from "./audioStore";
+import { getAllAudio, getAudioDataURI } from "./audioStore";
 import { SoundOverrideComponent } from "./SoundOverrideComponent";
 import { makeEmptyOverride, seasonalSounds, SoundOverride, soundTypes } from "./types";
 
@@ -28,113 +27,72 @@ const allSoundTypes = soundTypes || [];
 const AUDIO_STORE_KEY = "ScattrdCustomSounds";
 
 const dataUriCache = new Map<string, string>();
-const validSoundIds = new Set([
-    "default",
-    "custom",
-    ...allSoundTypes.map(type => type.id),
-    ...Object.keys(seasonalSounds)
-]);
-
-function normalizeOverride(value: unknown): SoundOverride {
-    const fallback = makeEmptyOverride();
-
-    if (!value || typeof value !== "object") return fallback;
-
-    const override = value as Partial<SoundOverride>;
-    const volume = Number(override.volume);
-    const selectedSound = typeof override.selectedSound === "string" && validSoundIds.has(override.selectedSound)
-        ? override.selectedSound
-        : "default";
-
-    return {
-        enabled: Boolean(override.enabled),
-        selectedSound,
-        volume: Number.isFinite(volume) ? Math.max(0, Math.min(100, volume)) : 100,
-        useFile: selectedSound === "custom" || Boolean(override.useFile),
-        selectedFileId: typeof override.selectedFileId === "string" && override.selectedFileId ? override.selectedFileId : undefined
-    };
-}
 
 function getOverride(id: string): SoundOverride {
     const stored = settings.store[id];
     if (!stored) return makeEmptyOverride();
 
-    if (typeof stored === "object") return normalizeOverride(stored);
+    if (typeof stored === "object") return stored;
 
     try {
-        return normalizeOverride(JSON.parse(stored));
+        return JSON.parse(stored);
     } catch {
         return makeEmptyOverride();
     }
 }
 
 function setOverride(id: string, override: SoundOverride) {
-    settings.store[id] = JSON.stringify(normalizeOverride(override));
-}
-
-function readSelectValue(value: unknown): string {
-    if (typeof value === "string") return value;
-    if (value && typeof value === "object" && "value" in value) {
-        const rawValue = (value as { value?: unknown; }).value;
-        return typeof rawValue === "string" ? rawValue : "";
-    }
-
-    return "";
+    settings.store[id] = JSON.stringify(override);
 }
 
 export const getCustomSoundURL: AudioProcessor = (data: PreprocessAudioData) => {
-    try {
-        if (!data || typeof data.audio !== "string") return;
+    let audioOverride = data.audio;
 
-        let audioOverride = data.audio;
-
-        if (data.audio in seasonalSounds) {
-            audioOverride = soundTypes.find(sound => sound.seasonal?.includes(data.audio))?.id || data.audio;
-        }
-
-        const override = getOverride(audioOverride);
-
-        if (!override?.enabled) {
-            return;
-        }
-
-        if (override.selectedSound === "custom" && override.selectedFileId) {
-            const dataUri = dataUriCache.get(override.selectedFileId);
-            if (dataUri) {
-                data.audio = dataUri;
-                data.volume = override.volume;
-                return;
-            }
-
-            return;
-        }
-
-        if (override.selectedSound !== "default" && override.selectedSound !== "custom") {
-            if (override.selectedSound in seasonalSounds) {
-                data.audio = seasonalSounds[override.selectedSound];
-                data.volume = override.volume;
-                return;
-            }
-
-            const soundType = allSoundTypes.find(t => t.id === data.audio);
-
-            if (soundType?.seasonal) {
-                const seasonalId = soundType.seasonal.find(seasonalId =>
-                    seasonalId.startsWith(`${override.selectedSound}_`)
-                );
-
-                if (seasonalId && seasonalId in seasonalSounds) {
-                    data.audio = seasonalSounds[seasonalId];
-                    data.volume = override.volume;
-                    return;
-                }
-            }
-        }
-
-        data.volume = override.volume;
-    } catch (error) {
-        console.error("[CustomSounds] Audio processor failed:", error);
+    if (data.audio in seasonalSounds) {
+        audioOverride = soundTypes.find(sound => sound.seasonal?.includes(data.audio))?.id || data.audio;
     }
+
+    const override = getOverride(audioOverride);
+
+    if (!override?.enabled) {
+        return;
+    }
+
+    if (override.selectedSound === "custom" && override.selectedFileId) {
+        const dataUri = dataUriCache.get(override.selectedFileId);
+        if (dataUri) {
+            data.audio = dataUri;
+            data.volume = override.volume;
+            return;
+        } else {
+            return;
+        }
+    }
+
+    if (override.selectedSound !== "default" && override.selectedSound !== "custom") {
+        if (override.selectedSound in seasonalSounds) {
+            data.audio = seasonalSounds[override.selectedSound];
+            data.volume = override.volume;
+            return;
+        }
+
+        const soundType = allSoundTypes.find(t => t.id === data.audio);
+
+        if (soundType?.seasonal) {
+            const seasonalId = soundType.seasonal.find(seasonalId =>
+                seasonalId.startsWith(`${override.selectedSound}_`)
+            );
+
+            if (seasonalId && seasonalId in seasonalSounds) {
+                data.audio = seasonalSounds[seasonalId];
+                data.volume = override.volume;
+                return;
+            }
+        }
+    }
+
+    data.volume = override.volume;
+    return;
 };
 
 export async function ensureDataURICached(fileId: string): Promise<string | null> {
@@ -146,6 +104,7 @@ export async function ensureDataURICached(fileId: string): Promise<string | null
         const dataUri = await getAudioDataURI(fileId);
         if (dataUri) {
             dataUriCache.set(fileId, dataUri);
+            console.log(`[CustomSounds] Cached data URI for file ${fileId}`);
             return dataUri;
         }
     } catch (error) {
@@ -158,33 +117,36 @@ export async function ensureDataURICached(fileId: string): Promise<string | null
 export async function refreshDataURI(id: string): Promise<void> {
     const override = getOverride(id);
     if (!override?.selectedFileId) {
+        console.log(`[CustomSounds] refreshDataURI called for ${id} but no selectedFileId`);
         return;
     }
 
+    console.log(`[CustomSounds] Refreshing data URI for ${id} with file ID ${override.selectedFileId}`);
+
     const dataUri = await ensureDataURICached(override.selectedFileId);
-    if (!dataUri)
+    if (dataUri) {
+        console.log(`[CustomSounds] Successfully cached data URI for ${id} (length: ${dataUri.length})`);
+    } else {
         console.error(`[CustomSounds] Failed to cache data URI for ${id}`);
+    }
 }
 
-function cleanupInvalidCustomOverrides(files: Record<string, unknown>) {
+async function preloadDataURIs() {
+    console.log("[CustomSounds] Preloading data URIs into memory cache...");
+
     for (const soundType of allSoundTypes) {
         const override = getOverride(soundType.id);
-        if (override.selectedSound !== "custom") continue;
-
-        if (!override.selectedFileId || !(override.selectedFileId in files)) {
-            setOverride(soundType.id, makeEmptyOverride());
+        if (override?.enabled && override.selectedSound === "custom" && override.selectedFileId) {
+            try {
+                await ensureDataURICached(override.selectedFileId);
+                console.log(`[CustomSounds] Preloaded data URI for ${soundType.id}`);
+            } catch (error) {
+                console.error(`[CustomSounds] Failed to preload data URI for ${soundType.id}:`, error);
+            }
         }
     }
-}
 
-async function cleanCustomSoundsStore() {
-    try {
-        const files = await getAllAudio();
-        cleanupInvalidCustomOverrides(files);
-        dataUriCache.clear();
-    } catch (error) {
-        console.error("[CustomSounds] Failed to clean audio store:", error);
-    }
+    console.log(`[CustomSounds] Memory cache contains ${dataUriCache.size} data URIs`);
 }
 
 export async function debugCustomSounds() {
@@ -193,10 +155,7 @@ export async function debugCustomSounds() {
     const rawDataStore = await getFromDataStore(AUDIO_STORE_KEY);
     console.log("[CustomSounds] Raw DataStore content:", rawDataStore);
 
-    const allFiles = await getAllAudio().catch(error => {
-        console.error("[CustomSounds] Failed to inspect audio store:", error);
-        return {};
-    });
+    const allFiles = await getAllAudio();
     console.log(`[CustomSounds] Stored files: ${Object.keys(allFiles).length}`);
 
     let totalBufferSize = 0;
@@ -228,12 +187,14 @@ export async function debugCustomSounds() {
     let enabledCount = 0;
     let totalSettingsSize = 0;
 
-    for (const soundType of allSoundTypes) {
-        const override = getOverride(soundType.id);
+    for (const [soundId, storedValue] of Object.entries(settings.store)) {
+        if (soundId === "overrides") continue;
+
+        const override = getOverride(soundId);
         const settingsSize = JSON.stringify(override).length;
         totalSettingsSize += settingsSize;
 
-        console.log(`[CustomSounds] ${soundType.id}:`, {
+        console.log(`[CustomSounds] ${soundId}:`, {
             enabled: override.enabled,
             selectedSound: override.selectedSound,
             selectedFileId: override.selectedFileId,
@@ -268,12 +229,14 @@ const settings = definePluginSettings({
         description: "",
         component: () => {
             const [resetTrigger, setResetTrigger] = React.useState(0);
-            const [selectedSoundId, setSelectedSoundId] = React.useState(allSoundTypes[0]?.id ?? "");
+            const [searchQuery, setSearchQuery] = React.useState("");
             const fileInputRef = React.useRef<HTMLInputElement>(null);
 
             React.useEffect(() => {
                 allSoundTypes.forEach(type => {
-                    setOverride(type.id, getOverride(type.id));
+                    if (!settings.store[type.id]) {
+                        setOverride(type.id, makeEmptyOverride());
+                    }
                 });
             }, []);
 
@@ -284,19 +247,6 @@ const settings = definePluginSettings({
                 dataUriCache.clear();
                 setResetTrigger(prev => prev + 1);
                 showToast("All overrides reset successfully!");
-            };
-
-            const resetUploadedFiles = async () => {
-                await clearAudioStore();
-                dataUriCache.clear();
-                allSoundTypes.forEach(type => {
-                    const override = getOverride(type.id);
-                    if (override.selectedSound === "custom") {
-                        setOverride(type.id, makeEmptyOverride());
-                    }
-                });
-                setResetTrigger(prev => prev + 1);
-                showToast("CustomSounds uploaded files cleared.");
             };
 
             const triggerFileUpload = () => {
@@ -368,8 +318,10 @@ const settings = definePluginSettings({
                 showToast(`Exported ${overrides.length} settings (audio files not included)`);
             };
 
-            const selectedSoundType = allSoundTypes.find(type => type.id === selectedSoundId) ?? allSoundTypes[0];
-            const selectedOverride = selectedSoundType ? getOverride(selectedSoundType.id) : null;
+            const filteredSoundTypes = allSoundTypes.filter(type =>
+                type.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                type.id.toLowerCase().includes(searchQuery.toLowerCase())
+            );
 
             return (
                 <div>
@@ -377,7 +329,7 @@ const settings = definePluginSettings({
                         <Button variant="primary" onClick={triggerFileUpload}>Import</Button>
                         <Button variant="secondary" onClick={downloadSettings}>Export</Button>
                         <Button variant="dangerPrimary" onClick={resetOverrides}>Reset All</Button>
-                        <Button variant="dangerPrimary" onClick={resetUploadedFiles}>Clear Files</Button>
+                        <Button variant="overlayPrimary" onClick={debugCustomSounds}>Debug</Button>
                         <input
                             className={cl("file-input")}
                             ref={fileInputRef}
@@ -387,46 +339,42 @@ const settings = definePluginSettings({
                         />
                     </div>
 
-                    <div className={cl("sound-picker")}>
-                        <Heading>Sound To Edit</Heading>
-                        <Select
-                            options={allSoundTypes.map(type => ({
-                                value: type.id,
-                                label: type.name
-                            }))}
-                            isSelected={value => value === selectedSoundId}
-                            select={value => setSelectedSoundId(readSelectValue(value) || allSoundTypes[0]?.id || "")}
-                            serialize={value => readSelectValue(value)}
-                            maxVisibleItems={8}
+                    <div className={cl("search")}>
+                        <Heading>Search Sounds</Heading>
+                        <TextInput
+                            value={searchQuery}
+                            onChange={e => setSearchQuery(e)}
+                            placeholder="Search by name or ID"
                         />
                     </div>
 
                     <div className={cl("sounds-list")}>
-                        {selectedSoundType && selectedOverride && (
-                            <ErrorBoundary noop key={`${selectedSoundType.id}-${resetTrigger}`} message={`Failed to render CustomSounds setting for ${selectedSoundType.name}`}>
-                                <SoundOverrideComponent
-                                    type={selectedSoundType}
-                                    override={selectedOverride}
-                                    onChange={async () => {
-                                        setOverride(selectedSoundType.id, selectedOverride);
+                        {filteredSoundTypes.map(type => {
+                            const currentOverride = getOverride(type.id);
 
-                                        if (selectedOverride.enabled && selectedOverride.selectedSound === "custom" && selectedOverride.selectedFileId) {
+                            return (
+                                <SoundOverrideComponent
+                                    key={`${type.id}-${resetTrigger}`}
+                                    type={type}
+                                    override={currentOverride}
+                                    onChange={async () => {
+
+                                        setOverride(type.id, currentOverride);
+
+                                        if (currentOverride.enabled && currentOverride.selectedSound === "custom" && currentOverride.selectedFileId) {
                                             try {
-                                                const dataUri = await ensureDataURICached(selectedOverride.selectedFileId);
-                                                if (!dataUri) {
-                                                    setOverride(selectedSoundType.id, makeEmptyOverride());
-                                                    setResetTrigger(prev => prev + 1);
-                                                    showToast("Custom sound was missing or too large, so it was reset.");
-                                                }
+                                                await ensureDataURICached(currentOverride.selectedFileId);
                                             } catch (error) {
-                                                console.error(`[CustomSounds] Failed to cache data URI for ${selectedSoundType.id}:`, error);
+                                                console.error(`[CustomSounds] Failed to cache data URI for ${type.id}:`, error);
                                                 showToast("Error loading custom sound file");
                                             }
                                         }
+
+                                        console.log(`[CustomSounds] Settings saved for ${type.id}:`, currentOverride);
                                     }}
                                 />
-                            </ErrorBoundary>
-                        )}
+                            );
+                        })}
                     </div>
                 </div>
             );
@@ -448,20 +396,23 @@ export default definePlugin({
     description: "Customize Discord's sounds.",
     dependencies: ["AudioPlayerAPI"],
     tags: ["Customisation", "Notifications", "Voice"],
-    authors: [Devs.Ryder],
+    authors: [Devs.ScattrdBlade, Devs.TheKodeToad],
     settings,
     startAt: StartAt.Init,
     audioProcessor: getCustomSoundURL,
 
     async start() {
+        console.log("[CustomSounds] Plugin starting...");
+
         try {
-            await cleanCustomSoundsStore();
+            await preloadDataURIs();
+            console.log("[CustomSounds] Startup complete");
         } catch (error) {
             console.error("[CustomSounds] Startup failed:", error);
         }
     },
 
     stop() {
-        dataUriCache.clear();
+        console.log("[CustomSounds] Plugin stopped");
     }
 });
