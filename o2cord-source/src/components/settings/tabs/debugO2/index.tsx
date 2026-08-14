@@ -5,7 +5,7 @@
 
 import * as DataStore from "@api/DataStore";
 import { Settings, useSettings } from "@api/Settings";
-import { CogWheel } from "@components/Icons";
+import { CogWheel, DeleteIcon } from "@components/Icons";
 import { AddonCard } from "@components/settings/AddonCard";
 import { SettingsTab, wrapTab } from "@components/settings/tabs/BaseTab";
 import { openPluginModal } from "@components/settings/tabs/plugins/PluginModal";
@@ -108,6 +108,18 @@ function normalizeBadgeSize(size: string | number | undefined) {
     return Math.min(40, Math.max(14, Math.round(parsed)));
 }
 
+function normalizeBadgeLink(value: string) {
+    const link = value.trim();
+    if (!link) return undefined;
+
+    try {
+        const { protocol } = new URL(link);
+        return protocol === "http:" || protocol === "https:" ? link : undefined;
+    } catch {
+        return undefined;
+    }
+}
+
 function getPublicBadgePayload(badge: LocalBadge) {
     return {
         badges: [{
@@ -115,7 +127,9 @@ function getPublicBadgePayload(badge: LocalBadge) {
             userId: badge.userId,
             name: badge.name,
             image: badge.image,
-            size: normalizeBadgeSize(badge.size)
+            size: normalizeBadgeSize(badge.size),
+            link: badge.link,
+            enabled: badge.enabled !== false
         }]
     };
 }
@@ -165,6 +179,7 @@ function DebugO2Tab() {
     const [badgeName, setBadgeName] = useState("");
     const [badgeImage, setBadgeImage] = useState("");
     const [badgeSize, setBadgeSize] = useState("22");
+    const [badgeLink, setBadgeLink] = useState("");
     const [saveStatus, setSaveStatus] = useState("");
     const [pluginStatus, setPluginStatus] = useState("");
     const [activeSettingsModal, setActiveSettingsModal] = useState<ActiveSettingsModal>(null);
@@ -192,6 +207,7 @@ function DebugO2Tab() {
         setBadgeName("");
         setBadgeImage("");
         setBadgeSize("22");
+        setBadgeLink("");
     }
 
     async function saveBadge() {
@@ -204,12 +220,15 @@ function DebugO2Tab() {
             return;
         }
 
+        const existingBadge = editingId ? badges.find(badge => badge.id === editingId) : undefined;
         const nextBadge: LocalBadge = {
             id: editingId ?? makeBadgeId(),
             userId: targetUserId,
             name: targetBadgeName,
             image: targetBadgeImage,
-            size: normalizeBadgeSize(badgeSize)
+            size: normalizeBadgeSize(badgeSize),
+            link: normalizeBadgeLink(badgeLink),
+            enabled: existingBadge?.enabled ?? true
         };
 
         const next = editingId
@@ -226,6 +245,17 @@ function DebugO2Tab() {
         }
     }
 
+    async function toggleBadgeEnabled(id: string, enabled: boolean) {
+        const next = badges.map(badge => badge.id === id ? { ...badge, enabled } : badge);
+
+        try {
+            await writeStoredJson(BADGES_KEY, next);
+            setBadges(next);
+        } catch (e) {
+            setSaveStatus(`Update failed: ${String(e)}`);
+        }
+    }
+
     function useMyId() {
         const currentUserId = UserStore.getCurrentUser()?.id;
         if (currentUserId) setUserId(currentUserId);
@@ -237,6 +267,7 @@ function DebugO2Tab() {
         setBadgeName(badge.name);
         setBadgeImage(badge.image);
         setBadgeSize(String(normalizeBadgeSize(badge.size)));
+        setBadgeLink(badge.link ?? "");
         setActiveSettingsModal("badge");
     }
 
@@ -271,12 +302,15 @@ function DebugO2Tab() {
     }
 
     async function copyPublicBadgeJson() {
+        const existingBadge = editingId ? badges.find(badge => badge.id === editingId) : undefined;
         const nextBadge: LocalBadge = {
             id: editingId ?? makeBadgeId(),
             userId: userId.trim() || (UserStore.getCurrentUser()?.id ?? ""),
             name: badgeName.trim() || "Custom Badge",
             image: badgeImage.trim(),
-            size: normalizeBadgeSize(badgeSize)
+            size: normalizeBadgeSize(badgeSize),
+            link: normalizeBadgeLink(badgeLink),
+            enabled: existingBadge?.enabled ?? true
         };
 
         if (!nextBadge.userId || !nextBadge.image) {
@@ -362,22 +396,44 @@ function DebugO2Tab() {
             </section>
 
             {SHOW_ADD_BADGE_FEATURE && (
-                <section>
+                <section className="o2-debug-managed-section">
                     <Forms.FormTitle tag="h5">Saved Local Badges</Forms.FormTitle>
-                    <div className="o2-debug-badge-list">
+                    <Forms.FormText className={Margins.bottom8}>
+                        Toggle a badge off to hide it without losing its config. The gear opens it for
+                        editing (name, image, size, link); the trash removes it for good.
+                    </Forms.FormText>
+                    <div className="o2-debug-managed-grid">
                         {badges.length === 0 && (
                             <Forms.FormText>No local badges saved yet.</Forms.FormText>
                         )}
                         {badges.map(badge => (
-                            <div className="o2-debug-badge-item" key={badge.id}>
-                                <img src={badge.image} alt="" />
-                                <div>
-                                    <strong>{badge.name}</strong>
-                                    <span>{badge.userId}</span>
-                                </div>
-                                <Button size={Button.Sizes.SMALL} onClick={() => editBadge(badge)}>Edit</Button>
-                                <Button size={Button.Sizes.SMALL} color={Button.Colors.RED} onClick={() => deleteBadge(badge.id)}>Delete</Button>
-                            </div>
+                            <AddonCard
+                                key={badge.id}
+                                name={badge.name}
+                                description={badge.userId + (badge.link ? " · has link" : "")}
+                                enabled={badge.enabled ?? true}
+                                setEnabled={enabled => toggleBadgeEnabled(badge.id, enabled)}
+                                infoButton={
+                                    <div className="o2-debug-badge-card-actions">
+                                        <button
+                                            type="button"
+                                            className="o2-debug-plugin-info"
+                                            aria-label={`Edit ${badge.name}`}
+                                            onClick={() => editBadge(badge)}
+                                        >
+                                            <CogWheel width={18} height={18} />
+                                        </button>
+                                        <button
+                                            type="button"
+                                            className="o2-debug-plugin-info"
+                                            aria-label={`Delete ${badge.name}`}
+                                            onClick={() => deleteBadge(badge.id)}
+                                        >
+                                            <DeleteIcon width={18} height={18} />
+                                        </button>
+                                    </div>
+                                }
+                            />
                         ))}
                     </div>
                 </section>
@@ -431,6 +487,11 @@ function DebugO2Tab() {
                                     placeholder="Badge size, 14-40 px"
                                     value={badgeSize}
                                     onChange={setBadgeSize}
+                                />
+                                <TextInput
+                                    placeholder="Link opened when the badge is clicked (optional)"
+                                    value={badgeLink}
+                                    onChange={setBadgeLink}
                                 />
                                 <div className="o2-debug-image-file-row">
                                     <div className="o2-debug-image-file-preview">

@@ -53,6 +53,13 @@
     color: var(--interactive-hover);
 }
 
+.o2-debug-badge-card-actions {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex: 0 0 auto;
+}
+
 .o2-debug-feature-card {
     display: flex;
     flex-direction: column;
@@ -646,36 +653,6 @@
     cursor: default;
     font-size: 13px;
     font-weight: 700;
-}
-
-.o2-debug-badge-list {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-    margin-top: 8px;
-}
-
-.o2-debug-badge-item {
-    display: grid;
-    grid-template-columns: 32px minmax(0, 1fr) auto auto;
-    align-items: center;
-    gap: 10px;
-    padding: 10px;
-    border: 1px solid var(--border-subtle);
-    border-radius: 8px;
-    background: var(--background-base-low);
-}
-
-.o2-debug-badge-item img {
-    width: 32px;
-    height: 32px;
-    object-fit: contain;
-}
-
-.o2-debug-badge-item span {
-    display: block;
-    color: var(--text-muted);
-    font-size: 12px;
 }
 
 @media (max-width: 760px) {

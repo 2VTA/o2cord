@@ -74,6 +74,18 @@ function normalizeBadgeSize(value: unknown) {
     return getO2BadgeSize(size);
 }
 
+function normalizeBadgeLink(value: unknown) {
+    const link = normalizeBadgeText(value);
+    if (!link) return undefined;
+
+    try {
+        const { protocol } = new URL(link);
+        return protocol === "http:" || protocol === "https:" ? link : undefined;
+    } catch {
+        return undefined;
+    }
+}
+
 function normalizeSharedBadge(rawBadge: unknown, fallbackUserId = "", fallbackIndex = 0): O2LocalBadge | null {
     if (!rawBadge || typeof rawBadge !== "object" || Array.isArray(rawBadge)) return null;
 
@@ -88,7 +100,9 @@ function normalizeSharedBadge(rawBadge: unknown, fallbackUserId = "", fallbackIn
         userId,
         name,
         image,
-        size: normalizeBadgeSize(badge.size)
+        size: normalizeBadgeSize(badge.size),
+        link: normalizeBadgeLink(badge.link),
+        enabled: badge.enabled !== false
     };
 }
 
@@ -354,9 +368,10 @@ export default definePlugin({
             for (const badge of O2LocalBadges) badgesById.set(badge.id, badge);
 
             return [...badgesById.values()]
-                .filter(badge => badge.userId === userId && badge.image && badge.name)
+                .filter(badge => badge.userId === userId && badge.image && badge.name && badge.enabled !== false)
                 .map((badge, idx) => {
                     const badgeSize = getO2BadgeSize(badge.size);
+                    const link = badge.link;
 
                     return {
                         key: `o2cord-local-badge-${badge.id || idx}`,
@@ -371,11 +386,13 @@ export default definePlugin({
                                         alt={description ?? "o2cord badge"}
                                         aria-label={description ?? "o2cord badge"}
                                         src={iconSrc}
+                                        onClick={link ? () => VencordNative.native.openExternal(link) : tooltipProps.onClick}
                                         style={{
                                             width: `${badgeSize}px`,
                                             height: `${badgeSize}px`,
                                             borderRadius: "50%",
-                                            objectFit: "contain"
+                                            objectFit: "contain",
+                                            cursor: link ? "pointer" : undefined
                                         }}
                                     />
                                 )}

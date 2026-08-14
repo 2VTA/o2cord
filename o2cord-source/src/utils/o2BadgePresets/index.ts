@@ -18,6 +18,12 @@ export interface O2LocalBadge {
     name: string;
     image: string;
     size?: number;
+    // Opened via VencordNative.native.openExternal (already protocol-checked
+    // on the main-process side) when the badge is clicked.
+    link?: string;
+    // Lets a badge be hidden without losing its saved config; treated as
+    // shown when omitted so existing saved/published badges keep working.
+    enabled?: boolean;
 }
 
 export interface O2PresetBadge {
