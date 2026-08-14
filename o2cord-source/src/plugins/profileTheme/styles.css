@@ -17,6 +17,43 @@
     gap: 8px;
 }
 
+.o2-profile-theme-saved-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-top: 8px;
+}
+
+.o2-profile-theme-saved-empty {
+    color: var(--text-muted);
+}
+
+.o2-profile-theme-saved-item {
+    display: grid;
+    grid-template-columns: 32px minmax(0, 1fr) auto auto auto;
+    align-items: center;
+    gap: 10px;
+    padding: 10px;
+    border: 1px solid var(--border-subtle);
+    border-radius: 8px;
+    background: var(--background-base-low);
+}
+
+.o2-profile-theme-saved-item img {
+    width: 32px;
+    height: 32px;
+    border-radius: 6px;
+    object-fit: cover;
+}
+
+.o2-profile-theme-saved-meta strong {
+    display: block;
+    font-size: 13px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
 .o2-profile-theme-preview {
     position: relative;
     width: var(--o2-profile-theme-card-width, 320px);

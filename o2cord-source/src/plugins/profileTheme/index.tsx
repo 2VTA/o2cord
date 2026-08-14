@@ -6,6 +6,7 @@
 
 import "./styles.css";
 
+import * as DataStore from "@api/DataStore";
 import { definePluginSettings } from "@api/Settings";
 import { managedStyleRootNode } from "@api/Styles";
 import { copyToClipboard } from "@utils/clipboard";
@@ -18,6 +19,8 @@ import { chooseFile } from "@utils/web";
 import { Button, Forms, React, Slider, showToast, TextInput, Toasts, UserStore } from "@webpack/common";
 
 const PUBLISH_CODE_PREFIX = "O2PROFILE_PUBLISH:";
+const LOCAL_PROFILE_THEMES_KEY = "o2cord.debug.localProfileThemes";
+const LOCAL_PROFILE_THEMES_UPDATED_EVENT = "o2cord:debug-local-profile-themes-updated";
 const STYLE_ID = "o2-profile-theme-vars";
 const TARGET_CLASS = "o2-profile-theme-target";
 const TARGET_ATTR = "data-o2-profile-theme-target";
@@ -75,6 +78,15 @@ type ProfileThemeTarget = {
     userId: string;
     imageUrl: string;
 };
+// Ryder's own personal, local-only reference list of who he's added an
+// image for - lives in this machine's DataStore, never synced anywhere.
+// Publishing a given entry to everyone else still goes through its own
+// "Copy Publish Code" per entry, same as before.
+type LocalProfileThemeEntry = {
+    id: string;
+    userId: string;
+    imageUrl: string;
+};
 
 let observer: MutationObserver | null = null;
 let scanFrame: number | null = null;
@@ -90,6 +102,9 @@ let lifecycleListenersActive = false;
 let applyingTargets = false;
 let lastProfileScan = 0;
 let lastProfileThemeCss = "";
+let localProfileThemeEntries: LocalProfileThemeEntry[] = [];
+let localProfileThemesById: ProfileThemes = {};
+let localProfileThemesLoaded = false;
 
 function cleanImageUrl(value?: string | null) {
     return (value ?? "").trim();
@@ -290,8 +305,17 @@ function getProfileThemeRegistryUrl() {
     }
 }
 
+function hasLocalProfileThemeEntries() {
+    return Object.keys(localProfileThemesById).length > 0;
+}
+
 function hasProfileThemeSource() {
-    return Boolean(getAnyConfiguredImageUrl() || hasRemoteProfileThemes() || getProfileThemeRegistryUrl());
+    return Boolean(
+        getAnyConfiguredImageUrl()
+        || hasRemoteProfileThemes()
+        || getProfileThemeRegistryUrl()
+        || hasLocalProfileThemeEntries()
+    );
 }
 
 async function refreshProfileThemeRegistry(force = false) {
@@ -322,6 +346,60 @@ async function refreshProfileThemeRegistry(force = false) {
     return registryRefreshPromise;
 }
 
+function rebuildLocalProfileThemesIndex() {
+    const next: ProfileThemes = {};
+    for (const entry of localProfileThemeEntries) {
+        const userId = cleanUserId(entry.userId);
+        const imageUrl = cleanImageUrl(entry.imageUrl);
+        if (userId && imageUrl) next[userId] = imageUrl;
+    }
+    localProfileThemesById = next;
+}
+
+async function loadLocalProfileThemeEntries() {
+    if (localProfileThemesLoaded) return localProfileThemeEntries;
+
+    try {
+        const stored = await DataStore.get<LocalProfileThemeEntry[]>(LOCAL_PROFILE_THEMES_KEY);
+        if (Array.isArray(stored)) localProfileThemeEntries = stored;
+    } catch { }
+
+    rebuildLocalProfileThemesIndex();
+    localProfileThemesLoaded = true;
+    return localProfileThemeEntries;
+}
+
+async function writeLocalProfileThemeEntries(next: LocalProfileThemeEntry[]) {
+    localProfileThemeEntries = next;
+    rebuildLocalProfileThemesIndex();
+    await DataStore.set(LOCAL_PROFILE_THEMES_KEY, next);
+    window.dispatchEvent(new CustomEvent(LOCAL_PROFILE_THEMES_UPDATED_EVENT, { detail: next }));
+    scheduleProfileScans();
+}
+
+function onLocalProfileThemesUpdated(event: Event) {
+    const entries = (event as CustomEvent<LocalProfileThemeEntry[]>).detail;
+    if (!Array.isArray(entries)) return;
+
+    localProfileThemeEntries = entries;
+    rebuildLocalProfileThemesIndex();
+    scheduleProfileScans();
+}
+
+let localProfileThemesListenerActive = false;
+
+function addLocalProfileThemesListener() {
+    if (localProfileThemesListenerActive) return;
+    localProfileThemesListenerActive = true;
+    window.addEventListener(LOCAL_PROFILE_THEMES_UPDATED_EVENT, onLocalProfileThemesUpdated);
+}
+
+function removeLocalProfileThemesListener() {
+    if (!localProfileThemesListenerActive) return;
+    localProfileThemesListenerActive = false;
+    window.removeEventListener(LOCAL_PROFILE_THEMES_UPDATED_EVENT, onLocalProfileThemesUpdated);
+}
+
 function getRemoteProfileThemeUrl(userId?: string | null) {
     const cleanId = cleanUserId(userId);
     if (!cleanId) return "";
@@ -333,11 +411,12 @@ function getRemoteProfileThemeUrl(userId?: string | null) {
 function getImageUrlForUser(userId: string) {
     const publicImageUrl = cleanImageUrl(settings.store.publicImageUrl);
     const localImageUrl = cleanImageUrl(settings.store.imageUrl);
+    const savedImageUrl = cleanImageUrl(localProfileThemesById[userId]);
 
     if (userId === getTargetUserId())
-        return publicImageUrl || localImageUrl || getRemoteProfileThemeUrl(userId);
+        return publicImageUrl || localImageUrl || savedImageUrl || getRemoteProfileThemeUrl(userId);
 
-    return getRemoteProfileThemeUrl(userId);
+    return savedImageUrl || getRemoteProfileThemeUrl(userId);
 }
 
 function getElementReactData(element: Element) {
@@ -442,6 +521,9 @@ function getKnownThemedUserIds() {
     ids.add(RYDER_USER_ID);
 
     for (const id of Object.keys(remoteProfileThemes))
+        ids.add(id);
+
+    for (const id of Object.keys(localProfileThemesById))
         ids.add(id);
 
     return ids;
@@ -877,6 +959,20 @@ function refreshProfileTheme() {
 }
 
 function applyProfileTheme() {
+    addLocalProfileThemesListener();
+
+    // hasProfileThemeSource() (and therefore whether this activates at all)
+    // can depend on the local entries list, which loads asynchronously from
+    // DataStore - if it resolves after this first pass decided there was
+    // nothing to show, redo the activation once it's in.
+    void loadLocalProfileThemeEntries().then(() => {
+        if (writeProfileThemeVars()) {
+            startProfileWatcher();
+            startRegistryRefresh();
+            scheduleProfileScans();
+        }
+    });
+
     if (!writeProfileThemeVars()) return;
     startProfileWatcher();
     startRegistryRefresh();
@@ -889,6 +985,7 @@ function removeProfileTheme() {
     styleElement = null;
     lastProfileThemeCss = "";
     stopProfileWatcher();
+    removeLocalProfileThemesListener();
 }
 
 function clearProfileTheme() {
@@ -955,6 +1052,26 @@ function DebugProfileThemeSettings() {
     const [publicImageUrl, setPublicImageUrl] = React.useState(settings.store.publicImageUrl);
     const [targetUserId, setTargetUserId] = React.useState(settings.store.targetUserId || RYDER_USER_ID);
     const [brightness, setBrightness] = React.useState(settings.store.brightness ?? 0.6);
+    const [savedTargets, setSavedTargets] = React.useState<LocalProfileThemeEntry[]>(localProfileThemeEntries);
+
+    React.useEffect(() => {
+        let cancelled = false;
+
+        loadLocalProfileThemeEntries().then(entries => {
+            if (!cancelled) setSavedTargets(entries);
+        });
+
+        const onUpdate = (event: Event) => {
+            const entries = (event as CustomEvent<LocalProfileThemeEntry[]>).detail;
+            if (Array.isArray(entries)) setSavedTargets(entries);
+        };
+        window.addEventListener(LOCAL_PROFILE_THEMES_UPDATED_EVENT, onUpdate);
+
+        return () => {
+            cancelled = true;
+            window.removeEventListener(LOCAL_PROFILE_THEMES_UPDATED_EVENT, onUpdate);
+        };
+    }, []);
 
     const save = (
         nextImageUrl = imageUrl,
@@ -995,6 +1112,49 @@ function DebugProfileThemeSettings() {
         }
 
         const code = `${PUBLISH_CODE_PREFIX}${JSON.stringify({ userId, imageUrl: publishImageUrl })}`;
+        await copyToClipboard(code);
+        showToast("Publish code copied. Paste it to Claude to sync it.", Toasts.Type.SUCCESS);
+    };
+
+    const saveCurrentToList = async () => {
+        const userId = cleanUserId(targetUserId) || RYDER_USER_ID;
+        const entryImageUrl = cleanImageUrl(publicImageUrl) || cleanImageUrl(imageUrl);
+
+        if (!entryImageUrl) {
+            showToast("Set an image first.", Toasts.Type.FAILURE);
+            return;
+        }
+
+        const existing = savedTargets.find(entry => entry.userId === userId);
+        const nextEntry: LocalProfileThemeEntry = {
+            id: existing?.id ?? `profile-theme-${Date.now().toString(36)}`,
+            userId,
+            imageUrl: entryImageUrl
+        };
+        const next = existing
+            ? savedTargets.map(entry => entry.id === existing.id ? nextEntry : entry)
+            : [...savedTargets, nextEntry];
+
+        await writeLocalProfileThemeEntries(next);
+        setSavedTargets(next);
+        showToast(existing ? "Saved entry updated." : "Added to your saved list.", Toasts.Type.SUCCESS);
+    };
+
+    const loadEntryIntoForm = (entry: LocalProfileThemeEntry) => {
+        setTargetUserId(entry.userId);
+        setPublicImageUrl(entry.imageUrl);
+        setImageUrl(entry.imageUrl);
+    };
+
+    const deleteSavedEntry = async (id: string) => {
+        const next = savedTargets.filter(entry => entry.id !== id);
+        await writeLocalProfileThemeEntries(next);
+        setSavedTargets(next);
+        showToast("Removed from your saved list.", Toasts.Type.MESSAGE);
+    };
+
+    const copySavedEntryPublishCode = async (entry: LocalProfileThemeEntry) => {
+        const code = `${PUBLISH_CODE_PREFIX}${JSON.stringify({ userId: entry.userId, imageUrl: entry.imageUrl })}`;
         await copyToClipboard(code);
         showToast("Publish code copied. Paste it to Claude to sync it.", Toasts.Type.SUCCESS);
     };
@@ -1074,6 +1234,7 @@ function DebugProfileThemeSettings() {
             <div className="o2-profile-theme-actions">
                 <Button onClick={() => save()}>Apply</Button>
                 <Button onClick={copyPublishCode}>Copy Publish Code</Button>
+                <Button color={Button.Colors.GREEN} onClick={saveCurrentToList}>Save to List</Button>
                 <Button color={Button.Colors.RED} onClick={clear}>Clear</Button>
             </div>
 
@@ -1086,6 +1247,28 @@ function DebugProfileThemeSettings() {
                         {Math.round(brightness * 100)}% brightness
                     </div>
                 </div>
+            </div>
+
+            <Forms.FormTitle tag="h5" className={Margins.top8}>Saved Profile Images</Forms.FormTitle>
+            <Forms.FormText>
+                People you've added an image for. "Load" fills the fields above so you can tweak or
+                republish; "Copy Code" grabs that entry's publish code directly.
+            </Forms.FormText>
+            <div className="o2-profile-theme-saved-list">
+                {savedTargets.length === 0 && (
+                    <Forms.FormText className="o2-profile-theme-saved-empty">Nothing saved yet.</Forms.FormText>
+                )}
+                {savedTargets.map(entry => (
+                    <div className="o2-profile-theme-saved-item" key={entry.id}>
+                        <img src={entry.imageUrl} alt="" />
+                        <div className="o2-profile-theme-saved-meta">
+                            <strong>{entry.userId}</strong>
+                        </div>
+                        <Button size={Button.Sizes.SMALL} onClick={() => loadEntryIntoForm(entry)}>Load</Button>
+                        <Button size={Button.Sizes.SMALL} onClick={() => copySavedEntryPublishCode(entry)}>Copy Code</Button>
+                        <Button size={Button.Sizes.SMALL} color={Button.Colors.RED} onClick={() => deleteSavedEntry(entry.id)}>Delete</Button>
+                    </div>
+                ))}
             </div>
         </Forms.FormSection>
     );
