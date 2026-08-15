@@ -1,0 +1,14 @@
+{
+    "name": "o2cord-badge-bot",
+    "version": "1.0.0",
+    "description": "Private Discord bot that publishes ProfileTheme O2PROFILE_PUBLISH codes straight to the o2cord public registry on GitHub.",
+    "main": "bot.js",
+    "type": "commonjs",
+    "scripts": {
+        "start": "node bot.js"
+    },
+    "dependencies": {
+        "discord.js": "^14.15.3",
+        "dotenv": "^16.4.5"
+    }
+}
