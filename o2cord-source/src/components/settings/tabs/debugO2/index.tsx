@@ -132,7 +132,15 @@ function dataUrlToFile(dataUrl: string, filename: string): File | null {
 function extensionForMime(mimeType: string) {
     if (mimeType === "video/webm") return "webm";
     if (mimeType === "video/mp4") return "mp4";
+    if (mimeType === "image/png") return "png";
+    if (mimeType === "image/jpeg") return "jpg";
+    if (mimeType === "image/webp") return "webp";
+    if (mimeType === "image/gif") return "gif";
     return "bin";
+}
+
+function isVideoDataUrl(dataUrl: string) {
+    return dataUrl.startsWith("data:video/");
 }
 
 function normalizeBadgeSize(size: string | number | undefined) {
@@ -348,7 +356,7 @@ function DebugO2Tab() {
         setSaveStatus("Image selected. Press Save Badge to apply it.");
     }
 
-    async function copyPublicBadgeJson() {
+    function downloadPublicBadgeJson() {
         const existingBadge = editingId ? badges.find(badge => badge.id === editingId) : undefined;
         const nextBadge: LocalBadge = {
             id: editingId ?? makeBadgeId(),
@@ -365,12 +373,9 @@ function DebugO2Tab() {
             return;
         }
 
-        try {
-            await navigator.clipboard?.writeText?.(JSON.stringify(getPublicBadgePayload(nextBadge), null, 2));
-            setSaveStatus("Public badge JSON copied. Add it to update-package/public/badges.json.");
-        } catch (e) {
-            setSaveStatus(`Copy failed: ${String(e)}`);
-        }
+        const json = JSON.stringify(getPublicBadgePayload(nextBadge), null, 2);
+        saveFile(new File([json], `o2cord-badge-${nextBadge.userId}.txt`, { type: "text/plain" }));
+        setSaveStatus(`Saved to your Downloads folder. Attach it with: -badge`);
     }
 
     function resetNameplateForm() {
@@ -385,7 +390,7 @@ function DebugO2Tab() {
         const targetVideo = nameplateVideo.trim();
 
         if (!targetUserId || !targetVideo) {
-            setNameplateStatus("Add a Discord user ID and choose a video first.");
+            setNameplateStatus("Add a Discord user ID and choose a video or image first.");
             return;
         }
 
@@ -435,19 +440,19 @@ function DebugO2Tab() {
     }
 
     async function chooseNameplateVideo() {
-        const file = await chooseFile("video/webm,video/mp4");
+        const file = await chooseFile("video/webm,video/mp4,image/png,image/jpeg,image/webp,image/gif");
         if (!file) return;
 
         const dataUrl = await fileToDataUrl(file);
         setNameplateVideo(dataUrl);
         if (!nameplateUserId.trim()) setNameplateUserId(UserStore.getCurrentUser()?.id ?? "");
-        setNameplateStatus("Video selected. Press Save to preview it, or download it to publish for everyone.");
+        setNameplateStatus("Selected. Press Save to preview it, or download it to publish for everyone.");
     }
 
     function downloadNameplateVideoFile() {
         const targetUserId = nameplateUserId.trim() || (UserStore.getCurrentUser()?.id ?? "");
         if (!targetUserId || !nameplateVideo) {
-            setNameplateStatus("Add a Discord user ID and choose a video first.");
+            setNameplateStatus("Add a Discord user ID and choose a video or image first.");
             return;
         }
 
@@ -455,12 +460,19 @@ function DebugO2Tab() {
         const ext = extensionForMime(mimeMatch?.[1] ?? "");
         const file = dataUrlToFile(nameplateVideo, `o2cord-nameplate-${targetUserId}.${ext}`);
         if (!file) {
-            setNameplateStatus("Could not read that video file.");
+            setNameplateStatus("Could not read that file.");
             return;
         }
 
         saveFile(file);
         setNameplateStatus(`Video saved to your Downloads folder. Attach it with: -nameplate ${targetUserId}`);
+    }
+
+    async function saveAndDownloadNameplate() {
+        // Download first - it reads the current form state, which
+        // saveNameplate() clears afterwards via resetNameplateForm().
+        downloadNameplateVideoFile();
+        await saveNameplate();
     }
 
     function isManagedPluginEnabled(pluginName: string) {
@@ -598,7 +610,9 @@ function DebugO2Tab() {
                         )}
                         {nameplates.map(entry => (
                             <div key={entry.id} className="o2-debug-nameplate-item">
-                                <video src={entry.videoUrl} autoPlay loop muted playsInline />
+                                {isVideoDataUrl(entry.videoUrl)
+                                    ? <video src={entry.videoUrl} autoPlay loop muted playsInline />
+                                    : <img src={entry.videoUrl} alt="" />}
                                 <div className="o2-debug-nameplate-meta">
                                     <strong>{entry.userId}</strong>
                                 </div>
@@ -686,7 +700,7 @@ function DebugO2Tab() {
                                 </div>
                                 <div className="o2-debug-actions">
                                     <Button onClick={saveBadge}>{editingId ? "Save Changes" : "Save Badge"}</Button>
-                                    <Button color={Button.Colors.GREEN} onClick={copyPublicBadgeJson}>Copy Public JSON</Button>
+                                    <Button color={Button.Colors.GREEN} onClick={downloadPublicBadgeJson}>Download Public JSON</Button>
                                     <Button color={Button.Colors.PRIMARY} onClick={resetBadgeForm}>Clear</Button>
                                 </div>
                                 {saveStatus && (
@@ -708,9 +722,9 @@ function DebugO2Tab() {
                             <div>
                                 <h2>Add Nameplate</h2>
                                 <Forms.FormText>
-                                    Add a Discord user ID and a short video. It previews on your own client
-                                    right away; download it and publish with <code>-nameplate</code> to show
-                                    it for everyone.
+                                    Add a Discord user ID and a short video or a static image (png, jpg, webp,
+                                    gif). It previews on your own client right away; download it and publish
+                                    with <code>-nameplate</code> to show it for everyone.
                                 </Forms.FormText>
                             </div>
                             <button
@@ -737,14 +751,17 @@ function DebugO2Tab() {
                                 <div className="o2-debug-image-file-row">
                                     <div className="o2-debug-image-file-preview">
                                         {nameplateVideo
-                                            ? <video src={nameplateVideo} autoPlay loop muted playsInline />
-                                            : <span>No video</span>}
+                                            ? (isVideoDataUrl(nameplateVideo)
+                                                ? <video src={nameplateVideo} autoPlay loop muted playsInline />
+                                                : <img src={nameplateVideo} alt="" />)
+                                            : <span>No file</span>}
                                     </div>
-                                    <Button size={Button.Sizes.SMALL} onClick={chooseNameplateVideo}>Choose Video</Button>
+                                    <Button size={Button.Sizes.SMALL} onClick={chooseNameplateVideo}>Choose Video/Image</Button>
                                 </div>
                                 <div className="o2-debug-actions">
                                     <Button onClick={saveNameplate}>{editingNameplateId ? "Save Changes" : "Save Nameplate"}</Button>
                                     <Button color={Button.Colors.GREEN} onClick={downloadNameplateVideoFile}>Download for Bot</Button>
+                                    <Button color={Button.Colors.GREEN} onClick={saveAndDownloadNameplate}>Save & Download</Button>
                                     <Button color={Button.Colors.PRIMARY} onClick={resetNameplateForm}>Clear</Button>
                                 </div>
                                 {nameplateStatus && (
