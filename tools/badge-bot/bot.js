@@ -36,6 +36,8 @@ const NAMEPLATES_RAW_BASE = `https://raw.githubusercontent.com/${REPO_OWNER}/${R
 
 const FRIEND_BADGE_PRESET = require("./presets/friend-badge.json");
 
+const SEND_CODE_MESSAGE = "<:Callie:1538295332885106708> Send the code.";
+
 const client = new Client({
     intents: [
         GatewayIntentBits.Guilds,
@@ -69,26 +71,26 @@ client.on("messageCreate", async message => {
 
         if (content === "-badge") {
             if (!armPending(message.author.id, message.channel.id, "badge")) return;
-            await message.reply("Send the code.");
+            await message.reply(SEND_CODE_MESSAGE);
             return;
         }
 
         if (content === "-profileimage") {
             if (!armPending(message.author.id, message.channel.id, "profile")) return;
-            await message.reply("Send the code.");
+            await message.reply(SEND_CODE_MESSAGE);
             return;
         }
 
         if (content.startsWith("-nameplate")) {
             const userId = content.slice("-nameplate".length).trim();
             if (!/^\d{5,25}$/.test(userId)) {
-                await message.reply("Usage: `-nameplate <userId>` with a video attached to the same message.");
+                await message.reply("Usage: `-nameplate <userId>` with a video or image attached to the same message.");
                 return;
             }
 
             const attachment = message.attachments.first();
             if (!attachment) {
-                await message.reply("Attach a video (webm or mp4) to the same message.");
+                await message.reply("Attach a video (webm/mp4) or image (png/jpg/webp/gif) to the same message.");
                 return;
             }
 
@@ -279,18 +281,21 @@ function normalizeBadgeSize(size) {
 }
 
 // ---------------------------------------------------------------------------
-// Nameplates (raw video attachment, no JSON wrapping - no in-app flow yet)
+// Nameplates (raw video/image attachment, no JSON wrapping - no in-app flow yet)
 // ---------------------------------------------------------------------------
 
+const NAMEPLATE_VIDEO_EXTS = new Set(["webm", "mp4"]);
+
 async function publishNameplateVideo(userId, buffer, fileName, contentType) {
-    const ext = detectVideoExt(fileName, contentType);
-    if (!ext) throw new Error("Attachment isn't a recognized webm or mp4 video.");
+    const ext = detectNameplateExt(fileName, contentType);
+    if (!ext) throw new Error("Attachment isn't a recognized webm/mp4 video or png/jpg/webp/gif image.");
 
-    validateVideo(buffer, ext);
+    if (NAMEPLATE_VIDEO_EXTS.has(ext)) validateVideo(buffer, ext);
+    else validateImage(buffer, ext);
 
-    const videoPath = `${NAMEPLATES_ASSETS_DIR}/${userId}.${ext}`;
-    const existingVideoSha = await githubGetSha(videoPath);
-    await githubPutFile(videoPath, buffer, `Publish Nameplate video for ${userId}`, existingVideoSha);
+    const assetPath = `${NAMEPLATES_ASSETS_DIR}/${userId}.${ext}`;
+    const existingAssetSha = await githubGetSha(assetPath);
+    await githubPutFile(assetPath, buffer, `Publish Nameplate ${ext} for ${userId}`, existingAssetSha);
 
     const { data: manifest, sha: manifestSha } = await githubGetJson(NAMEPLATES_JSON_PATH);
     manifest[userId] = `${NAMEPLATES_RAW_BASE}/${userId}.${ext}`;
@@ -300,13 +305,21 @@ async function publishNameplateVideo(userId, buffer, fileName, contentType) {
     return { userId, ext, bytes: buffer.length };
 }
 
-function detectVideoExt(fileName, contentType) {
+function detectNameplateExt(fileName, contentType) {
     if (contentType === "video/webm") return "webm";
     if (contentType === "video/mp4") return "mp4";
+    if (contentType === "image/png") return "png";
+    if (contentType === "image/jpeg") return "jpg";
+    if (contentType === "image/webp") return "webp";
+    if (contentType === "image/gif") return "gif";
 
     const lower = (fileName ?? "").toLowerCase();
     if (lower.endsWith(".webm")) return "webm";
     if (lower.endsWith(".mp4")) return "mp4";
+    if (lower.endsWith(".png")) return "png";
+    if (lower.endsWith(".jpg") || lower.endsWith(".jpeg")) return "jpg";
+    if (lower.endsWith(".webp")) return "webp";
+    if (lower.endsWith(".gif")) return "gif";
     return null;
 }
 
