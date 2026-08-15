@@ -1,0 +1,10 @@
+.o2-nameplate-video {
+    position: absolute;
+    inset: -3px -8px;
+    width: calc(100% + 16px);
+    height: calc(100% + 6px);
+    object-fit: cover;
+    border-radius: 6px;
+    z-index: -1;
+    pointer-events: none;
+}
