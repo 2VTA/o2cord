@@ -36,7 +36,16 @@ const NAMEPLATES_RAW_BASE = `https://raw.githubusercontent.com/${REPO_OWNER}/${R
 
 const FRIEND_BADGE_PRESET = require("./presets/friend-badge.json");
 
-const SEND_CODE_MESSAGE = "<:Callie:1538295332885106708> Send the code.";
+const SEND_CODE_EMOJIS = [
+    "<:Callie:1538295332885106708>",
+    "<:Callie1:1538299069330497636>",
+    "<:Callie2:1538299329981452379>"
+];
+
+function sendCodeMessage() {
+    const emoji = SEND_CODE_EMOJIS[Math.floor(Math.random() * SEND_CODE_EMOJIS.length)];
+    return `${emoji} Send the code.`;
+}
 
 const client = new Client({
     intents: [
@@ -71,13 +80,13 @@ client.on("messageCreate", async message => {
 
         if (content === "-badge") {
             if (!armPending(message.author.id, message.channel.id, "badge")) return;
-            await message.reply(SEND_CODE_MESSAGE);
+            await message.reply(sendCodeMessage());
             return;
         }
 
         if (content === "-profileimage") {
             if (!armPending(message.author.id, message.channel.id, "profile")) return;
-            await message.reply(SEND_CODE_MESSAGE);
+            await message.reply(sendCodeMessage());
             return;
         }
 
