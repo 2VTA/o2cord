@@ -1,8 +1,8 @@
 {
-    "version":  "1.4.3",
-    "hash":  "public-20260811031300",
+    "version":  "1.4.4",
+    "hash":  "public-20260815050930",
     "author":  "o2cord",
-    "message":  "Fix profile theme text legibility over background images",
+    "message":  "ProfileTheme publish codes now save as a file instead of copying to clipboard",
     "notes":  [
                   "Public o2cord update package",
                   "ussro2 backgrounds are loaded from backgrounds.json beside this manifest",

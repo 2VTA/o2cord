@@ -9,13 +9,12 @@ import "./styles.css";
 import * as DataStore from "@api/DataStore";
 import { definePluginSettings } from "@api/Settings";
 import { managedStyleRootNode } from "@api/Styles";
-import { copyToClipboard } from "@utils/clipboard";
 import { Devs } from "@utils/constants";
 import { createAndAppendStyle } from "@utils/css";
 import { Margins } from "@utils/margins";
 import { isDebugOwner } from "@utils/o2Debug";
 import definePlugin, { OptionType, StartAt } from "@utils/types";
-import { chooseFile } from "@utils/web";
+import { chooseFile, saveFile } from "@utils/web";
 import { Button, Forms, React, Slider, showToast, TextInput, Toasts, UserStore } from "@webpack/common";
 
 const PUBLISH_CODE_PREFIX = "O2PROFILE_PUBLISH:";
@@ -1102,6 +1101,12 @@ function DebugProfileThemeSettings() {
         showToast("ProfileTheme cleared.", Toasts.Type.MESSAGE);
     };
 
+    const downloadPublishCode = (userId: string, imageUrl: string) => {
+        const code = `${PUBLISH_CODE_PREFIX}${JSON.stringify({ userId, imageUrl })}`;
+        saveFile(new File([code], `o2cord-profile-${userId}.txt`, { type: "text/plain" }));
+        showToast("Publish code saved to your Downloads folder. Attach that file to Claude.", Toasts.Type.SUCCESS);
+    };
+
     const copyPublishCode = async () => {
         const userId = cleanUserId(targetUserId) || RYDER_USER_ID;
         const publishImageUrl = cleanImageUrl(publicImageUrl) || cleanImageUrl(imageUrl);
@@ -1111,9 +1116,7 @@ function DebugProfileThemeSettings() {
             return;
         }
 
-        const code = `${PUBLISH_CODE_PREFIX}${JSON.stringify({ userId, imageUrl: publishImageUrl })}`;
-        await copyToClipboard(code);
-        showToast("Publish code copied. Paste it to Claude to sync it.", Toasts.Type.SUCCESS);
+        downloadPublishCode(userId, publishImageUrl);
     };
 
     const saveCurrentToList = async () => {
@@ -1154,9 +1157,7 @@ function DebugProfileThemeSettings() {
     };
 
     const copySavedEntryPublishCode = async (entry: LocalProfileThemeEntry) => {
-        const code = `${PUBLISH_CODE_PREFIX}${JSON.stringify({ userId: entry.userId, imageUrl: entry.imageUrl })}`;
-        await copyToClipboard(code);
-        showToast("Publish code copied. Paste it to Claude to sync it.", Toasts.Type.SUCCESS);
+        downloadPublishCode(entry.userId, entry.imageUrl);
     };
 
     const previewVars = {
