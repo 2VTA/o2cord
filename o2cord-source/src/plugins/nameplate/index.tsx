@@ -6,8 +6,10 @@
 
 import "./style.css";
 
+import * as DataStore from "@api/DataStore";
 import { addMemberListDecorator, removeMemberListDecorator } from "@api/MemberListDecorators";
 import { Devs } from "@utils/constants";
+import { O2_LOCAL_NAMEPLATES_KEY, O2_LOCAL_NAMEPLATES_UPDATED_EVENT, O2LocalNameplate } from "@utils/o2NameplatePresets";
 import definePlugin from "@utils/types";
 import { React } from "@webpack/common";
 
@@ -17,6 +19,54 @@ let remoteNameplates: Record<string, string> = {};
 let lastRegistryRefresh = 0;
 let registryRefreshPromise: Promise<void> | null = null;
 let registryRefreshTimer: number | undefined;
+
+// Local-only entries added from the debug editor, so Ryder can preview a
+// nameplate on his own client before publishing it for everyone.
+let localNameplateEntries: O2LocalNameplate[] = [];
+let localNameplatesById: Record<string, string> = {};
+let localNameplatesLoaded = false;
+let localNameplatesListenerActive = false;
+
+function rebuildLocalNameplatesIndex() {
+    const next: Record<string, string> = {};
+    for (const entry of localNameplateEntries) {
+        if (/^\d{5,25}$/.test(entry.userId) && entry.videoUrl) next[entry.userId] = entry.videoUrl;
+    }
+    localNameplatesById = next;
+}
+
+async function loadLocalNameplateEntries() {
+    if (localNameplatesLoaded) return localNameplateEntries;
+
+    try {
+        const stored = await DataStore.get<O2LocalNameplate[]>(O2_LOCAL_NAMEPLATES_KEY);
+        if (Array.isArray(stored)) localNameplateEntries = stored;
+    } catch { }
+
+    rebuildLocalNameplatesIndex();
+    localNameplatesLoaded = true;
+    return localNameplateEntries;
+}
+
+function onLocalNameplatesUpdated(event: Event) {
+    const entries = (event as CustomEvent<O2LocalNameplate[]>).detail;
+    if (!Array.isArray(entries)) return;
+
+    localNameplateEntries = entries;
+    rebuildLocalNameplatesIndex();
+}
+
+function addLocalNameplatesListener() {
+    if (localNameplatesListenerActive) return;
+    localNameplatesListenerActive = true;
+    window.addEventListener(O2_LOCAL_NAMEPLATES_UPDATED_EVENT, onLocalNameplatesUpdated);
+}
+
+function removeLocalNameplatesListener() {
+    if (!localNameplatesListenerActive) return;
+    localNameplatesListenerActive = false;
+    window.removeEventListener(O2_LOCAL_NAMEPLATES_UPDATED_EVENT, onLocalNameplatesUpdated);
+}
 
 function cleanNameplates(value: unknown): Record<string, string> {
     if (!value || typeof value !== "object") return {};
@@ -91,7 +141,7 @@ function positionizeRow(node: HTMLVideoElement | null) {
 }
 
 function NameplateVideo({ userId }: { userId: string; }) {
-    const url = remoteNameplates[userId];
+    const url = localNameplatesById[userId] || remoteNameplates[userId];
     if (!url) return null;
 
     return (
@@ -116,6 +166,8 @@ export default definePlugin({
 
     start() {
         startRegistryRefresh();
+        addLocalNameplatesListener();
+        void loadLocalNameplateEntries();
         addMemberListDecorator(
             "o2-nameplate",
             ({ user }) => user ? <NameplateVideo userId={user.id} /> : null,
@@ -125,6 +177,7 @@ export default definePlugin({
 
     stop() {
         stopRegistryRefresh();
+        removeLocalNameplatesListener();
         removeMemberListDecorator("o2-nameplate");
     }
 });
