@@ -15,7 +15,12 @@ import {
     O2_LOCAL_BADGES_UPDATED_EVENT,
     O2LocalBadge
 } from "@utils/o2BadgePresets";
-import { chooseFile } from "@utils/web";
+import {
+    O2_LOCAL_NAMEPLATES_KEY,
+    O2_LOCAL_NAMEPLATES_UPDATED_EVENT,
+    O2LocalNameplate
+} from "@utils/o2NameplatePresets";
+import { chooseFile, saveFile } from "@utils/web";
 import { Button, Forms, React, TextInput, UserStore, useState } from "@webpack/common";
 
 import Plugins from "~plugins";
@@ -23,6 +28,7 @@ import Plugins from "~plugins";
 import "./styles.css";
 
 type LocalBadge = O2LocalBadge;
+type LocalNameplate = O2LocalNameplate;
 
 interface ManagedPlugin {
     name: string;
@@ -32,6 +38,10 @@ interface ManagedPlugin {
 const BADGES_KEY = O2_LOCAL_BADGES_KEY;
 const BADGES_EVENT = O2_LOCAL_BADGES_UPDATED_EVENT;
 const SHOW_ADD_BADGE_FEATURE = true;
+
+const NAMEPLATES_KEY = O2_LOCAL_NAMEPLATES_KEY;
+const NAMEPLATES_EVENT = O2_LOCAL_NAMEPLATES_UPDATED_EVENT;
+const SHOW_ADD_NAMEPLATE_FEATURE = true;
 
 const MANAGED_PLUGINS: ManagedPlugin[] = [
     {
@@ -95,10 +105,34 @@ async function writeStoredJson(key: string, value: unknown) {
 
     if (key === BADGES_KEY)
         window.dispatchEvent(new CustomEvent(BADGES_EVENT, { detail: value }));
+    if (key === NAMEPLATES_KEY)
+        window.dispatchEvent(new CustomEvent(NAMEPLATES_EVENT, { detail: value }));
 }
 
 function makeBadgeId() {
     return "badge-" + Date.now().toString(36);
+}
+
+function makeNameplateId() {
+    return "nameplate-" + Date.now().toString(36);
+}
+
+function dataUrlToFile(dataUrl: string, filename: string): File | null {
+    const match = dataUrl.match(/^data:([^;]+);base64,(.+)$/s);
+    if (!match) return null;
+
+    const [, mimeType, base64] = match;
+    const binary = atob(base64);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+
+    return new File([bytes], filename, { type: mimeType });
+}
+
+function extensionForMime(mimeType: string) {
+    if (mimeType === "video/webm") return "webm";
+    if (mimeType === "video/mp4") return "mp4";
+    return "bin";
 }
 
 function normalizeBadgeSize(size: string | number | undefined) {
@@ -170,7 +204,7 @@ function DebugFeatureCard({
     );
 }
 
-type ActiveSettingsModal = "badge" | null;
+type ActiveSettingsModal = "badge" | "nameplate" | null;
 
 function DebugO2Tab() {
     const [badges, setBadges] = useState<LocalBadge[]>([]);
@@ -185,6 +219,12 @@ function DebugO2Tab() {
     const [activeSettingsModal, setActiveSettingsModal] = useState<ActiveSettingsModal>(null);
     const settings = useSettings(["plugins.*"]);
 
+    const [nameplates, setNameplates] = useState<LocalNameplate[]>([]);
+    const [editingNameplateId, setEditingNameplateId] = useState<string | null>(null);
+    const [nameplateUserId, setNameplateUserId] = useState(() => UserStore.getCurrentUser()?.id ?? "");
+    const [nameplateVideo, setNameplateVideo] = useState("");
+    const [nameplateStatus, setNameplateStatus] = useState("");
+
     React.useEffect(() => {
         let cancelled = false;
 
@@ -193,6 +233,13 @@ function DebugO2Tab() {
             const nextBadges = Array.isArray(savedBadges) ? savedBadges : [];
             setBadges(nextBadges);
             window.dispatchEvent(new CustomEvent(BADGES_EVENT, { detail: nextBadges }));
+        });
+
+        readStoredJson<LocalNameplate[]>(NAMEPLATES_KEY, []).then(savedNameplates => {
+            if (cancelled) return;
+            const nextNameplates = Array.isArray(savedNameplates) ? savedNameplates : [];
+            setNameplates(nextNameplates);
+            window.dispatchEvent(new CustomEvent(NAMEPLATES_EVENT, { detail: nextNameplates }));
         });
 
         return () => {
@@ -326,6 +373,96 @@ function DebugO2Tab() {
         }
     }
 
+    function resetNameplateForm() {
+        const currentUserId = UserStore.getCurrentUser()?.id ?? "";
+        setEditingNameplateId(null);
+        setNameplateUserId(currentUserId);
+        setNameplateVideo("");
+    }
+
+    async function saveNameplate() {
+        const targetUserId = nameplateUserId.trim() || (UserStore.getCurrentUser()?.id ?? "");
+        const targetVideo = nameplateVideo.trim();
+
+        if (!targetUserId || !targetVideo) {
+            setNameplateStatus("Add a Discord user ID and choose a video first.");
+            return;
+        }
+
+        const nextNameplate: LocalNameplate = {
+            id: editingNameplateId ?? makeNameplateId(),
+            userId: targetUserId,
+            videoUrl: targetVideo
+        };
+
+        const next = editingNameplateId
+            ? nameplates.map(entry => entry.id === editingNameplateId ? nextNameplate : entry)
+            : [...nameplates, nextNameplate];
+
+        try {
+            await writeStoredJson(NAMEPLATES_KEY, next);
+            setNameplates(next);
+            setNameplateStatus("Saved. Previews on your own client immediately - switch servers or scroll the member list to see it.");
+            resetNameplateForm();
+        } catch (e) {
+            setNameplateStatus(`Save failed: ${String(e)}`);
+        }
+    }
+
+    function useMyIdForNameplate() {
+        const currentUserId = UserStore.getCurrentUser()?.id;
+        if (currentUserId) setNameplateUserId(currentUserId);
+    }
+
+    function editNameplate(entry: LocalNameplate) {
+        setEditingNameplateId(entry.id);
+        setNameplateUserId(entry.userId);
+        setNameplateVideo(entry.videoUrl);
+        setActiveSettingsModal("nameplate");
+    }
+
+    async function deleteNameplate(id: string) {
+        const next = nameplates.filter(entry => entry.id !== id);
+
+        try {
+            await writeStoredJson(NAMEPLATES_KEY, next);
+            setNameplates(next);
+            setNameplateStatus("Nameplate deleted.");
+            if (editingNameplateId === id) resetNameplateForm();
+        } catch (e) {
+            setNameplateStatus(`Delete failed: ${String(e)}`);
+        }
+    }
+
+    async function chooseNameplateVideo() {
+        const file = await chooseFile("video/webm,video/mp4");
+        if (!file) return;
+
+        const dataUrl = await fileToDataUrl(file);
+        setNameplateVideo(dataUrl);
+        if (!nameplateUserId.trim()) setNameplateUserId(UserStore.getCurrentUser()?.id ?? "");
+        setNameplateStatus("Video selected. Press Save to preview it, or download it to publish for everyone.");
+    }
+
+    function downloadNameplateVideoFile() {
+        const targetUserId = nameplateUserId.trim() || (UserStore.getCurrentUser()?.id ?? "");
+        if (!targetUserId || !nameplateVideo) {
+            setNameplateStatus("Add a Discord user ID and choose a video first.");
+            return;
+        }
+
+        const mimeMatch = nameplateVideo.match(/^data:([^;]+);/);
+        const ext = extensionForMime(mimeMatch?.[1] ?? "");
+        const file = dataUrlToFile(nameplateVideo, `o2cord-nameplate-${targetUserId}.${ext}`);
+        if (!file) {
+            setNameplateStatus("Could not read that video file.");
+            return;
+        }
+
+        saveFile(file);
+        setNameplateStatus(`Video saved to your Downloads folder. Attach it with: -nameplate ${targetUserId}`);
+    }
+
     function isManagedPluginEnabled(pluginName: string) {
         return settings.plugins[pluginName]?.enabled ?? false;
     }
@@ -354,13 +491,22 @@ function DebugO2Tab() {
                 Local debug tools for your o2cord build.
             </Forms.FormText>
 
-            {SHOW_ADD_BADGE_FEATURE && (
+            {(SHOW_ADD_BADGE_FEATURE || SHOW_ADD_NAMEPLATE_FEATURE) && (
                 <section className="o2-debug-feature-grid">
-                    <DebugFeatureCard
-                        title="Add Badge"
-                        description="Add custom image badges to Discord profile badge rows"
-                        onSettingsClick={() => setActiveSettingsModal("badge")}
-                    />
+                    {SHOW_ADD_BADGE_FEATURE && (
+                        <DebugFeatureCard
+                            title="Add Badge"
+                            description="Add custom image badges to Discord profile badge rows"
+                            onSettingsClick={() => setActiveSettingsModal("badge")}
+                        />
+                    )}
+                    {SHOW_ADD_NAMEPLATE_FEATURE && (
+                        <DebugFeatureCard
+                            title="Add Nameplate"
+                            description="Add an animated video background behind a username in the member list"
+                            onSettingsClick={() => setActiveSettingsModal("nameplate")}
+                        />
+                    )}
                 </section>
             )}
 
@@ -439,7 +585,46 @@ function DebugO2Tab() {
                 </section>
             )}
 
-            {SHOW_ADD_BADGE_FEATURE && activeSettingsModal && (
+            {SHOW_ADD_NAMEPLATE_FEATURE && (
+                <section className="o2-debug-managed-section">
+                    <Forms.FormTitle tag="h5">Saved Local Nameplates</Forms.FormTitle>
+                    <Forms.FormText className={Margins.bottom8}>
+                        Previews on your own client only until you download the video and publish it with
+                        the bot. The gear reopens it for editing; the trash removes it.
+                    </Forms.FormText>
+                    <div className="o2-debug-nameplate-list">
+                        {nameplates.length === 0 && (
+                            <Forms.FormText>No local nameplates saved yet.</Forms.FormText>
+                        )}
+                        {nameplates.map(entry => (
+                            <div key={entry.id} className="o2-debug-nameplate-item">
+                                <video src={entry.videoUrl} autoPlay loop muted playsInline />
+                                <div className="o2-debug-nameplate-meta">
+                                    <strong>{entry.userId}</strong>
+                                </div>
+                                <button
+                                    type="button"
+                                    className="o2-debug-plugin-info"
+                                    aria-label={`Edit nameplate for ${entry.userId}`}
+                                    onClick={() => editNameplate(entry)}
+                                >
+                                    <CogWheel width={18} height={18} />
+                                </button>
+                                <button
+                                    type="button"
+                                    className="o2-debug-plugin-info"
+                                    aria-label={`Delete nameplate for ${entry.userId}`}
+                                    onClick={() => deleteNameplate(entry.id)}
+                                >
+                                    <DeleteIcon width={18} height={18} />
+                                </button>
+                            </div>
+                        ))}
+                    </div>
+                </section>
+            )}
+
+            {SHOW_ADD_BADGE_FEATURE && activeSettingsModal === "badge" && (
                 <div className="o2-debug-modal-backdrop" onClick={() => setActiveSettingsModal(null)}>
                     <div
                         className="o2-debug-modal o2-debug-modal-badge"
@@ -506,6 +691,64 @@ function DebugO2Tab() {
                                 </div>
                                 {saveStatus && (
                                     <Forms.FormText className={Margins.top8}>{saveStatus}</Forms.FormText>
+                                )}
+                            </div>
+                        </section>
+                    </div>
+                </div>
+            )}
+
+            {SHOW_ADD_NAMEPLATE_FEATURE && activeSettingsModal === "nameplate" && (
+                <div className="o2-debug-modal-backdrop" onClick={() => setActiveSettingsModal(null)}>
+                    <div
+                        className="o2-debug-modal o2-debug-modal-badge"
+                        onClick={event => event.stopPropagation()}
+                    >
+                        <div className="o2-debug-modal-header">
+                            <div>
+                                <h2>Add Nameplate</h2>
+                                <Forms.FormText>
+                                    Add a Discord user ID and a short video. It previews on your own client
+                                    right away; download it and publish with <code>-nameplate</code> to show
+                                    it for everyone.
+                                </Forms.FormText>
+                            </div>
+                            <button
+                                type="button"
+                                className="o2-debug-modal-close"
+                                aria-label="Close"
+                                onClick={() => setActiveSettingsModal(null)}
+                            >
+                                X
+                            </button>
+                        </div>
+
+                        <section>
+                            <Forms.FormTitle tag="h5">Settings</Forms.FormTitle>
+                            <div className="o2-debug-modal-settings">
+                                <TextInput
+                                    placeholder="Discord user ID"
+                                    value={nameplateUserId}
+                                    onChange={setNameplateUserId}
+                                />
+                                <div className="o2-debug-actions">
+                                    <Button size={Button.Sizes.SMALL} onClick={useMyIdForNameplate}>Use My ID</Button>
+                                </div>
+                                <div className="o2-debug-image-file-row">
+                                    <div className="o2-debug-image-file-preview">
+                                        {nameplateVideo
+                                            ? <video src={nameplateVideo} autoPlay loop muted playsInline />
+                                            : <span>No video</span>}
+                                    </div>
+                                    <Button size={Button.Sizes.SMALL} onClick={chooseNameplateVideo}>Choose Video</Button>
+                                </div>
+                                <div className="o2-debug-actions">
+                                    <Button onClick={saveNameplate}>{editingNameplateId ? "Save Changes" : "Save Nameplate"}</Button>
+                                    <Button color={Button.Colors.GREEN} onClick={downloadNameplateVideoFile}>Download for Bot</Button>
+                                    <Button color={Button.Colors.PRIMARY} onClick={resetNameplateForm}>Clear</Button>
+                                </div>
+                                {nameplateStatus && (
+                                    <Forms.FormText className={Margins.top8}>{nameplateStatus}</Forms.FormText>
                                 )}
                             </div>
                         </section>
