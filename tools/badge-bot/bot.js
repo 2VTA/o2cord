@@ -132,16 +132,17 @@ client.on("messageCreate", async message => {
             return;
         }
 
-        const pending = pendingUploads.get(message.author.id);
-        if (!pending || pending.channelId !== message.channel.id) return;
-
+        // No command needed from here on: any attachment Ryder drops gets
+        // sniffed and published automatically if it looks like a code file.
+        // The explicit -badge/-profileimage two-step flow above still works
+        // too (it just arms `pending` first, checked below).
         const attachment = message.attachments.first();
-        if (!attachment) {
-            await message.reply("Attach the .txt code file (not pasted text).");
-            return;
-        }
+        if (!attachment) return;
 
-        pendingUploads.delete(message.author.id);
+        const pending = pendingUploads.get(message.author.id);
+        const isPending = Boolean(pending && pending.channelId === message.channel.id);
+        if (isPending) pendingUploads.delete(message.author.id);
+
         await message.channel.sendTyping();
 
         const res = await fetch(attachment.url);
@@ -149,7 +150,7 @@ client.on("messageCreate", async message => {
         const raw = stripBom(await res.text());
         const trimmed = raw.trim();
 
-        if (pending.mode === "profile") {
+        if (isPending && pending.mode === "profile") {
             if (!trimmed.startsWith(PUBLISH_CODE_PREFIX)) {
                 const preview = trimmed.slice(0, 60).replace(/[\r\n]+/g, " ");
                 throw new Error(`That's not a ProfileTheme code (O2PROFILE_PUBLISH:). It starts with: "${preview}"`);
@@ -173,6 +174,11 @@ client.on("messageCreate", async message => {
             await message.reply(`Published ${results.length} badge(s):\n${summary}`);
             return;
         }
+
+        // Doesn't look like a code file at all. If this was an explicit
+        // -badge/-profileimage upload, say so; otherwise it's probably just
+        // an unrelated attachment, so stay quiet instead of nagging.
+        if (!isPending) return;
 
         const preview = trimmed.slice(0, 60).replace(/[\r\n]+/g, " ");
         throw new Error(`Unrecognized code format. It starts with: "${preview}"`);
