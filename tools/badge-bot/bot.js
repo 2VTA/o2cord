@@ -210,7 +210,7 @@ async function publishProfileCode(trimmed) {
     if (typeof imageUrl !== "string")
         throw new Error("Missing imageUrl in the code.");
 
-    const { ext, buffer } = decodeImageDataUrl(imageUrl, "imageUrl");
+    const { ext, buffer } = await decodeImageDataUrl(imageUrl, "imageUrl");
     return publishProfileImage(userId, buffer, ext);
 }
 
@@ -259,7 +259,7 @@ async function publishSingleBadge(badge) {
     if (typeof name !== "string" || !name) throw new Error(`Badge ${id} is missing a name.`);
     if (typeof image !== "string") throw new Error(`Badge ${id} is missing its image.`);
 
-    const { ext, buffer } = decodeImageDataUrl(image, `badge ${id} image`);
+    const { ext, buffer } = await decodeImageDataUrl(image, `badge ${id} image`);
     validateImage(buffer, ext);
 
     const imagePath = `${BADGES_ASSETS_DIR}/${id}.${ext}`;
@@ -362,12 +362,44 @@ function validateVideo(buffer, ext) {
 // Shared helpers
 // ---------------------------------------------------------------------------
 
-function decodeImageDataUrl(dataUrl, label) {
-    const match = dataUrl.match(/^data:image\/(png|jpeg|jpg|webp|gif);base64,([A-Za-z0-9+/=]+)$/s);
-    if (!match) throw new Error(`${label} isn't a recognized base64 image data URL.`);
-    const ext = match[1] === "jpeg" ? "jpg" : match[1];
-    const buffer = Buffer.from(match[2], "base64");
-    return { ext, buffer };
+// Accepts either an embedded data: URL or a plain https:// link (e.g. a
+// Discord CDN attachment URL) - some codes reference an already-uploaded
+// image by link instead of re-encoding it as base64.
+async function decodeImageDataUrl(source, label) {
+    if (typeof source !== "string") throw new Error(`${label} is missing.`);
+
+    const dataMatch = source.match(/^data:image\/(png|jpeg|jpg|webp|gif);base64,([A-Za-z0-9+/=]+)$/s);
+    if (dataMatch) {
+        const ext = dataMatch[1] === "jpeg" ? "jpg" : dataMatch[1];
+        return { ext, buffer: Buffer.from(dataMatch[2], "base64") };
+    }
+
+    if (/^https:\/\//.test(source)) {
+        const res = await fetch(source);
+        if (!res.ok) throw new Error(`${label}: could not download ${source} (${res.status}).`);
+
+        const buffer = Buffer.from(await res.arrayBuffer());
+        const ext = detectImageExt(res.headers.get("content-type"), source);
+        if (!ext) throw new Error(`${label}: unrecognized image type at ${source}.`);
+
+        return { ext, buffer };
+    }
+
+    throw new Error(`${label} isn't a recognized base64 image data URL or https:// link.`);
+}
+
+function detectImageExt(contentType, url) {
+    if (contentType === "image/png") return "png";
+    if (contentType === "image/jpeg") return "jpg";
+    if (contentType === "image/webp") return "webp";
+    if (contentType === "image/gif") return "gif";
+
+    const path = (url ?? "").split("?")[0].toLowerCase();
+    if (path.endsWith(".png")) return "png";
+    if (path.endsWith(".jpg") || path.endsWith(".jpeg")) return "jpg";
+    if (path.endsWith(".webp")) return "webp";
+    if (path.endsWith(".gif")) return "gif";
+    return null;
 }
 
 function validateImage(buffer, ext) {
