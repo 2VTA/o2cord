@@ -49,6 +49,13 @@
             "image": "https://raw.githubusercontent.com/2VTA/o2cord/main/update-package/public/assets/badges/badge-msuv8h6i.gif",
             "size": 24,
             "link": "https://youtu.be/Ea3r5fCZH9Y?si=Xf9pBX05Sj3iI5kE"
+        },
+        {
+            "id": "badge-msvwkjvt",
+            "userId": "1538029895601623100",
+            "name": "callie",
+            "image": "https://raw.githubusercontent.com/2VTA/o2cord/main/update-package/public/assets/badges/badge-msvwkjvt.png",
+            "size": 25
         }
     ]
 }
