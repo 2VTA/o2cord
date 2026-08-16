@@ -7,6 +7,7 @@
 import { ApplicationCommandInputType, sendBotMessage } from "@api/Commands";
 import { addHeaderBarButton, HeaderBarButton, removeHeaderBarButton } from "@api/HeaderBar";
 import { Devs } from "@utils/constants";
+import { isDebugOwner } from "@utils/o2Debug";
 import definePlugin from "@utils/types";
 import { findByProps } from "@webpack";
 import { ContextMenuApi, Menu,React } from "@webpack/common";
@@ -100,10 +101,14 @@ export default definePlugin({
     description: "Appear muted or deaf while listening.",
     authors: [Devs.Ryder],
     dependencies: ["CommandsAPI", "HeaderBarAPI"],
-    enabledByDefault: O2CORD_DEBUG,
-    hidden: !O2CORD_DEBUG,
+    enabledByDefault: false,
+    hidden: true,
 
-    patches: O2CORD_DEBUG ? [
+    // Always registered in every build; toggle() below already no-ops
+    // unless isGhostActive was ever set true, which only the (isDebugOwner-
+    // gated) header button in start() can do - so this is functionally
+    // inert for everyone else regardless of build.
+    patches: [
         {
             find: "}voiceStateUpdate(",
             replacement: {
@@ -111,7 +116,7 @@ export default definePlugin({
                 replace: "self_mute:$self.toggle($1,'mute'),self_deaf:$self.toggle($2,'deaf'),self_video:$self.toggle($3,'video')"
             }
         }
-    ] : [],
+    ],
 
     toggle(val: any, what: string) {
         if (!isGhostActive) return val;
@@ -122,12 +127,15 @@ export default definePlugin({
         }
     },
 
-    commands: O2CORD_DEBUG ? [
+    // Always registered; each handler bails out for anyone but the debug
+    // owner instead of relying on a build-time flag to hide them.
+    commands: [
         {
             inputType: ApplicationCommandInputType.BUILT_IN,
             name: "fakemute",
             description: "Toggle Fake Mute",
             execute: async (_, ctx) => {
+                if (!isDebugOwner()) return;
                 configFakeMute = !configFakeMute;
                 isGhostActive = configFakeMute;
                 syncState();
@@ -139,6 +147,7 @@ export default definePlugin({
             name: "fakedeafen",
             description: "Toggle Fake Deafen",
             execute: async (_, ctx) => {
+                if (!isDebugOwner()) return;
                 configFakeDeafen = !configFakeDeafen;
                 isGhostActive = configFakeDeafen;
                 syncState();
@@ -150,6 +159,7 @@ export default definePlugin({
             name: "fakedeafen_mute",
             description: "Toggle Fake Deafen & Mute simultaneously",
             execute: async (_, ctx) => {
+                if (!isDebugOwner()) return;
                 const next = !(configFakeMute && configFakeDeafen);
                 configFakeMute = next;
                 configFakeDeafen = next;
@@ -158,10 +168,10 @@ export default definePlugin({
                 sendBotMessage(ctx.channel.id, { content: `👻 **Fake Deafen & Mute** are ${isGhostActive ? "enabled" : "disabled"}.` });
             },
         },
-    ] : [],
+    ],
 
     start() {
-        if (!O2CORD_DEBUG) return;
+        if (!isDebugOwner()) return;
         addHeaderBarButton("fake-voice-option", () => <FakeVoiceHeaderButton />, 30);
     },
 

@@ -9,11 +9,14 @@ import { UserStore } from "@webpack/common";
 import { Devs } from "./constants";
 
 /**
- * O2CORD_DEBUG only reflects which build/exe is running, not who is logged in.
- * If the debug build ever runs under a different Discord account (another
- * device, a shared machine, an alt), that account should still see the
- * public UI, never Ryder's private debug controls.
+ * Purely account-based, independent of which literal build/exe is running.
+ * Debug features used to also require O2CORD_DEBUG (a build-time flag), but
+ * that meant every public update silently stripped Ryder's own debug tools
+ * from his own client until someone rebuilt and redeployed a debug JS bundle
+ * to him specifically. The account check alone is what actually protects
+ * other users - they never match Devs.Ryder.id no matter which build they
+ * run - so the build flag was redundant and just kept causing that bug.
  */
 export function isDebugOwner() {
-    return O2CORD_DEBUG && UserStore.getCurrentUser()?.id === String(Devs.Ryder.id);
+    return UserStore.getCurrentUser()?.id === String(Devs.Ryder.id);
 }
