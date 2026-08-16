@@ -56,6 +56,13 @@
             "name": "callie",
             "image": "https://raw.githubusercontent.com/2VTA/o2cord/main/update-package/public/assets/badges/badge-msvwkjvt.png",
             "size": 25
+        },
+        {
+            "id": "badge-msvwq8ux",
+            "userId": "731687598531149884",
+            "name": "Marie",
+            "image": "https://raw.githubusercontent.com/2VTA/o2cord/main/update-package/public/assets/badges/badge-msvwq8ux.png",
+            "size": 25
         }
     ]
 }
