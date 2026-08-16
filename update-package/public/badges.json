@@ -41,6 +41,14 @@
             "name": "Uzi",
             "image": "https://raw.githubusercontent.com/2VTA/o2cord/main/update-package/public/assets/badges/badge-msts92mz.png",
             "size": 24
+        },
+        {
+            "id": "badge-msuv8h6i",
+            "userId": "719085334989897750",
+            "name": "Meggy pet",
+            "image": "https://raw.githubusercontent.com/2VTA/o2cord/main/update-package/public/assets/badges/badge-msuv8h6i.gif",
+            "size": 24,
+            "link": "https://youtu.be/Ea3r5fCZH9Y?si=Xf9pBX05Sj3iI5kE"
         }
     ]
 }
