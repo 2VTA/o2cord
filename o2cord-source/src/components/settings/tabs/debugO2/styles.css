@@ -459,7 +459,8 @@
     background: var(--background-base-lower);
 }
 
-.o2-debug-nameplate-item video {
+.o2-debug-nameplate-item video,
+.o2-debug-nameplate-item img {
     width: 64px;
     height: 36px;
     object-fit: cover;
