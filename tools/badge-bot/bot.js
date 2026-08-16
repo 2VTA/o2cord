@@ -400,7 +400,14 @@ function validateImage(buffer, ext) {
         const header = buffer.subarray(0, 6).toString("ascii");
         if (header !== "GIF87a" && header !== "GIF89a")
             throw new Error("Corrupted GIF: bad header.");
-        if (buffer[buffer.length - 1] !== 0x3B)
+
+        // Some encoders pad a few bytes after the official 0x3B trailer
+        // (comments, alignment), so a genuinely valid GIF doesn't always end
+        // in exactly that byte. Only flag it if there's no trailer anywhere
+        // near the tail - that's what real truncation (data just stops)
+        // actually looks like.
+        const tail = buffer.subarray(Math.max(0, buffer.length - 32));
+        if (!tail.includes(0x3B))
             throw new Error("Corrupted GIF: missing trailer byte (truncated upload).");
     } else if (ext === "webp") {
         if (buffer.subarray(0, 4).toString("ascii") !== "RIFF" || buffer.subarray(8, 12).toString("ascii") !== "WEBP")
