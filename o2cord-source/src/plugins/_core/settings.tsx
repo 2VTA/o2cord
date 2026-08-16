@@ -21,6 +21,7 @@ import { BackupRestoreIcon, MainSettingsIcon, PaintbrushIcon, PatchHelperIcon, P
 import { BackupAndRestoreTab, DebugO2Tab, PatchHelperTab, PluginsTab, ThemesTab, UpdaterTab, VencordTab } from "@components/settings/tabs";
 import { Devs } from "@utils/constants";
 import { isTruthy } from "@utils/guards";
+import { isDebugOwner } from "@utils/o2Debug";
 import definePlugin, { IconProps, OptionType } from "@utils/types";
 import { waitFor } from "@webpack";
 import { React } from "@webpack/common";
@@ -201,7 +202,7 @@ export default definePlugin({
                 Component: BackupAndRestoreTab,
                 Icon: BackupRestoreIcon
             }),
-            O2CORD_DEBUG && buildEntry({
+            isDebugOwner() && buildEntry({
                 key: "o2cord_debug",
                 title: "debug o2",
                 panelTitle: "debug o2",
