@@ -38,7 +38,7 @@ const settings = definePluginSettings({
     iconSize: {
         type: OptionType.SLIDER,
         description: "Custom image size.",
-        markers: makeRange(10, 30, 2),
+        markers: makeRange(10, 58, 2),
         default: 16,
         stickToMarkers: false,
         onChange: updateStyle
@@ -110,7 +110,7 @@ function updateStyle() {
     const minimize = asCssUrl(settings.store.minimizeImage);
     const maximize = asCssUrl(settings.store.maximizeImage);
     const close = asCssUrl(settings.store.closeImage);
-    const size = Math.max(8, Math.min(36, Number(settings.store.iconSize) || 16));
+    const size = Math.max(8, Math.min(58, Number(settings.store.iconSize) || 16));
     const hoverScale = Math.max(1, Math.min(1.7, Number(settings.store.hoverScale) / 100 || 1.18));
     const hoverSize = Math.round(size * hoverScale);
     const verticalOffset = Math.max(-12, Math.min(12, Number(settings.store.verticalOffset) || 0));

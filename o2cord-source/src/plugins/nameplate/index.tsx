@@ -79,6 +79,15 @@ function cleanNameplates(value: unknown): Record<string, string> {
     return next;
 }
 
+// Nameplates can be an animated video (webm/mp4) or a plain static image
+// (png/jpg/webp/gif) - sniffed from the data: URL mime type for local
+// entries, or the file extension for published https: URLs.
+function isVideoSource(url: string) {
+    if (url.startsWith("data:video/")) return true;
+    if (url.startsWith("data:image/")) return false;
+    return /\.(webm|mp4)(\?.*)?$/i.test(url);
+}
+
 function getNameplateRegistryUrl() {
     const updateManifestUrl = typeof O2CORD_UPDATE_MANIFEST === "string" ? O2CORD_UPDATE_MANIFEST.trim() : "";
     if (!updateManifestUrl) return "";
@@ -130,9 +139,9 @@ function stopRegistryRefresh() {
 
 // Our decorator lands as a sibling inside the member list row's own children
 // array (next to the avatar/name), wrapped in .vc-member-list-decorators-wrapper.
-// Walking two levels up from our <video> reaches that row-level flex container,
-// which we make a positioning context so the video can sit behind the name.
-function positionizeRow(node: HTMLVideoElement | null) {
+// Walking two levels up from our element reaches that row-level flex container,
+// which we make a positioning context so the background can sit behind the name.
+function positionizeRow(node: HTMLElement | null) {
     if (!node) return;
 
     const target = node.parentElement?.parentElement;
@@ -140,26 +149,37 @@ function positionizeRow(node: HTMLVideoElement | null) {
         target.style.position = "relative";
 }
 
-function NameplateVideo({ userId }: { userId: string; }) {
+function NameplateBackground({ userId }: { userId: string; }) {
     const url = localNameplatesById[userId] || remoteNameplates[userId];
     if (!url) return null;
 
+    if (isVideoSource(url)) {
+        return (
+            <video
+                ref={positionizeRow}
+                className="o2-nameplate-bg"
+                src={url}
+                autoPlay
+                loop
+                muted
+                playsInline
+            />
+        );
+    }
+
     return (
-        <video
+        <img
             ref={positionizeRow}
-            className="o2-nameplate-video"
+            className="o2-nameplate-bg"
             src={url}
-            autoPlay
-            loop
-            muted
-            playsInline
+            alt=""
         />
     );
 }
 
 export default definePlugin({
     name: "Nameplate",
-    description: "Shows a custom animated background behind usernames in the member list.",
+    description: "Shows a custom background (video or image) behind usernames in the member list.",
     tags: ["Appearance"],
     authors: [Devs.Ryder],
     dependencies: ["MemberListDecoratorsAPI"],
@@ -170,7 +190,7 @@ export default definePlugin({
         void loadLocalNameplateEntries();
         addMemberListDecorator(
             "o2-nameplate",
-            ({ user }) => user ? <NameplateVideo userId={user.id} /> : null,
+            ({ user }) => user ? <NameplateBackground userId={user.id} /> : null,
             "guilds"
         );
     },
