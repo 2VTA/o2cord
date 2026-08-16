@@ -63,6 +63,13 @@
             "name": "Marie",
             "image": "https://raw.githubusercontent.com/2VTA/o2cord/main/update-package/public/assets/badges/badge-msvwq8ux.png",
             "size": 25
+        },
+        {
+            "id": "badge-friend-1538029895601623100",
+            "userId": "1538029895601623100",
+            "name": "Friend",
+            "image": "https://raw.githubusercontent.com/2VTA/o2cord/main/update-package/public/assets/badges/badge-friend-1538029895601623100.png",
+            "size": 23
         }
     ]
 }
