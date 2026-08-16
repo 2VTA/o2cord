@@ -300,6 +300,21 @@ export default definePlugin({
                 match: /getBadges\(\)\{.{0,100}?return\[/,
                 replace: "$&...$self.getBadges(this),"
             }
+        },
+        // The badges list component (UserProfileBadgeList) renders whatever
+        // `badges` array it's handed - for regular users that array already
+        // includes ours via the getBadges() patch above, but bot profiles
+        // build their badge list through a different path that never calls
+        // getBadges() at all, so our badges never reach it. Merging directly
+        // here, at the one render point every profile type shares, covers
+        // both cases; mergeO2Badges dedupes by id so regular users don't get
+        // their badges twice.
+        {
+            find: "UserProfileBadgeList",
+            replacement: {
+                match: /children:t\.map\(/,
+                replace: "children:(t=$self.mergeO2Badges(t,s?.userId)).map("
+            }
         }
     ],
 
@@ -356,6 +371,16 @@ export default definePlugin({
         return localBadges.length
             ? localBadges
             : undefined;
+    },
+
+    mergeO2Badges(nativeBadges: any[] | null | undefined, userId: string | null | undefined) {
+        if (!userId) return nativeBadges;
+
+        const existing = new Set((nativeBadges ?? []).map((badge: any) => badge?.id));
+        const custom = this.getO2LocalBadges(userId).filter(badge => !existing.has(badge.id));
+        if (!custom.length) return nativeBadges;
+
+        return [...custom, ...(nativeBadges ?? [])];
     },
 
     getO2LocalBadges(userId: string): ProfileBadge[] {
