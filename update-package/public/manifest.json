@@ -1,8 +1,8 @@
 {
-    "version":  "1.6.5",
-    "hash":  "public-20260817175336",
+    "version":  "1.6.6",
+    "hash":  "public-20260817175931",
     "author":  "o2cord",
-    "message":  "Extended the jsDelivr fallback to profile theme, badges, nameplate, and USSRO2 registry fetches - not just the updater itself - so a rate-limited raw.githubusercontent.com no longer silently blanks out all custom content",
+    "message":  "Rebuild to re-trigger propagation of the recent auto-updater and jsDelivr fallback fixes",
     "notes":  [
                   "Public o2cord update package",
                   "ussro2 backgrounds are loaded from backgrounds.json beside this manifest",
