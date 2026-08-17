@@ -132,7 +132,12 @@ client.on("interactionCreate", async interaction => {
         if (interaction.commandName !== "change") return;
 
         try {
-            if (interaction.user.id !== ALLOWED_USER_ID || interaction.guildId !== ALLOWED_GUILD_ID) {
+            // /change is open to everyone in the guild - it can only ever
+            // publish content tied to the invoking user's own account
+            // (userId below), and USSRO2 still needs Ryder's Accept before
+            // anything goes out. Everything else in this bot stays locked
+            // to ALLOWED_USER_ID.
+            if (interaction.guildId !== ALLOWED_GUILD_ID) {
                 await interaction.reply({ content: "Not allowed here.", ephemeral: true });
                 return;
             }
