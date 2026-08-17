@@ -159,7 +159,6 @@ async function runUpdateCheck() {
         if (!isOutdated) return;
 
         const updateKey = getAvailableUpdateKey();
-        if (!shouldShowO2UpdateNotice(updateKey)) return;
 
         let applied = false;
         try {
@@ -168,19 +167,28 @@ async function runUpdateCheck() {
             UpdateLogger.error("Failed to auto-apply o2cord update", err);
         }
 
-        showO2UpdateNotice(applied);
+        // Only suppress repeat notices once the update has actually been
+        // applied - a failed attempt (network hiccup, GitHub error, etc.)
+        // must keep retrying on the next check instead of being marked as
+        // "handled" and silently stranding the client on the old version.
+        if (applied) {
+            if (!shouldShowO2UpdateNotice(updateKey)) return;
 
-        notify(applied
-            ? {
+            showO2UpdateNotice(true);
+            notify({
                 title: "o2cord updated!",
                 body: "Click here to relaunch Discord and finish",
                 onClick: relaunch
-            }
-            : {
-                title: "An o2cord update is available!",
-                body: "Click here to install it",
-                onClick: () => openSettingsTabModal(UpdaterTab!)
             });
+            return;
+        }
+
+        showO2UpdateNotice(false);
+        notify({
+            title: "An o2cord update is available!",
+            body: "Click here to install it",
+            onClick: () => openSettingsTabModal(UpdaterTab!)
+        });
     } catch (err) {
         UpdateLogger.error("Failed to check for updates", err);
     }
