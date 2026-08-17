@@ -1,8 +1,8 @@
 {
-    "version":  "1.6.0",
-    "hash":  "public-20260817163548",
+    "version":  "1.6.1",
+    "hash":  "public-20260817172045",
     "author":  "o2cord",
-    "message":  "Fixed the profile popout More button rendering as an oval, fixed custom badges not showing on bot profiles, added SpotifyControls and NoDevtoolsWarning plugins",
+    "message":  "Fixed a bug where a failed auto-update attempt would permanently mark itself as handled, silently stranding clients on an old version forever",
     "notes":  [
                   "Public o2cord update package",
                   "ussro2 backgrounds are loaded from backgrounds.json beside this manifest",
