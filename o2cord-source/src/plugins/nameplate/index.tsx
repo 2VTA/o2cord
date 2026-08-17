@@ -9,6 +9,7 @@ import "./style.css";
 import * as DataStore from "@api/DataStore";
 import { addMemberListDecorator, removeMemberListDecorator } from "@api/MemberListDecorators";
 import { Devs } from "@utils/constants";
+import { fetchWithGithubFallback } from "@utils/githubFallbackFetch";
 import { O2_LOCAL_NAMEPLATES_KEY, O2_LOCAL_NAMEPLATES_UPDATED_EVENT, O2LocalNameplate } from "@utils/o2NameplatePresets";
 import definePlugin from "@utils/types";
 import { React } from "@webpack/common";
@@ -107,7 +108,7 @@ async function refreshNameplateRegistry(force = false) {
     if (!force && now - lastRegistryRefresh < REGISTRY_REFRESH_MS) return;
     if (registryRefreshPromise) return registryRefreshPromise;
 
-    registryRefreshPromise = fetch(`${registryUrl}${registryUrl.includes("?") ? "&" : "?"}t=${now}`, {
+    registryRefreshPromise = fetchWithGithubFallback(`${registryUrl}${registryUrl.includes("?") ? "&" : "?"}t=${now}`, {
         cache: "no-store"
     })
         .then(async res => {

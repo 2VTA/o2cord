@@ -11,6 +11,7 @@ import { definePluginSettings } from "@api/Settings";
 import { managedStyleRootNode } from "@api/Styles";
 import { Devs } from "@utils/constants";
 import { createAndAppendStyle } from "@utils/css";
+import { fetchWithGithubFallback } from "@utils/githubFallbackFetch";
 import { Margins } from "@utils/margins";
 import { isDebugOwner } from "@utils/o2Debug";
 import definePlugin, { OptionType, StartAt } from "@utils/types";
@@ -325,7 +326,7 @@ async function refreshProfileThemeRegistry(force = false) {
     if (!force && now - lastRegistryRefresh < REGISTRY_REFRESH_MS) return;
     if (registryRefreshPromise) return registryRefreshPromise;
 
-    registryRefreshPromise = fetch(`${registryUrl}${registryUrl.includes("?") ? "&" : "?"}t=${now}`, {
+    registryRefreshPromise = fetchWithGithubFallback(`${registryUrl}${registryUrl.includes("?") ? "&" : "?"}t=${now}`, {
         cache: "no-store"
     })
         .then(async res => {
