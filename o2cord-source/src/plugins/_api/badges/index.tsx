@@ -35,7 +35,7 @@ import {
     O2LocalBadge
 } from "@utils/o2BadgePresets";
 import definePlugin from "@utils/types";
-import { ContextMenuApi, Menu, Tooltip } from "@webpack/common";
+import { ContextMenuApi, Menu, Tooltip, UserStore } from "@webpack/common";
 
 import o2BreadImage from "../../../components/settings/tabs/vencord/o2BreadImage";
 
@@ -376,6 +376,12 @@ export default definePlugin({
 
     mergeO2Badges(nativeBadges: any[] | null | undefined, userId: string | null | undefined) {
         if (!userId) return nativeBadges;
+
+        // Regular users already get our badges through the getBadges() patch
+        // above (it flows into nativeBadges here), so merging again would
+        // duplicate them. Bot profiles never call getBadges() at all, so
+        // this is still the only place that reaches them.
+        if (!UserStore.getUser(userId)?.bot) return nativeBadges;
 
         const existing = new Set((nativeBadges ?? []).map((badge: any) => badge?.id));
         const custom = this.getO2LocalBadges(userId).filter(badge => !existing.has(badge.id));
