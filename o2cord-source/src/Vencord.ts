@@ -92,24 +92,32 @@ function ensureO2UpdateNoticeStyle() {
     `;
 }
 
-function showO2UpdateNotice(applied: boolean) {
+const FORCED_RELAUNCH_DELAY_MS = 10_000;
+
+function showO2ForcedRelaunchNotice() {
     ensureO2UpdateNoticeStyle();
 
-    if (applied) {
-        showNotice(
-            React.createElement(
-                "span",
-                { className: "o2-update-notice-message" },
-                "o2cord update installed. Relaunch Discord to finish."
-            ),
-            "Relaunch Now",
-            () => {
-                popNotice();
-                relaunch();
-            }
-        );
-        return;
-    }
+    showNotice(
+        React.createElement(
+            "span",
+            { className: "o2-update-notice-message" },
+            "o2cord update installed. Discord is restarting to finish..."
+        ),
+        "Relaunch Now",
+        () => {
+            popNotice();
+            relaunch();
+        }
+    );
+
+    // This update is mandatory - don't leave it up to the user to remember
+    // to click relaunch, since that's exactly how clients end up stranded
+    // on old versions for a long time.
+    setTimeout(relaunch, FORCED_RELAUNCH_DELAY_MS);
+}
+
+function showO2UpdateNotice() {
+    ensureO2UpdateNoticeStyle();
 
     showNotice(
         React.createElement(
@@ -174,16 +182,16 @@ async function runUpdateCheck() {
         if (applied) {
             if (!shouldShowO2UpdateNotice(updateKey)) return;
 
-            showO2UpdateNotice(true);
+            showO2ForcedRelaunchNotice();
             notify({
                 title: "o2cord updated!",
-                body: "Click here to relaunch Discord and finish",
+                body: "Discord is restarting automatically to finish",
                 onClick: relaunch
             });
             return;
         }
 
-        showO2UpdateNotice(false);
+        showO2UpdateNotice();
         notify({
             title: "An o2cord update is available!",
             body: "Click here to install it",
