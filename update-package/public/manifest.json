@@ -1,8 +1,8 @@
 {
-    "version":  "1.5.0",
-    "hash":  "public-20260816042546",
+    "version":  "1.6.0",
+    "hash":  "public-20260817163548",
     "author":  "o2cord",
-    "message":  "Nameplate (video/image backgrounds in member list), fixed debug tools disappearing after updates, badge publish reliability fix",
+    "message":  "Fixed the profile popout More button rendering as an oval, fixed custom badges not showing on bot profiles, added SpotifyControls and NoDevtoolsWarning plugins",
     "notes":  [
                   "Public o2cord update package",
                   "ussro2 backgrounds are loaded from backgrounds.json beside this manifest",
