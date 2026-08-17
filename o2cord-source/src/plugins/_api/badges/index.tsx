@@ -23,6 +23,7 @@ import * as DataStore from "@api/DataStore";
 import ErrorBoundary from "@components/ErrorBoundary";
 import { Devs } from "@utils/constants";
 import { copyWithToast } from "@utils/discord";
+import { fetchWithGithubFallback } from "@utils/githubFallbackFetch";
 import { Logger } from "@utils/Logger";
 import {
     doesO2BadgeMatchPreset,
@@ -173,7 +174,7 @@ async function refreshO2RemoteBadges(force = false) {
     if (!force && now - lastRemoteBadgeRefresh < O2_SHARED_BADGES_REFRESH_MS) return;
     if (remoteBadgeRefreshPromise) return remoteBadgeRefreshPromise;
 
-    remoteBadgeRefreshPromise = fetch(`${badgesUrl}${badgesUrl.includes("?") ? "&" : "?"}t=${now}`, {
+    remoteBadgeRefreshPromise = fetchWithGithubFallback(`${badgesUrl}${badgesUrl.includes("?") ? "&" : "?"}t=${now}`, {
         cache: "no-store"
     })
         .then(async res => {

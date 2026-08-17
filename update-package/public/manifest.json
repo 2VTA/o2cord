@@ -1,8 +1,8 @@
 {
-    "version":  "1.6.4",
-    "hash":  "public-20260817173843",
+    "version":  "1.6.5",
+    "hash":  "public-20260817175336",
     "author":  "o2cord",
-    "message":  "Added a jsDelivr fallback mirror for raw.githubusercontent.com fetches - fixes clients stuck behind a rate-limited/shared IP getting 429 Too Many Requests on every update check",
+    "message":  "Extended the jsDelivr fallback to profile theme, badges, nameplate, and USSRO2 registry fetches - not just the updater itself - so a rate-limited raw.githubusercontent.com no longer silently blanks out all custom content",
     "notes":  [
                   "Public o2cord update package",
                   "ussro2 backgrounds are loaded from backgrounds.json beside this manifest",

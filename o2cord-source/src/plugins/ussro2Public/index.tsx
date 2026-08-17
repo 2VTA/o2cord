@@ -6,6 +6,7 @@
 
 import { definePluginSettings } from "@api/Settings";
 import { Devs } from "@utils/constants";
+import { fetchWithGithubFallback } from "@utils/githubFallbackFetch";
 import definePlugin, { OptionType } from "@utils/types";
 
 import { PUBLIC_BACKGROUNDS, PUBLIC_REGISTRY_URL } from "./publicBackgrounds";
@@ -77,7 +78,7 @@ async function refreshRegistry(force = false) {
     if (!force && now - lastRegistryRefresh < REGISTRY_REFRESH_MS) return;
     if (registryRefreshPromise) return registryRefreshPromise;
 
-    registryRefreshPromise = fetch(`${registryUrl}${registryUrl.includes("?") ? "&" : "?"}t=${now}`, {
+    registryRefreshPromise = fetchWithGithubFallback(`${registryUrl}${registryUrl.includes("?") ? "&" : "?"}t=${now}`, {
         cache: "no-store"
     })
         .then(async res => {
