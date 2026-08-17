@@ -1,8 +1,8 @@
 {
-    "version":  "1.6.1",
-    "hash":  "public-20260817172045",
+    "version":  "1.6.2",
+    "hash":  "public-20260817172512",
     "author":  "o2cord",
-    "message":  "Fixed a bug where a failed auto-update attempt would permanently mark itself as handled, silently stranding clients on an old version forever",
+    "message":  "Updates are now mandatory - once an update downloads successfully, Discord restarts automatically after 10s instead of waiting on a click",
     "notes":  [
                   "Public o2cord update package",
                   "ussro2 backgrounds are loaded from backgrounds.json beside this manifest",
