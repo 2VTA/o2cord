@@ -184,12 +184,25 @@ html.o2-profile-theme-active [data-o2-profile-theme-layer="true"] {
     opacity: var(--o2-profile-theme-image-opacity, 0.6) !important;
 }
 
-html.o2-profile-theme-active [data-o2-profile-theme-kind="popout"] [class*="banner"],
-html.o2-profile-theme-active [data-o2-profile-theme-kind="popout"] [class*="banner_"],
-html.o2-profile-theme-active [data-o2-profile-theme-kind="popout"] [class*="banner__"] {
+html.o2-profile-theme-active [data-o2-profile-theme-kind="popout"] [class*="banner"]:not([class*="bannerButton"]),
+html.o2-profile-theme-active [data-o2-profile-theme-kind="popout"] [class*="banner_"]:not([class*="bannerButton"]),
+html.o2-profile-theme-active [data-o2-profile-theme-kind="popout"] [class*="banner__"]:not([class*="bannerButton"]) {
     min-height: var(--o2-profile-theme-banner-height) !important;
     max-height: var(--o2-profile-theme-banner-height) !important;
     background-size: 100% var(--o2-profile-theme-banner-height) !important;
+}
+
+html.o2-profile-theme-active .o2-profile-theme-target [class*="bannerButton"],
+html.o2-profile-theme-active [data-o2-profile-theme-target="true"] [class*="bannerButton"] {
+    flex: 0 0 auto !important;
+    align-self: center !important;
+    width: 32px !important;
+    height: 32px !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    border-radius: 50% !important;
+    background-size: cover !important;
+    overflow: hidden !important;
 }
 
 html.o2-profile-theme-active .o2-profile-theme-target > :not([data-o2-profile-theme-layer]):not([class*="profileFrameLayer"]):not([class*="profileFrameMask"]):not([class*="custom-profile-frame"]),
@@ -291,14 +304,14 @@ html.o2-profile-theme-active [data-o2-profile-theme-panel="true"] {
     background: var(--o2-profile-theme-panel-bg, rgba(18, 18, 24, 0.34)) !important;
 }
 
-html.o2-profile-theme-active .o2-profile-theme-target [class*="banner"],
-html.o2-profile-theme-active [data-o2-profile-theme-target="true"] [class*="banner"],
+html.o2-profile-theme-active .o2-profile-theme-target [class*="banner"]:not([class*="bannerButton"]),
+html.o2-profile-theme-active [data-o2-profile-theme-target="true"] [class*="banner"]:not([class*="bannerButton"]),
 html.o2-profile-theme-active .o2-profile-theme-target [class*="userProfileInner"] {
     backdrop-filter: blur(1px);
 }
 
-html.o2-profile-theme-active .o2-profile-theme-target [class*="banner"],
-html.o2-profile-theme-active [data-o2-profile-theme-target="true"] [class*="banner"],
+html.o2-profile-theme-active .o2-profile-theme-target [class*="banner"]:not([class*="bannerButton"]),
+html.o2-profile-theme-active [data-o2-profile-theme-target="true"] [class*="banner"]:not([class*="bannerButton"]),
 html.o2-profile-theme-active .o2-profile-theme-target [class*="fill_b83360"],
 html.o2-profile-theme-active [data-o2-profile-theme-target="true"] [class*="fill_b83360"] {
     background-color: transparent !important;
