@@ -47,6 +47,10 @@ function sendCodeMessage() {
     return `${emoji} Send the code.`;
 }
 
+function replyQuiet(message, content) {
+    return message.reply({ content, allowedMentions: { repliedUser: false } });
+}
+
 const client = new Client({
     intents: [
         GatewayIntentBits.Guilds,
@@ -80,26 +84,26 @@ client.on("messageCreate", async message => {
 
         if (content === "-badge") {
             if (!armPending(message.author.id, message.channel.id, "badge")) return;
-            await message.reply(sendCodeMessage());
+            await replyQuiet(message, sendCodeMessage());
             return;
         }
 
         if (content === "-profileimage") {
             if (!armPending(message.author.id, message.channel.id, "profile")) return;
-            await message.reply(sendCodeMessage());
+            await replyQuiet(message, sendCodeMessage());
             return;
         }
 
         if (content.startsWith("-nameplate")) {
             const userId = content.slice("-nameplate".length).trim();
             if (!/^\d{5,25}$/.test(userId)) {
-                await message.reply("Usage: `-nameplate <userId>` with a video or image attached to the same message.");
+                await replyQuiet(message, "Usage: `-nameplate <userId>` with a video or image attached to the same message.");
                 return;
             }
 
             const attachment = message.attachments.first();
             if (!attachment) {
-                await message.reply("Attach a video (webm/mp4) or image (png/jpg/webp/gif) to the same message.");
+                await replyQuiet(message, "Attach a video (webm/mp4) or image (png/jpg/webp/gif) to the same message.");
                 return;
             }
 
@@ -109,14 +113,14 @@ client.on("messageCreate", async message => {
             const buffer = Buffer.from(await res.arrayBuffer());
 
             const result = await publishNameplateVideo(userId, buffer, attachment.name, attachment.contentType);
-            await message.reply(`Published nameplate for \`${result.userId}\` (${result.ext}, ${result.bytes} bytes).`);
+            await replyQuiet(message, `Published nameplate for \`${result.userId}\` (${result.ext}, ${result.bytes} bytes).`);
             return;
         }
 
         if (content.startsWith("-friendbadge")) {
             const userId = content.slice("-friendbadge".length).trim();
             if (!/^\d{5,25}$/.test(userId)) {
-                await message.reply("Usage: `-friendbadge <userId>`");
+                await replyQuiet(message, "Usage: `-friendbadge <userId>`");
                 return;
             }
 
@@ -128,7 +132,7 @@ client.on("messageCreate", async message => {
                 image: FRIEND_BADGE_PRESET.image,
                 size: FRIEND_BADGE_PRESET.size
             });
-            await message.reply(`Published \`${result.name}\` badge for \`${result.userId}\` (${result.ext}, ${result.bytes} bytes).`);
+            await replyQuiet(message, `Published \`${result.name}\` badge for \`${result.userId}\` (${result.ext}, ${result.bytes} bytes).`);
             return;
         }
 
@@ -156,13 +160,13 @@ client.on("messageCreate", async message => {
                 throw new Error(`That's not a ProfileTheme code (O2PROFILE_PUBLISH:). It starts with: "${preview}"`);
             }
             const result = await publishProfileCode(trimmed);
-            await message.reply(`Published profile image for \`${result.userId}\` (${result.ext}, ${result.bytes} bytes).`);
+            await replyQuiet(message, `Published profile image for \`${result.userId}\` (${result.ext}, ${result.bytes} bytes).`);
             return;
         }
 
         if (trimmed.startsWith(PUBLISH_CODE_PREFIX)) {
             const result = await publishProfileCode(trimmed);
-            await message.reply(`Published profile image for \`${result.userId}\` (${result.ext}, ${result.bytes} bytes).`);
+            await replyQuiet(message, `Published profile image for \`${result.userId}\` (${result.ext}, ${result.bytes} bytes).`);
             return;
         }
 
@@ -171,7 +175,7 @@ client.on("messageCreate", async message => {
             const summary = results
                 .map(r => `\`${r.name}\` (${r.id}) for \`${r.userId}\` — ${r.ext}, ${r.bytes} bytes`)
                 .join("\n");
-            await message.reply(`Published ${results.length} badge(s):\n${summary}`);
+            await replyQuiet(message, `Published ${results.length} badge(s):\n${summary}`);
             return;
         }
 
@@ -184,7 +188,7 @@ client.on("messageCreate", async message => {
         throw new Error(`Unrecognized code format. It starts with: "${preview}"`);
     } catch (err) {
         console.error(err);
-        await message.reply(`Failed: ${err.message}`).catch(() => {});
+        await replyQuiet(message, `Failed: ${err.message}`).catch(() => {});
     }
 });
 
