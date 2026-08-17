@@ -1,8 +1,8 @@
 {
-    "version":  "1.6.3",
-    "hash":  "public-20260817173031",
+    "version":  "1.6.4",
+    "hash":  "public-20260817173843",
     "author":  "o2cord",
-    "message":  "Updater tab now shows the real error message instead of a generic \u0027Could not check for updates\u0027 - error objects crossing IPC lose their Error prototype so the old instanceof check was silently discarding the actual reason",
+    "message":  "Added a jsDelivr fallback mirror for raw.githubusercontent.com fetches - fixes clients stuck behind a rate-limited/shared IP getting 429 Too Many Requests on every update check",
     "notes":  [
                   "Public o2cord update package",
                   "ussro2 backgrounds are loaded from backgrounds.json beside this manifest",
