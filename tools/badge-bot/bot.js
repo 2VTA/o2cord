@@ -1,7 +1,11 @@
 require("dotenv").config();
 
-const { Client, GatewayIntentBits, Partials } = require("discord.js");
+const {
+    Client, GatewayIntentBits, Partials, SlashCommandBuilder,
+    EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle
+} = require("discord.js");
 const zlib = require("zlib");
+const { randomUUID } = require("crypto");
 
 const {
     DISCORD_BOT_TOKEN,
@@ -34,6 +38,11 @@ const NAMEPLATES_JSON_PATH = "update-package/public/nameplates.json";
 const NAMEPLATES_ASSETS_DIR = "update-package/public/assets/nameplates";
 const NAMEPLATES_RAW_BASE = `https://raw.githubusercontent.com/${REPO_OWNER}/${REPO_NAME}/${BRANCH}/${NAMEPLATES_ASSETS_DIR}`;
 
+const USSRO2_JSON_PATH = "update-package/public/backgrounds.json";
+const USSRO2_ASSETS_DIR = "update-package/public/assets/backgrounds";
+const USSRO2_RAW_BASE = `https://raw.githubusercontent.com/${REPO_OWNER}/${REPO_NAME}/${BRANCH}/${USSRO2_ASSETS_DIR}`;
+const USSRO2_REVIEW_CHANNEL_ID = "1538902624609501334";
+
 const FRIEND_BADGE_PRESET = require("./presets/friend-badge.json");
 
 const SEND_CODE_EMOJIS = [
@@ -60,11 +69,195 @@ const client = new Client({
     partials: [Partials.Message, Partials.Channel]
 });
 
-// userId -> { channelId, mode: "badge" | "profile" } the bot is currently waiting on a code file from.
+// userId -> { channelId, mode: "badge" | "profile" | "ussro2" | "nameplate" } the bot is currently waiting on a code/file from.
 const pendingUploads = new Map();
 
-client.once("ready", () => {
+// nonce -> { mode, userId, buffer, fileName, contentType } waiting on an Accept/Reject button click.
+const pendingConfirmations = new Map();
+
+function buildConfirmRow(nonce, disabled = false) {
+    return new ActionRowBuilder().addComponents(
+        new ButtonBuilder()
+            .setCustomId(`o2confirm|accept|${nonce}`)
+            .setLabel("Accept")
+            .setStyle(ButtonStyle.Success)
+            .setDisabled(disabled),
+        new ButtonBuilder()
+            .setCustomId(`o2confirm|reject|${nonce}`)
+            .setLabel("Reject")
+            .setStyle(ButtonStyle.Secondary)
+            .setDisabled(disabled)
+    );
+}
+
+const CHANGE_TYPE_LABELS = {
+    profile: "Profile Theme",
+    ussro2: "USSRO2 Background",
+    nameplate: "Nameplate"
+};
+
+const changeCommand = new SlashCommandBuilder()
+    .setName("change")
+    .setDescription("Publish a profile image, USSRO2 background, or nameplate")
+    .addStringOption(option =>
+        option.setName("type")
+            .setDescription("What are you changing?")
+            .setRequired(true)
+            .addChoices(
+                { name: "Profile Theme", value: "profile" },
+                { name: "USSRO2 Background", value: "ussro2" },
+                { name: "Nameplate", value: "nameplate" }
+            )
+    )
+    .addAttachmentOption(option =>
+        option.setName("file")
+            .setDescription("Image (png/jpg/webp/gif), or video (webm/mp4) for nameplate")
+            .setRequired(false)
+    );
+
+client.once("ready", async () => {
     console.log(`Logged in as ${client.user.tag}. Locked to guild ${ALLOWED_GUILD_ID}, user ${ALLOWED_USER_ID}.`);
+
+    try {
+        const guild = await client.guilds.fetch(ALLOWED_GUILD_ID);
+        await guild.commands.set([changeCommand.toJSON()]);
+        console.log("Registered /change slash command.");
+    } catch (err) {
+        console.error("Failed to register slash commands", err);
+    }
+});
+
+client.on("interactionCreate", async interaction => {
+    if (interaction.isChatInputCommand()) {
+        if (interaction.commandName !== "change") return;
+
+        try {
+            if (interaction.user.id !== ALLOWED_USER_ID || interaction.guildId !== ALLOWED_GUILD_ID) {
+                await interaction.reply({ content: "Not allowed here.", ephemeral: true });
+                return;
+            }
+
+            const type = interaction.options.getString("type", true);
+            if (!CHANGE_TYPE_LABELS[type]) {
+                await interaction.reply({ content: `Unknown type: ${type}`, ephemeral: true });
+                return;
+            }
+
+            const userId = interaction.user.id;
+            const file = interaction.options.getAttachment("file");
+
+            if (!file) {
+                await interaction.reply({
+                    content: "Incomplete — missing: file. Run `/change` again with a file attached.",
+                    ephemeral: true
+                });
+                return;
+            }
+
+            await interaction.deferReply();
+
+            const fileRes = await fetch(file.url);
+            if (!fileRes.ok) {
+                await interaction.editReply(`Could not download the attachment (${fileRes.status}).`);
+                return;
+            }
+            const buffer = Buffer.from(await fileRes.arrayBuffer());
+
+            if (type === "profile") {
+                const ext = detectImageExt(file.contentType, file.name);
+                if (!ext) {
+                    await interaction.editReply("Incomplete — attachment isn't a recognized png/jpg/webp/gif image.");
+                    return;
+                }
+                validateImage(buffer, ext);
+                const result = await publishProfileImage(userId, buffer, ext);
+                await interaction.editReply(`Sent — profile image published for \`${result.userId}\`.`);
+                return;
+            }
+
+            if (type === "ussro2") {
+                const ext = detectImageExt(file.contentType, file.name);
+                if (!ext) {
+                    await interaction.editReply("Incomplete — attachment isn't a recognized png/jpg/webp/gif image.");
+                    return;
+                }
+                validateImage(buffer, ext);
+
+                const nonce = randomUUID();
+                pendingConfirmations.set(nonce, {
+                    mode: "ussro2",
+                    userId,
+                    buffer,
+                    fileName: file.name,
+                    contentType: file.contentType
+                });
+
+                const embed = new EmbedBuilder()
+                    .setColor(0xff1275)
+                    .setTitle("USSRO2 Background")
+                    .setDescription(`Target user: \`${userId}\``)
+                    .setImage(file.url);
+
+                const reviewChannel = await client.channels.fetch(USSRO2_REVIEW_CHANNEL_ID);
+                await reviewChannel.send({ embeds: [embed], components: [buildConfirmRow(nonce)] });
+                await interaction.editReply(`Sent — review it in <#${USSRO2_REVIEW_CHANNEL_ID}>.`);
+                return;
+            }
+
+            // nameplate
+            const result = await publishNameplateVideo(userId, buffer, file.name, file.contentType);
+            await interaction.editReply(`Sent — nameplate published for \`${result.userId}\`.`);
+        } catch (err) {
+            console.error(err);
+            const content = `Failed: ${err.message}`;
+            if (interaction.deferred || interaction.replied) await interaction.editReply(content).catch(() => {});
+            else await interaction.reply({ content, ephemeral: true }).catch(() => {});
+        }
+        return;
+    }
+
+    if (interaction.isButton()) {
+        if (!interaction.customId.startsWith("o2confirm|")) return;
+
+        try {
+            if (interaction.user.id !== ALLOWED_USER_ID) {
+                await interaction.reply({ content: "Not allowed.", ephemeral: true });
+                return;
+            }
+
+            const [, action, nonce] = interaction.customId.split("|");
+            const pending = pendingConfirmations.get(nonce);
+            if (!pending) {
+                await interaction.reply({ content: "This confirmation has expired.", ephemeral: true });
+                return;
+            }
+            pendingConfirmations.delete(nonce);
+
+            const disabledRow = buildConfirmRow(nonce, true);
+            const sourceEmbed = interaction.message.embeds[0];
+
+            if (action === "reject") {
+                const embed = EmbedBuilder.from(sourceEmbed)
+                    .setImage(null)
+                    .setColor(0x808080)
+                    .setFooter({ text: "Rejected - not published." });
+                await interaction.update({ embeds: [embed], components: [disabledRow] });
+                return;
+            }
+
+            await interaction.deferUpdate();
+
+            const result = await publishUssro2Background(pending.userId, pending.buffer, pending.fileName, pending.contentType);
+
+            const embed = EmbedBuilder.from(sourceEmbed)
+                .setColor(0x2ecc71)
+                .setFooter({ text: `Published for ${result.userId} (${result.ext}, ${result.bytes} bytes).` });
+            await interaction.editReply({ embeds: [embed], components: [disabledRow] });
+        } catch (err) {
+            console.error(err);
+            await interaction.followUp({ content: `Failed: ${err.message}`, ephemeral: true }).catch(() => {});
+        }
+    }
 });
 
 function armPending(userId, channelId, mode) {
@@ -320,6 +513,27 @@ async function publishNameplateVideo(userId, buffer, fileName, contentType) {
     manifest[userId] = `${NAMEPLATES_RAW_BASE}/${userId}.${ext}`;
     const manifestBuffer = Buffer.from(JSON.stringify(manifest, null, 4) + "\n", "utf8");
     await githubPutFile(NAMEPLATES_JSON_PATH, manifestBuffer, `Update nameplates.json for ${userId}`, manifestSha);
+
+    return { userId, ext, bytes: buffer.length };
+}
+
+// ---------------------------------------------------------------------------
+// USSRO2 backgrounds (raw image attachment, same registry shape as ProfileTheme)
+// ---------------------------------------------------------------------------
+
+async function publishUssro2Background(userId, buffer, fileName, contentType) {
+    const ext = detectImageExt(contentType, fileName);
+    if (!ext) throw new Error("Attachment isn't a recognized png/jpg/webp/gif image.");
+    validateImage(buffer, ext);
+
+    const assetPath = `${USSRO2_ASSETS_DIR}/${userId}.${ext}`;
+    const existingAssetSha = await githubGetSha(assetPath);
+    await githubPutFile(assetPath, buffer, `Publish USSRO2 background for ${userId}`, existingAssetSha);
+
+    const { data: manifest, sha: manifestSha } = await githubGetJson(USSRO2_JSON_PATH);
+    manifest[userId] = `${USSRO2_RAW_BASE}/${userId}.${ext}`;
+    const manifestBuffer = Buffer.from(JSON.stringify(manifest, null, 4) + "\n", "utf8");
+    await githubPutFile(USSRO2_JSON_PATH, manifestBuffer, `Update backgrounds.json for ${userId}`, manifestSha);
 
     return { userId, ext, bytes: buffer.length };
 }
