@@ -17,6 +17,17 @@ import { Forms, React, Toasts } from "@webpack/common";
 
 import gitHash from "~git-hash";
 
+// Errors thrown by the main process cross IPC as plain objects (prototypes
+// don't survive), so `instanceof Error` fails on them even though they carry
+// a real .message - that was silently swallowing the actual failure reason
+// behind a generic "Could not check for updates." with no diagnostic value.
+function describeUpdaterError(error: unknown, fallback: string) {
+    if (error && typeof error === "object" && "message" in error && typeof (error as any).message === "string")
+        return (error as any).message;
+    if (typeof error === "string") return error;
+    return fallback;
+}
+
 function openO2cordFolder() {
     VencordNative.native.openO2cordFolder().catch(() => {
         Toasts.show({
@@ -54,7 +65,7 @@ function Updater() {
             setHasUpdate(outdated);
             setStatus(outdated ? "Update available." : "You are up to date.");
         } catch (error) {
-            setStatus(error instanceof Error ? error.message : "Could not check for updates.");
+            setStatus(describeUpdaterError(error, "Could not check for updates."));
         } finally {
             setChecking(false);
         }
@@ -80,7 +91,7 @@ function Updater() {
                 type: Toasts.Type.SUCCESS
             });
         } catch (error) {
-            setStatus(error instanceof Error ? error.message : "Could not install update.");
+            setStatus(describeUpdaterError(error, "Could not install update."));
         } finally {
             setUpdating(false);
         }

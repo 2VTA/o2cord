@@ -1,8 +1,8 @@
 {
-    "version":  "1.6.2",
-    "hash":  "public-20260817172512",
+    "version":  "1.6.3",
+    "hash":  "public-20260817173031",
     "author":  "o2cord",
-    "message":  "Updates are now mandatory - once an update downloads successfully, Discord restarts automatically after 10s instead of waiting on a click",
+    "message":  "Updater tab now shows the real error message instead of a generic \u0027Could not check for updates\u0027 - error objects crossing IPC lose their Error prototype so the old instanceof check was silently discarding the actual reason",
     "notes":  [
                   "Public o2cord update package",
                   "ussro2 backgrounds are loaded from backgrounds.json beside this manifest",
