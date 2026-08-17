@@ -22,7 +22,20 @@ import { finished } from "stream/promises";
 
 type Url = string | URL;
 
-export async function checkedFetch(url: Url, options?: RequestInit) {
+// raw.githubusercontent.com rate-limits by IP, and that limit is shared by
+// everyone behind the same NAT/ISP - a busy shared IP can get 429'd even
+// though this app's own request volume is trivial. jsDelivr's GitHub CDN
+// mirror exists specifically to route around that, so any raw.githubusercontent.com
+// fetch that fails falls back to it automatically before giving up.
+function toJsDelivrMirror(url: string): string | null {
+    const match = url.match(/^https:\/\/raw\.githubusercontent\.com\/([^/]+)\/([^/]+)\/([^/]+)\/(.+)$/);
+    if (!match) return null;
+
+    const [, owner, repo, branch, path] = match;
+    return `https://cdn.jsdelivr.net/gh/${owner}/${repo}@${branch}/${path}`;
+}
+
+async function checkedFetchOnce(url: string, options?: RequestInit) {
     try {
         var res = await fetch(url, options);
     } catch (err) {
@@ -44,6 +57,23 @@ export async function checkedFetch(url: Url, options?: RequestInit) {
     } catch { }
 
     throw new Error(message);
+}
+
+export async function checkedFetch(url: Url, options?: RequestInit) {
+    const urlStr = url.toString();
+
+    try {
+        return await checkedFetchOnce(urlStr, options);
+    } catch (err) {
+        const mirror = toJsDelivrMirror(urlStr);
+        if (!mirror) throw err;
+
+        try {
+            return await checkedFetchOnce(mirror, options);
+        } catch {
+            throw err;
+        }
+    }
 }
 
 export async function fetchJson<T = any>(url: Url, options?: RequestInit) {
