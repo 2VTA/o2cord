@@ -625,7 +625,12 @@ function detectImageExt(contentType, url) {
     return null;
 }
 
+const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
+
 function validateImage(buffer, ext) {
+    if (buffer.length > MAX_IMAGE_BYTES)
+        throw new Error(`Image is too large (${(buffer.length / 1024 / 1024).toFixed(1)} MB). Please use something under 5 MB - it needs to load fast in small UI spots like voice tiles.`);
+
     if (ext === "png") {
         const magic = Buffer.from([0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]);
         if (!buffer.subarray(0, 8).equals(magic))

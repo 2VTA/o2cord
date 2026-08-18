@@ -9,10 +9,16 @@ import "./styles.css";
 import { definePluginSettings } from "@api/Settings";
 import { Devs } from "@utils/constants";
 import definePlugin, { OptionType } from "@utils/types";
-import { Button, FluxDispatcher, Forms, React, showToast, TextInput, Toasts, UserStore } from "@webpack/common";
+import { Button, Forms, React, showToast, TextInput, Toasts, UserStore } from "@webpack/common";
 
 type Backgrounds = Record<string, string>;
-const MAX_LOCAL_BACKGROUND_BYTES = 8 * 1024 * 1024;
+// This is stored as a plain string setting that gets re-serialized and
+// synchronously rewritten to disk on every settings change, of any plugin,
+// not just this one - a multi-MB data URL here makes every unrelated
+// setting change stutter or hang. Local previews don't need full
+// resolution, so this cap is intentionally much tighter than what the bot
+// accepts for the actual published image.
+const MAX_LOCAL_BACKGROUND_BYTES = 1.5 * 1024 * 1024;
 const BACKGROUNDS_UPDATED_EVENT = "o2cord:ussro2-backgrounds-updated";
 
 const backgroundRevisions = new Map<string, number>();
@@ -72,10 +78,6 @@ function refreshProfilesNow(userId?: string) {
         webpack?.findByStoreName?.("UserStore")?.emitChange?.();
         webpack?.findByStoreName?.("UserProfileStore")?.emitChange?.();
         webpack?.findByProps?.("getUserProfile", "getGuildMemberProfile")?.emitChange?.();
-    } catch { }
-
-    try {
-        FluxDispatcher.dispatch({ type: "USER_SETTINGS_PROTO_UPDATE", settings: { type: 1, proto: {} } });
     } catch { }
 }
 
@@ -183,6 +185,11 @@ function Ussro2Settings() {
         const cleanUserId = normalizeUserId(userId);
         const cleanImageUrl = normalizeImageUrl(imageUrl);
         if (!cleanUserId || !cleanImageUrl) return null;
+
+        if (cleanImageUrl.startsWith("data:") && cleanImageUrl.length * 0.75 > MAX_LOCAL_BACKGROUND_BYTES) {
+            alert("This image is too large. Please use an image or GIF under 1.5 MB, or a hosted URL instead.");
+            return null;
+        }
 
         writeBackgrounds({
             ...backgrounds,
