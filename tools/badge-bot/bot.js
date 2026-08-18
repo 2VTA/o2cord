@@ -159,7 +159,7 @@ client.on("interactionCreate", async interaction => {
                 return;
             }
 
-            await interaction.deferReply();
+            await interaction.deferReply({ ephemeral: true });
 
             const fileRes = await fetch(file.url);
             if (!fileRes.ok) {
