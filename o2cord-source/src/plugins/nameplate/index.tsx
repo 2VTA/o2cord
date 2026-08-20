@@ -12,7 +12,34 @@ import { Devs } from "@utils/constants";
 import { fetchWithGithubFallback } from "@utils/githubFallbackFetch";
 import { O2_LOCAL_NAMEPLATES_KEY, O2_LOCAL_NAMEPLATES_UPDATED_EVENT, O2LocalNameplate } from "@utils/o2NameplatePresets";
 import definePlugin from "@utils/types";
+import { filters, mapMangledModuleLazy } from "@webpack";
 import { React } from "@webpack/common";
+
+// Discord's own nameplate system (Collectibles) has a "preview" bypass meant
+// for the shop's try-before-you-buy flow: if a nameplate object carries a
+// previewToolKey, it reads {staticUrl,animatedUrl} straight out of a local
+// Zustand cache instead of resolving a real owned SKU against Discord's CDN.
+// setImgCache is what populates that cache, and it does no server-side
+// validation at all - so we can prime it with our own registry's image and
+// let Discord's native nameplate component render it everywhere (member
+// list, account panel, voice list) with correct positioning/animation for
+// free, instead of us hand-rolling CSS overlays for every surface.
+const NameplateImgCacheModule = mapMangledModuleLazy("toolsCache:{}", {
+    useImgCacheApi: filters.byCode("setImgCache:")
+});
+
+const primedImgCacheKeys = new Set<string>();
+
+function primeImgCache(key: string, url: string) {
+    if (primedImgCacheKeys.has(key)) return;
+
+    try {
+        const { setImgCache } = NameplateImgCacheModule.useImgCacheApi();
+        const animatedUrl = isGifSource(url) ? url : undefined;
+        setImgCache(key, animatedUrl, url);
+        primedImgCacheKeys.add(key);
+    } catch { }
+}
 
 const REGISTRY_REFRESH_MS = 30_000;
 
@@ -89,6 +116,15 @@ function isVideoSource(url: string) {
     return /\.(webm|mp4)(\?.*)?$/i.test(url);
 }
 
+function isGifSource(url: string) {
+    if (url.startsWith("data:image/gif")) return true;
+    return /\.gif(\?.*)?$/i.test(url);
+}
+
+function getNameplateSourceUrl(userId: string): string | null {
+    return localNameplatesById[userId] || remoteNameplates[userId] || null;
+}
+
 function getNameplateRegistryUrl() {
     const updateManifestUrl = typeof O2CORD_UPDATE_MANIFEST === "string" ? O2CORD_UPDATE_MANIFEST.trim() : "";
     if (!updateManifestUrl) return "";
@@ -150,30 +186,22 @@ function positionizeRow(node: HTMLElement | null) {
         target.style.position = "relative";
 }
 
+// Static images and GIFs now render through Discord's own native nameplate
+// system (see getUserNameplate below), so this decorator only needs to
+// cover actual video files (webm/mp4), which that system can't display.
 function NameplateBackground({ userId }: { userId: string; }) {
-    const url = localNameplatesById[userId] || remoteNameplates[userId];
-    if (!url) return null;
-
-    if (isVideoSource(url)) {
-        return (
-            <video
-                ref={positionizeRow}
-                className="o2-nameplate-bg"
-                src={url}
-                autoPlay
-                loop
-                muted
-                playsInline
-            />
-        );
-    }
+    const url = getNameplateSourceUrl(userId);
+    if (!url || !isVideoSource(url)) return null;
 
     return (
-        <img
+        <video
             ref={positionizeRow}
             className="o2-nameplate-bg"
             src={url}
-            alt=""
+            autoPlay
+            loop
+            muted
+            playsInline
         />
     );
 }
@@ -184,6 +212,21 @@ export default definePlugin({
     tags: ["Appearance"],
     authors: [Devs.Ryder],
     dependencies: ["MemberListDecoratorsAPI"],
+
+    patches: [
+        // User.prototype's own nameplate getter is the single source every
+        // surface (member list, account panel, voice list) reads from -
+        // hooking it here means our nameplates get Discord's real rendering
+        // (positioning, hover loop, animation) everywhere at once, instead
+        // of us re-implementing that per surface.
+        {
+            find: "get nameplate(){return(0,",
+            replacement: {
+                match: /get nameplate\(\)\{return\(0,(\i)\.(\i)\)\(this\.collectibles\?\.nameplate\)\}/,
+                replace: "get nameplate(){return $self.getUserNameplate(this)??(0,$1.$2)(this.collectibles?.nameplate)}"
+            }
+        }
+    ],
 
     start() {
         startRegistryRefresh();
@@ -200,5 +243,27 @@ export default definePlugin({
         stopRegistryRefresh();
         removeLocalNameplatesListener();
         removeMemberListDecorator("o2-nameplate");
+    },
+
+    // Only static images and GIFs go through Discord's native preview-cache
+    // bypass - it has no video slot, so webm/mp4 nameplates fall through to
+    // null here and get the CSS <video> overlay from NameplateBackground
+    // instead.
+    getUserNameplate(user: any) {
+        const userId = user?.id;
+        if (!userId) return null;
+
+        const url = getNameplateSourceUrl(userId);
+        if (!url || isVideoSource(url)) return null;
+
+        const key = `o2cord-${userId}`;
+        primeImgCache(key, url);
+
+        return {
+            skuId: `o2cord-${userId}`,
+            label: "o2cord Nameplate",
+            palette: "crimson",
+            previewToolKey: key
+        };
     }
 });
