@@ -111,7 +111,7 @@ export default definePlugin({
     tags: ["Appearance", "Customisation"],
     authors: [Devs.Ryder],
     settings,
-    enabledByDefault: false,
+    enabledByDefault: true,
     start() {
         void refreshRegistry(true);
         registryRefreshTimer = window.setInterval(() => void refreshRegistry(true), REGISTRY_REFRESH_MS);
@@ -130,27 +130,30 @@ export default definePlugin({
         },
         {
             find: "\"data-selenium-video-tile\":",
-            replacement: [
-                {
-                    match: /(?<=function\((\i),\i\)\{)(?=let.{20,40},style:)/,
-                    replace: "$1.style=$self.getVoiceBackgroundStyles($1);"
-                }
-            ]
+            replacement: {
+                match: /style:(\i),ref:(\i),"data-selenium-video-tile":(\i)/,
+                replace: 'style:$self.getVoiceBackgroundStyles($1,$3),ref:$2,"data-selenium-video-tile":$3'
+            }
         },
         {
             find: '"VideoBackground-web"',
             replacement: {
-                match: /backgroundColor:.{0,25},\{style:(?=\i\?)/,
-                replace: "$&$self.userHasBackground(arguments[0]?.userId)?null:",
+                match: /(style:\i\?\{\.\.\.\i,\.\.\.\i\}:\{\.\.\.\i\}),className:/,
+                replace: "$1,...$self.getVoiceBackgroundOverride(u),className:"
             }
         }
     ],
 
-    getVoiceBackgroundStyles({ className, participantUserId }: any) {
+    // Takes the tile's own computed style (whatever Discord derived from the
+    // user's theme/avatar colors) and layers our image on top of it, rather
+    // than replacing it outright, so nothing else about the tile's styling
+    // changes if there's no custom background for this participant.
+    getVoiceBackgroundStyles(originalStyle: any, participantUserId: string) {
         const imageUrl = getBackgroundUrl(participantUserId);
-        if (!className?.includes?.("tile") || !imageUrl) return;
+        if (!imageUrl) return originalStyle;
 
         return {
+            ...originalStyle,
             backgroundImage: `url(${imageUrl})`,
             backgroundSize: "cover",
             backgroundPosition: "center",
@@ -158,13 +161,23 @@ export default definePlugin({
         };
     },
 
+    getVoiceBackgroundOverride(userId: string) {
+        const imageUrl = getBackgroundUrl(userId);
+        if (!imageUrl) return {};
+
+        return {
+            style: {
+                backgroundImage: `url(${imageUrl})`,
+                backgroundSize: "cover",
+                backgroundPosition: "center",
+                backgroundRepeat: "no-repeat"
+            }
+        };
+    },
+
     patchBannerUrl({ displayProfile }: any) {
         if (displayProfile?.banner && settings.store.nitroFirst) return;
 
         return getBackgroundUrl(displayProfile?.userId);
-    },
-
-    userHasBackground(userId: string) {
-        return Boolean(getBackgroundUrl(userId));
     }
 });

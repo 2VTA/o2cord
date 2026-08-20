@@ -1,8 +1,8 @@
 {
-    "version":  "1.6.7",
-    "hash":  "public-20260818013419",
+    "version":  "1.7.0",
+    "hash":  "public-20260820202553",
     "author":  "o2cord",
-    "message":  "Fixed custom badges rendering twice on regular user profiles (was being injected both by the original badge patch and the bot-profile fix)",
+    "message":  "ussro2 public backgrounds now enabled by default (was silently off for everyone unless manually turned on), fixed voice-tile background patches, native Discord nameplate rendering for images/GIFs",
     "notes":  [
                   "Public o2cord update package",
                   "ussro2 backgrounds are loaded from backgrounds.json beside this manifest",
