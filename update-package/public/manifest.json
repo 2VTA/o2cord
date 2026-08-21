@@ -1,8 +1,8 @@
 {
-    "version":  "1.7.1",
-    "hash":  "public-20260820212425",
+    "version":  "1.7.2",
+    "hash":  "public-20260821232606",
     "author":  "o2cord",
-    "message":  "Removed the old local/debug ussro2 background tool entirely - ussro2Public (the bot-driven, works-for-everyone system) is now the only one, avoiding any patch conflicts between the two",
+    "message":  "ussro2 voice tile backgrounds now painted as a stable overlay layer instead of patching Discord\u0027s fragile internal gradient component",
     "notes":  [
                   "Public o2cord update package",
                   "ussro2 backgrounds are loaded from backgrounds.json beside this manifest",
