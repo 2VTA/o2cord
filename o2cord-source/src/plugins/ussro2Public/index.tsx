@@ -8,7 +8,6 @@ import { definePluginSettings } from "@api/Settings";
 import { Devs } from "@utils/constants";
 import { fetchWithGithubFallback } from "@utils/githubFallbackFetch";
 import definePlugin, { OptionType } from "@utils/types";
-import { React } from "@webpack/common";
 
 import { PUBLIC_BACKGROUNDS, PUBLIC_REGISTRY_URL } from "./publicBackgrounds";
 
@@ -121,7 +120,6 @@ export default definePlugin({
         if (registryRefreshTimer) window.clearInterval(registryRefreshTimer);
         registryRefreshTimer = undefined;
     },
-
     patches: [
         {
             find: ':"SHOULD_LOAD");',
@@ -131,56 +129,42 @@ export default definePlugin({
             }
         },
         {
-            // This is the only voice-tile patch point left. It's anchored on
-            // the "data-selenium-video-tile" test id, which is far more
-            // stable across Discord Canary builds than the inner
-            // "VideoBackground-web" gradient layer's internal structure
-            // (which kept shifting build to build and made that patch
-            // unreliable). Instead of fighting that inner layer, we paint
-            // our image as an absolutely-positioned overlay on top of
-            // everything in the tile - it doesn't matter what the inner
-            // layer does underneath since we're covering it visually.
             find: "\"data-selenium-video-tile\":",
+            replacement: [
+                {
+                    match: /(?<=function\((\i),\i\)\{)(?=let.{20,40},style:)/,
+                    replace: "$1.style=$self.getVoiceBackgroundStyles($1);"
+                }
+            ]
+        },
+        {
+            find: '"VideoBackground-web"',
             replacement: {
-                match: /style:(\i),ref:(\i),"data-selenium-video-tile":(\i),children:(\i)\}/,
-                replace: 'style:$self.getVoiceBackgroundStyles($1,$3),ref:$2,"data-selenium-video-tile":$3,children:$self.renderVoiceTileChildren($4,$3)}'
+                match: /backgroundColor:.{0,25},\{style:(?=\i\?)/,
+                replace: "$&$self.userHasBackground(arguments[0]?.userId)?null:",
             }
         }
     ],
 
-    getVoiceBackgroundStyles(originalStyle: any, participantUserId: string) {
+    getVoiceBackgroundStyles({ className, participantUserId }: any) {
         const imageUrl = getBackgroundUrl(participantUserId);
-        if (!imageUrl) return originalStyle;
+        if (!className?.includes?.("tile") || !imageUrl) return;
 
-        return { ...originalStyle, position: "relative" };
-    },
-
-    renderVoiceTileChildren(children: any, participantUserId: string) {
-        const imageUrl = getBackgroundUrl(participantUserId);
-        if (!imageUrl) return children;
-
-        return (
-            <>
-                {children}
-                <div
-                    style={{
-                        position: "absolute",
-                        inset: 0,
-                        zIndex: 1,
-                        backgroundImage: `url(${imageUrl})`,
-                        backgroundSize: "cover",
-                        backgroundPosition: "center",
-                        backgroundRepeat: "no-repeat",
-                        pointerEvents: "none"
-                    }}
-                />
-            </>
-        );
+        return {
+            backgroundImage: `url(${imageUrl})`,
+            backgroundSize: "cover",
+            backgroundPosition: "center",
+            backgroundRepeat: "no-repeat"
+        };
     },
 
     patchBannerUrl({ displayProfile }: any) {
         if (displayProfile?.banner && settings.store.nitroFirst) return;
 
         return getBackgroundUrl(displayProfile?.userId);
+    },
+
+    userHasBackground(userId: string) {
+        return Boolean(getBackgroundUrl(userId));
     }
 });

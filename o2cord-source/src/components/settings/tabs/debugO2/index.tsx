@@ -9,6 +9,7 @@ import { CogWheel, DeleteIcon } from "@components/Icons";
 import { AddonCard } from "@components/settings/AddonCard";
 import { SettingsTab, wrapTab } from "@components/settings/tabs/BaseTab";
 import { openPluginModal } from "@components/settings/tabs/plugins/PluginModal";
+import { copyWithToast } from "@utils/discord";
 import { Margins } from "@utils/margins";
 import {
     O2_LOCAL_BADGES_KEY,
@@ -20,6 +21,13 @@ import {
     O2_LOCAL_NAMEPLATES_UPDATED_EVENT,
     O2LocalNameplate
 } from "@utils/o2NameplatePresets";
+import {
+    cleanO2Ussro2ImageUrl,
+    cleanO2Ussro2UserId,
+    O2_USSRO2_LOCAL_BACKGROUNDS_KEY,
+    O2_USSRO2_LOCAL_BACKGROUNDS_UPDATED_EVENT,
+    O2LocalUssro2Background
+} from "@utils/o2Ussro2";
 import { chooseFile, saveFile } from "@utils/web";
 import { Button, Forms, React, TextInput, UserStore, useState } from "@webpack/common";
 
@@ -29,6 +37,7 @@ import "./styles.css";
 
 type LocalBadge = O2LocalBadge;
 type LocalNameplate = O2LocalNameplate;
+type LocalUssro2Background = O2LocalUssro2Background;
 
 interface ManagedPlugin {
     name: string;
@@ -42,6 +51,10 @@ const SHOW_ADD_BADGE_FEATURE = true;
 const NAMEPLATES_KEY = O2_LOCAL_NAMEPLATES_KEY;
 const NAMEPLATES_EVENT = O2_LOCAL_NAMEPLATES_UPDATED_EVENT;
 const SHOW_ADD_NAMEPLATE_FEATURE = true;
+
+const USSRO2_KEY = O2_USSRO2_LOCAL_BACKGROUNDS_KEY;
+const USSRO2_EVENT = O2_USSRO2_LOCAL_BACKGROUNDS_UPDATED_EVENT;
+const SHOW_USSRO2_FEATURE = true;
 
 const MANAGED_PLUGINS: ManagedPlugin[] = [
     {
@@ -59,10 +72,6 @@ const MANAGED_PLUGINS: ManagedPlugin[] = [
     {
         name: "FakeVoice",
         description: "Debug-only fake mute and fake deafen controls"
-    },
-    {
-        name: "ussro2",
-        description: "Local-only profile backgrounds saved on your own client"
     },
     {
         name: "ProfileTheme",
@@ -107,6 +116,8 @@ async function writeStoredJson(key: string, value: unknown) {
         window.dispatchEvent(new CustomEvent(BADGES_EVENT, { detail: value }));
     if (key === NAMEPLATES_KEY)
         window.dispatchEvent(new CustomEvent(NAMEPLATES_EVENT, { detail: value }));
+    if (key === USSRO2_KEY)
+        window.dispatchEvent(new CustomEvent(USSRO2_EVENT, { detail: value }));
 }
 
 function makeBadgeId() {
@@ -115,6 +126,10 @@ function makeBadgeId() {
 
 function makeNameplateId() {
     return "nameplate-" + Date.now().toString(36);
+}
+
+function makeUssro2Id() {
+    return "ussro2-" + Date.now().toString(36);
 }
 
 function dataUrlToFile(dataUrl: string, filename: string): File | null {
@@ -212,7 +227,7 @@ function DebugFeatureCard({
     );
 }
 
-type ActiveSettingsModal = "badge" | "nameplate" | null;
+type ActiveSettingsModal = "badge" | "nameplate" | "ussro2" | null;
 
 function DebugO2Tab() {
     const [badges, setBadges] = useState<LocalBadge[]>([]);
@@ -233,6 +248,12 @@ function DebugO2Tab() {
     const [nameplateVideo, setNameplateVideo] = useState("");
     const [nameplateStatus, setNameplateStatus] = useState("");
 
+    const [ussro2Backgrounds, setUssro2Backgrounds] = useState<LocalUssro2Background[]>([]);
+    const [editingUssro2Id, setEditingUssro2Id] = useState<string | null>(null);
+    const [ussro2UserId, setUssro2UserId] = useState(() => UserStore.getCurrentUser()?.id ?? "");
+    const [ussro2Image, setUssro2Image] = useState("");
+    const [ussro2Status, setUssro2Status] = useState("");
+
     React.useEffect(() => {
         let cancelled = false;
 
@@ -248,6 +269,13 @@ function DebugO2Tab() {
             const nextNameplates = Array.isArray(savedNameplates) ? savedNameplates : [];
             setNameplates(nextNameplates);
             window.dispatchEvent(new CustomEvent(NAMEPLATES_EVENT, { detail: nextNameplates }));
+        });
+
+        readStoredJson<LocalUssro2Background[]>(USSRO2_KEY, []).then(savedBackgrounds => {
+            if (cancelled) return;
+            const nextBackgrounds = Array.isArray(savedBackgrounds) ? savedBackgrounds : [];
+            setUssro2Backgrounds(nextBackgrounds);
+            window.dispatchEvent(new CustomEvent(USSRO2_EVENT, { detail: nextBackgrounds }));
         });
 
         return () => {
@@ -475,6 +503,128 @@ function DebugO2Tab() {
         await saveNameplate();
     }
 
+    function resetUssro2Form() {
+        const currentUserId = UserStore.getCurrentUser()?.id ?? "";
+        setEditingUssro2Id(null);
+        setUssro2UserId(currentUserId);
+        setUssro2Image("");
+    }
+
+    function buildUssro2PublishJson(entry?: LocalUssro2Background) {
+        const targetUserId = cleanO2Ussro2UserId(entry?.userId ?? ussro2UserId);
+        const targetImage = cleanO2Ussro2ImageUrl(entry?.imageUrl ?? ussro2Image);
+
+        if (!targetUserId || !targetImage)
+            return null;
+
+        return JSON.stringify({ users: { [targetUserId]: targetImage } }, null, 4);
+    }
+
+    async function saveUssro2Background() {
+        const targetUserId = cleanO2Ussro2UserId(ussro2UserId);
+        const targetImage = cleanO2Ussro2ImageUrl(ussro2Image);
+
+        if (!targetUserId || !targetImage) {
+            setUssro2Status("Add a Discord user ID and choose an image or GIF first.");
+            return;
+        }
+
+        const existing = editingUssro2Id
+            ? ussro2Backgrounds.find(entry => entry.id === editingUssro2Id)
+            : undefined;
+        const nextEntry: LocalUssro2Background = {
+            id: editingUssro2Id ?? makeUssro2Id(),
+            userId: targetUserId,
+            imageUrl: targetImage,
+            enabled: existing?.enabled ?? true
+        };
+
+        const next = editingUssro2Id
+            ? ussro2Backgrounds.map(entry => entry.id === editingUssro2Id ? nextEntry : entry)
+            : [...ussro2Backgrounds, nextEntry];
+
+        try {
+            await writeStoredJson(USSRO2_KEY, next);
+            setUssro2Backgrounds(next);
+            setUssro2Status("ussro2 saved locally. Reopen that profile or voice tile to refresh.");
+            resetUssro2Form();
+        } catch (e) {
+            setUssro2Status(`Save failed: ${String(e)}`);
+        }
+    }
+
+    async function toggleUssro2Enabled(id: string, enabled: boolean) {
+        const next = ussro2Backgrounds.map(entry => entry.id === id ? { ...entry, enabled } : entry);
+
+        try {
+            await writeStoredJson(USSRO2_KEY, next);
+            setUssro2Backgrounds(next);
+        } catch (e) {
+            setUssro2Status(`Update failed: ${String(e)}`);
+        }
+    }
+
+    function useMyIdForUssro2() {
+        const currentUserId = UserStore.getCurrentUser()?.id;
+        if (currentUserId) setUssro2UserId(currentUserId);
+    }
+
+    function editUssro2Background(entry: LocalUssro2Background) {
+        setEditingUssro2Id(entry.id);
+        setUssro2UserId(entry.userId);
+        setUssro2Image(entry.imageUrl);
+        setActiveSettingsModal("ussro2");
+    }
+
+    async function deleteUssro2Background(id: string) {
+        const next = ussro2Backgrounds.filter(entry => entry.id !== id);
+
+        try {
+            await writeStoredJson(USSRO2_KEY, next);
+            setUssro2Backgrounds(next);
+            setUssro2Status("ussro2 background deleted.");
+            if (editingUssro2Id === id) resetUssro2Form();
+        } catch (e) {
+            setUssro2Status(`Delete failed: ${String(e)}`);
+        }
+    }
+
+    async function chooseUssro2Image() {
+        const image = await chooseImage();
+        if (!image) return;
+
+        setUssro2Image(image);
+        if (!ussro2UserId.trim()) setUssro2UserId(UserStore.getCurrentUser()?.id ?? "");
+        setUssro2Status("Image selected. Press Save to apply it locally.");
+    }
+
+    async function copyUssro2PublicJson(entry?: LocalUssro2Background) {
+        const json = buildUssro2PublishJson(entry);
+        if (!json) {
+            setUssro2Status("Add a Discord user ID and image first.");
+            return;
+        }
+
+        try {
+            await copyWithToast(json, "ussro2 public JSON copied.");
+            setUssro2Status("Copied. Send it to publish into backgrounds.json.");
+        } catch (e) {
+            setUssro2Status(`Copy failed: ${String(e)}`);
+        }
+    }
+
+    function downloadUssro2PublicJson(entry?: LocalUssro2Background) {
+        const json = buildUssro2PublishJson(entry);
+        const targetUserId = cleanO2Ussro2UserId(entry?.userId ?? ussro2UserId);
+        if (!json || !targetUserId) {
+            setUssro2Status("Add a Discord user ID and image first.");
+            return;
+        }
+
+        saveFile(new File([json], `o2cord-ussro2-${targetUserId}.json`, { type: "application/json" }));
+        setUssro2Status("Saved JSON to your Downloads folder.");
+    }
+
     function isManagedPluginEnabled(pluginName: string) {
         return settings.plugins[pluginName]?.enabled ?? false;
     }
@@ -503,7 +653,7 @@ function DebugO2Tab() {
                 Local debug tools for your o2cord build.
             </Forms.FormText>
 
-            {(SHOW_ADD_BADGE_FEATURE || SHOW_ADD_NAMEPLATE_FEATURE) && (
+            {(SHOW_ADD_BADGE_FEATURE || SHOW_ADD_NAMEPLATE_FEATURE || SHOW_USSRO2_FEATURE) && (
                 <section className="o2-debug-feature-grid">
                     {SHOW_ADD_BADGE_FEATURE && (
                         <DebugFeatureCard
@@ -517,6 +667,13 @@ function DebugO2Tab() {
                             title="Add Nameplate"
                             description="Add an animated video background behind a username in the member list"
                             onSettingsClick={() => setActiveSettingsModal("nameplate")}
+                        />
+                    )}
+                    {SHOW_USSRO2_FEATURE && (
+                        <DebugFeatureCard
+                            title="ussro2"
+                            description="Add profile or voice backgrounds locally, then export JSON for the public registry"
+                            onSettingsClick={() => setActiveSettingsModal("ussro2")}
                         />
                     )}
                 </section>
@@ -635,6 +792,55 @@ function DebugO2Tab() {
                             </div>
                         ))}
                     </div>
+                </section>
+            )}
+
+            {SHOW_USSRO2_FEATURE && (
+                <section className="o2-debug-managed-section">
+                    <Forms.FormTitle tag="h5">Saved ussro2 Backgrounds</Forms.FormTitle>
+                    <Forms.FormText className={Margins.bottom8}>
+                        These entries preview locally on debug builds. Copy or download JSON to publish the same image for everyone.
+                    </Forms.FormText>
+                    <div className="o2-debug-nameplate-list">
+                        {ussro2Backgrounds.length === 0 && (
+                            <Forms.FormText>No ussro2 backgrounds saved yet.</Forms.FormText>
+                        )}
+                        {ussro2Backgrounds.map(entry => (
+                            <div key={entry.id} className="o2-debug-nameplate-item o2-debug-ussro2-item">
+                                <img src={entry.imageUrl} alt="" />
+                                <div className="o2-debug-nameplate-meta">
+                                    <strong>{entry.userId}</strong>
+                                    <span>{entry.enabled === false ? "Disabled" : "Enabled"}</span>
+                                </div>
+                                <Button
+                                    size={Button.Sizes.SMALL}
+                                    color={entry.enabled === false ? Button.Colors.GREEN : Button.Colors.PRIMARY}
+                                    onClick={() => toggleUssro2Enabled(entry.id, entry.enabled === false)}
+                                >
+                                    {entry.enabled === false ? "Enable" : "Disable"}
+                                </Button>
+                                <button
+                                    type="button"
+                                    className="o2-debug-plugin-info"
+                                    aria-label={`Edit ussro2 for ${entry.userId}`}
+                                    onClick={() => editUssro2Background(entry)}
+                                >
+                                    <CogWheel width={18} height={18} />
+                                </button>
+                                <button
+                                    type="button"
+                                    className="o2-debug-plugin-info"
+                                    aria-label={`Delete ussro2 for ${entry.userId}`}
+                                    onClick={() => deleteUssro2Background(entry.id)}
+                                >
+                                    <DeleteIcon width={18} height={18} />
+                                </button>
+                            </div>
+                        ))}
+                    </div>
+                    {ussro2Status && (
+                        <Forms.FormText className={Margins.top8}>{ussro2Status}</Forms.FormText>
+                    )}
                 </section>
             )}
 
@@ -767,6 +973,77 @@ function DebugO2Tab() {
                                 {nameplateStatus && (
                                     <Forms.FormText className={Margins.top8}>{nameplateStatus}</Forms.FormText>
                                 )}
+                            </div>
+                        </section>
+                    </div>
+                </div>
+            )}
+
+            {SHOW_USSRO2_FEATURE && activeSettingsModal === "ussro2" && (
+                <div className="o2-debug-modal-backdrop" onClick={() => setActiveSettingsModal(null)}>
+                    <div
+                        className="o2-debug-modal o2-debug-modal-badge"
+                        onClick={event => event.stopPropagation()}
+                    >
+                        <div className="o2-debug-modal-header">
+                            <div>
+                                <h2>ussro2</h2>
+                                <Forms.FormText>
+                                    Add a Discord user ID and an image or GIF. Debug sees it locally;
+                                    public builds see it after the JSON is published to backgrounds.json.
+                                </Forms.FormText>
+                            </div>
+                            <button
+                                type="button"
+                                className="o2-debug-modal-close"
+                                aria-label="Close"
+                                onClick={() => setActiveSettingsModal(null)}
+                            >
+                                X
+                            </button>
+                        </div>
+
+                        <section>
+                            <Forms.FormTitle tag="h5">Settings</Forms.FormTitle>
+                            <div className="o2-debug-modal-settings">
+                                <TextInput
+                                    placeholder="Discord user ID"
+                                    value={ussro2UserId}
+                                    onChange={setUssro2UserId}
+                                />
+                                <div className="o2-debug-actions">
+                                    <Button size={Button.Sizes.SMALL} onClick={useMyIdForUssro2}>Use My ID</Button>
+                                </div>
+                                <TextInput
+                                    placeholder="Image or GIF URL"
+                                    value={ussro2Image}
+                                    onChange={setUssro2Image}
+                                />
+                                <div className="o2-debug-image-file-row">
+                                    <div className="o2-debug-image-file-preview o2-debug-image-file-preview-wide">
+                                        {ussro2Image ? <img src={ussro2Image} alt="" /> : <span>No image</span>}
+                                    </div>
+                                    <Button size={Button.Sizes.SMALL} onClick={chooseUssro2Image}>Choose GIF/Image</Button>
+                                </div>
+                                <div className="o2-debug-actions">
+                                    <Button onClick={saveUssro2Background}>{editingUssro2Id ? "Save Changes" : "Save"}</Button>
+                                    <Button color={Button.Colors.GREEN} onClick={() => copyUssro2PublicJson()}>Copy Public JSON</Button>
+                                    <Button color={Button.Colors.GREEN} onClick={() => downloadUssro2PublicJson()}>Download JSON</Button>
+                                    <Button color={Button.Colors.PRIMARY} onClick={resetUssro2Form}>Clear</Button>
+                                </div>
+                                {ussro2Status && (
+                                    <Forms.FormText className={Margins.top8}>{ussro2Status}</Forms.FormText>
+                                )}
+                            </div>
+                        </section>
+
+                        <section className="o2-debug-ussro2-preview-section">
+                            <Forms.FormTitle tag="h5">Preview</Forms.FormTitle>
+                            <div
+                                className="o2-debug-ussro2-preview"
+                                style={ussro2Image ? { backgroundImage: `url(${ussro2Image})` } : undefined}
+                            >
+                                <span>{ussro2Image ? "ussro2 preview" : "Choose an image or GIF"}</span>
                             </div>
                         </section>
                     </div>

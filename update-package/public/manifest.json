@@ -1,8 +1,8 @@
 {
-    "version":  "1.7.2",
-    "hash":  "public-20260821232606",
+    "version":  "1.7.3",
+    "hash":  "public-20260822073010",
     "author":  "o2cord",
-    "message":  "ussro2 voice tile backgrounds now painted as a stable overlay layer instead of patching Discord\u0027s fragile internal gradient component",
+    "message":  "ussro2 reverted to its original stable voice-tile patches; fixed enabledByDefault persistence and registry env var bugs",
     "notes":  [
                   "Public o2cord update package",
                   "ussro2 backgrounds are loaded from backgrounds.json beside this manifest",
