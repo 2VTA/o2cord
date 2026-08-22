@@ -622,6 +622,10 @@ export const Devs = /* #__PURE__*/ Object.freeze({
         id: 291089948709486593n,
         badge: false,
     },
+    Lunascape: {
+        name: "Lunascape",
+        id: 383365021415243776n
+    },
     thororen: {
         name: "thororen",
         id: 848339671629299742n
