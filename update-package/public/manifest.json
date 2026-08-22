@@ -1,8 +1,8 @@
 {
-    "version":  "1.7.3",
-    "hash":  "public-20260822073010",
+    "version":  "1.8.0",
+    "hash":  "public-20260822141711",
     "author":  "o2cord",
-    "message":  "ussro2 reverted to its original stable voice-tile patches; fixed enabledByDefault persistence and registry env var bugs",
+    "message":  "Add Translate and TenorGifSearch plugins, and a new Changelog tab in Settings (ported from Equicord)",
     "notes":  [
                   "Public o2cord update package",
                   "ussro2 backgrounds are loaded from backgrounds.json beside this manifest",

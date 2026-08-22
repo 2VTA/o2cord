@@ -17,8 +17,8 @@
 */
 
 import { definePluginSettings } from "@api/Settings";
-import { BackupRestoreIcon, MainSettingsIcon, PaintbrushIcon, PatchHelperIcon, PlaceholderIcon, PluginsIcon, UpdaterIcon, VesktopSettingsIcon } from "@components/Icons";
-import { BackupAndRestoreTab, DebugO2Tab, PatchHelperTab, PluginsTab, ThemesTab, UpdaterTab, VencordTab } from "@components/settings/tabs";
+import { BackupRestoreIcon, LogIcon, MainSettingsIcon, PaintbrushIcon, PatchHelperIcon, PlaceholderIcon, PluginsIcon, UpdaterIcon, VesktopSettingsIcon } from "@components/Icons";
+import { BackupAndRestoreTab, ChangelogTab, DebugO2Tab, PatchHelperTab, PluginsTab, ThemesTab, UpdaterTab, VencordTab } from "@components/settings/tabs";
 import { Devs } from "@utils/constants";
 import { isTruthy } from "@utils/guards";
 import { isDebugOwner } from "@utils/o2Debug";
@@ -195,6 +195,12 @@ export default definePlugin({
                 panelTitle: "o2cord Updater",
                 Component: UpdaterTab,
                 Icon: UpdaterIcon
+            }),
+            !IS_UPDATER_DISABLED && ChangelogTab && buildEntry({
+                key: "o2cord_changelog",
+                title: "Changelog",
+                Component: ChangelogTab,
+                Icon: LogIcon
             }),
             buildEntry({
                 key: "o2cord_backup_restore",
