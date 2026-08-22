@@ -626,6 +626,94 @@ export const Devs = /* #__PURE__*/ Object.freeze({
         name: "Lunascape",
         id: 383365021415243776n
     },
+    BachLe2000: {
+        name: "BachLe2000",
+        id: 624091967625625610n
+    },
+    Buzzy: {
+        name: "Buzzy",
+        id: 1273353654644117585n
+    },
+    Jahsohsani: {
+        name: "jahsohsani",
+        id: 806442568564604968n
+    },
+    Kiri: {
+        name: "Kiri",
+        id: 310525496771346434n
+    },
+    Nyro: {
+        name: "zeyno36",
+        id: 1325431712406179962n
+    },
+    Reycko: {
+        name: "Reycko",
+        id: 1123725368004726794n
+    },
+    Skully: {
+        name: "Skully",
+        id: 150298098516754432n
+    },
+    benjii: {
+        name: "Benjii",
+        id: 463702169443368970n
+    },
+    camila314: {
+        name: "camila314",
+        id: 738592270617542716n
+    },
+    creations: {
+        name: "creations",
+        id: 209830981060788225n
+    },
+    dat_insanity: {
+        name: "dat_insanity",
+        id: 0n
+    },
+    dhopcs: {
+        name: "dhopcs",
+        id: 206309860038410240n
+    },
+    dka: {
+        name: "DKA",
+        id: 119386840624005121n
+    },
+    justjxke: {
+        name: "justjxke",
+        id: 852558183087472640n
+    },
+    keircn: {
+        name: "Key",
+        id: 1230319937155760131n
+    },
+    mart: {
+        name: "mja00",
+        id: 108698087769260032n
+    },
+    mmeta: {
+        name: "mmeta",
+        id: 297075664530440192n
+    },
+    omaw: {
+        name: "omaw",
+        id: 1155026301791514655n
+    },
+    pandaptable: {
+        name: "pandaptable",
+        id: 97153209843335168n
+    },
+    qdnx: {
+        name: "qdnx",
+        id: 1374803023506702508n
+    },
+    veygax: {
+        name: "veygax",
+        id: 1119938236245094521n
+    },
+    yonn2222: {
+        name: "yonn2222",
+        id: 821835831844012103n
+    },
     thororen: {
         name: "thororen",
         id: 848339671629299742n

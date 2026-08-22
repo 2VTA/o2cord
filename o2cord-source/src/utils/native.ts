@@ -16,6 +16,13 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
+export function showItemInFolder(path: string) {
+    if (IS_DISCORD_DESKTOP)
+        window.DiscordNative.fileManager.showItemInFolder(path);
+    else
+        window.VesktopNative.fileManager.showItemInFolder(path);
+}
+
 export function relaunch() {
     if (IS_DISCORD_DESKTOP)
         window.DiscordNative.app.relaunch();
