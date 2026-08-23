@@ -134,7 +134,6 @@ mergeDefaults(settings, DefaultSettings);
 
 if (!IS_REPORTER) {
     settings.useQuickCss = true;
-    settings.enabledThemes = [];
     settings.frameless = false;
     settings.winNativeTitleBar = false;
     settings.transparent = false;
