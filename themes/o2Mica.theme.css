@@ -1,31 +1,55 @@
 /**
- * @name o2 Acrylic
- * @description True see-through acrylic for Discord. Pairs with Settings -> Windows Material -> Acrylic,
- *              which does the actual blur at the OS/window level (cheap, GPU-composited by Windows).
- *              This theme only sets transparent backgrounds so that blur shows through - it does NOT use
- *              backdrop-filter anywhere, so it stays smooth even with heavy blur/large windows.
+ * @name o2 Mica
+ * @description True see-through Mica/Acrylic for Discord. Pairs with Settings ->
+ *              Background Material, which does the actual blur at the OS/window
+ *              level (cheap, GPU-composited by Windows via DWM). This theme only
+ *              sets transparent backgrounds so that blur shows through - it does
+ *              NOT use backdrop-filter anywhere, so it stays smooth even with
+ *              heavy blur/large windows. Selectors match on class-name PREFIX
+ *              only ([class*="foo_"]) rather than the full hashed class name,
+ *              since Discord's build hashes change every update but the
+ *              semantic prefix stays stable - this is what keeps the theme from
+ *              breaking every time Discord ships.
  * @author ! Ryder
  * @version 1.0.0
  */
 
 :root {
-    /* Overall glass strength. 0 = fully see-through, 1 = solid. Meant to be
-       driven live by the o2Acrylic companion plugin's slider. */
+    /* Overall glass strength. 0 = fully see-through, 1 = solid. */
     --o2-glass-alpha: 0.28;
-    /* Base tint color (neutral dark). */
-    --o2-glass-rgb: 18, 20, 24;
-    /* Accent color. The plugin flips this between a color and a neutral
-       gray for the "colored / no color" toggle. */
-    --o2-accent: 88, 101, 242;
 
-    --o2-window: rgba(var(--o2-glass-rgb), calc(var(--o2-glass-alpha) * 0.75));
-    --o2-panel: rgba(var(--o2-glass-rgb), calc(var(--o2-glass-alpha) * 1.05));
-    --o2-panel-soft: rgba(var(--o2-glass-rgb), calc(var(--o2-glass-alpha) * 0.85));
-    --o2-panel-strong: rgba(var(--o2-glass-rgb), calc(var(--o2-glass-alpha) * 1.8));
-    --o2-popout: rgba(var(--o2-glass-rgb), calc(var(--o2-glass-alpha) * 2.4 + 0.1));
+    /* Dark mode tint + accent (default). */
+    --o2-dark-rgb: 18, 20, 24;
+    --o2-dark-accent: 88, 101, 242;
+
+    /* Light mode tint + accent. */
+    --o2-light-rgb: 246, 246, 248;
+    --o2-light-accent: 0, 120, 212;
+
     --o2-border: rgba(255, 255, 255, 0.08);
     --o2-hover: rgba(255, 255, 255, 0.075);
     --o2-selected: rgba(255, 255, 255, 0.12);
+}
+
+.theme-dark {
+    --o2-rgb: var(--o2-dark-rgb);
+    --o2-accent: var(--o2-dark-accent);
+}
+
+.theme-light {
+    --o2-rgb: var(--o2-light-rgb);
+    --o2-accent: var(--o2-light-accent);
+    --o2-border: rgba(0, 0, 0, 0.08);
+    --o2-hover: rgba(0, 0, 0, 0.045);
+    --o2-selected: rgba(0, 0, 0, 0.08);
+}
+
+:root {
+    --o2-window: rgba(var(--o2-rgb), calc(var(--o2-glass-alpha) * 0.75));
+    --o2-panel: rgba(var(--o2-rgb), calc(var(--o2-glass-alpha) * 1.05));
+    --o2-panel-soft: rgba(var(--o2-rgb), calc(var(--o2-glass-alpha) * 0.85));
+    --o2-panel-strong: rgba(var(--o2-rgb), calc(var(--o2-glass-alpha) * 1.8));
+    --o2-popout: rgba(var(--o2-rgb), calc(var(--o2-glass-alpha) * 2.4 + 0.1));
 
     --background-primary: var(--o2-window) !important;
     --background-secondary: var(--o2-panel-soft) !important;
@@ -40,15 +64,6 @@
     --input-background: var(--o2-panel-strong) !important;
     --modal-background: var(--o2-popout) !important;
     --modal-footer-background: var(--o2-panel) !important;
-
-    --text-normal: #f2f3f5 !important;
-    --text-muted: #b5bac1 !important;
-    --text-link: #9ecbff !important;
-    --header-primary: #ffffff !important;
-    --header-secondary: #c9cdd2 !important;
-    --interactive-normal: #dcdee1 !important;
-    --interactive-hover: #ffffff !important;
-    --interactive-active: #ffffff !important;
 
     --brand-500: rgb(var(--o2-accent)) !important;
     --brand-new: rgb(var(--o2-accent)) !important;
@@ -65,8 +80,19 @@
     --background-mentioned-hover: rgba(var(--o2-accent), 0.22) !important;
 }
 
+.theme-dark {
+    --text-normal: #f2f3f5 !important;
+    --text-muted: #b5bac1 !important;
+    --text-link: #9ecbff !important;
+    --header-primary: #ffffff !important;
+    --header-secondary: #c9cdd2 !important;
+    --interactive-normal: #dcdee1 !important;
+    --interactive-hover: #ffffff !important;
+    --interactive-active: #ffffff !important;
+}
+
 /* Strip Discord's own opaque app background so the OS-composited
-   Acrylic/Mica blur is what shows through, not a solid color. */
+   Mica/Acrylic blur is what shows through, not a solid color. */
 html,
 body,
 #app-mount,
@@ -162,7 +188,7 @@ body::after,
 
 [class*="message_"]:hover,
 [class*="messageListItem_"]:hover {
-    background-color: rgba(255, 255, 255, 0.045) !important;
+    background-color: var(--o2-hover) !important;
 }
 
 [class*="selected_"],
@@ -188,17 +214,21 @@ body::after,
     background-color: var(--o2-hover) !important;
 }
 
-button[class*="lookFilled_"][class*="colorBrand_"],
-[class*="button_"][class*="lookFilled_"][class*="colorBrand_"] {
+/* Filled brand buttons (Send, Save Changes, primary actions). */
+[class*="lookFilled_"][class*="colorBrand_"] {
     background: rgb(var(--o2-accent)) !important;
     background-color: rgb(var(--o2-accent)) !important;
     color: #ffffff !important;
 }
 
-button[class*="lookFilled_"][class*="colorBrand_"]:hover,
-[class*="button_"][class*="lookFilled_"][class*="colorBrand_"]:hover {
+[class*="lookFilled_"][class*="colorBrand_"]:hover {
     background: rgba(var(--o2-accent), 0.85) !important;
     background-color: rgba(var(--o2-accent), 0.85) !important;
+}
+
+/* Toggle switches (Settings) tinted with the accent color when on. */
+[class*="checked_"] {
+    background-color: rgb(var(--o2-accent)) !important;
 }
 
 [class*="modal_"],
