@@ -12,8 +12,9 @@ import { release } from "os";
 // builds/setups, so this calls DWM directly - the same technique tools like
 // MicaForEveryone use - as a stronger, more direct enforcement of it.
 const MIN_BUILD_FOR_BACKDROP = 22621;
-const DWMWA_SYSTEMBACKDROP_TYPE = 38;
 const DWMWA_USE_IMMERSIVE_DARK_MODE = 20;
+const DWMWA_WINDOW_CORNER_PREFERENCE = 33;
+const DWMWA_SYSTEMBACKDROP_TYPE = 38;
 
 const BACKDROP_TYPES: Record<string, number> = {
     none: 1, // DWMSBT_NONE
@@ -21,6 +22,11 @@ const BACKDROP_TYPES: Record<string, number> = {
     acrylic: 3, // DWMSBT_TRANSIENTWINDOW
     tabbed: 4 // DWMSBT_TABBEDWINDOW
 };
+
+// DWMWCP_ROUND - matches the rounded corners every other Mica/Acrylic
+// Windows 11 app has (MicaForEveryone included); without this the window
+// keeps its sharp default corners and looks out of place next to the blur.
+const DWMWCP_ROUND = 2;
 
 let dwmSetWindowAttribute: ((handle: Buffer, attr: number, value: number[], size: number) => number) | null | undefined;
 
@@ -63,6 +69,7 @@ export function applyNativeBackdrop(win: BrowserWindow, material: string) {
         const handle = win.getNativeWindowHandle();
         setAttribute(handle, DWMWA_SYSTEMBACKDROP_TYPE, [backdropType], 4);
         setAttribute(handle, DWMWA_USE_IMMERSIVE_DARK_MODE, [1], 4);
+        setAttribute(handle, DWMWA_WINDOW_CORNER_PREFERENCE, [DWMWCP_ROUND], 4);
     } catch {
         // Swallow - see doc comment above.
     }

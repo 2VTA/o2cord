@@ -1,8 +1,8 @@
 {
-    "version":  "1.9.0",
-    "hash":  "public-20260822144837",
+    "version":  "1.9.1",
+    "hash":  "public-20260823035719",
     "author":  "o2cord",
-    "message":  "Add 23 more plugins and Badge/Notice UI components (ported from Equicord): FindReply, DownloadAllAttachments, JumpTo, CommandPalette, SilenceUsers, ToastNotifications, VoiceRejoin, SteamStatusSync, RecentDMSwitcher, MicLoopbackTester, DisableCameras, UniversalMention, SplitLargeMessages, CustomStatusTimeouts, InstantScreenshare, ScheduledMessages, VoiceMessageTranscriber, ExportMessages, ClickableRoles, ContentWarning, Timezones, StatusPresets, BetterBanReasons",
+    "message":  "Remove broken o2Acrylic settings plugin; round window corners to match Mica/Acrylic backdrop (MicaForEveryone-style)",
     "notes":  [
                   "Public o2cord update package",
                   "ussro2 backgrounds are loaded from backgrounds.json beside this manifest",
