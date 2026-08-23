@@ -147,15 +147,42 @@ html.o2-profile-theme-active [data-o2-profile-theme-target="true"] {
     --theme-text-color-amount: unset !important;
     position: relative !important;
     isolation: isolate;
-    overflow: hidden !important;
+    /*
+     * Discord's own popout card is overflow:hidden by default when a custom
+     * profile theme background is active - that's fine for a plain card, but
+     * an equipped Profile Frame collectible renders bezel pieces that
+     * deliberately extend past the card's own edges for a 3D/wraparound
+     * effect. Leaving overflow hidden here clips those pieces off entirely,
+     * making an otherwise-visible frame disappear as soon as this plugin's
+     * background is applied to the card. This plugin's own background image
+     * is separately self-clipped via [data-o2-profile-theme-layer], so
+     * opening this up doesn't let it spill outside the rounded corners.
+     */
+    overflow: visible !important;
     background:
         linear-gradient(180deg, rgba(0, 0, 0, 0.08), rgba(0, 0, 0, 0.62)),
         var(--background-secondary-alt) !important;
     background-color: var(--background-secondary-alt) !important;
 }
 
+/*
+ * Discord also wraps the card's content in its own "inner" div which
+ * independently defaults to overflow:hidden - same clipping problem as
+ * above, just one level deeper. Scoped to a direct child of our target only.
+ */
+html.o2-profile-theme-active .o2-profile-theme-target > [class*="inner_"],
+html.o2-profile-theme-active [data-o2-profile-theme-target="true"] > [class*="inner_"] {
+    overflow: visible !important;
+}
+
 html.o2-profile-theme-active [data-o2-profile-theme-kind="popout"] {
-    --o2-profile-theme-background-position: center;
+    /*
+     * Slightly biased toward the top of the source image (instead of dead
+     * center) - the background covers the full popout height rather than
+     * just a short banner strip, so a plain center crop tends to push the
+     * subject uncomfortably close to the card's top edge.
+     */
+    --o2-profile-theme-background-position: center 15%;
     --o2-profile-theme-background-size: cover;
 }
 
@@ -169,6 +196,16 @@ html.o2-profile-theme-active [data-o2-profile-theme-layer="true"] {
     inset: 0 !important;
     z-index: 0 !important;
     pointer-events: none !important;
+    /*
+     * overflow/border-radius are scoped to this layer alone, not the whole
+     * card - equipped profile frames (Collectibles) render pieces that
+     * deliberately extend past the card's own edges for a 3D/wraparound
+     * effect. Clipping the whole card (previous behaviour) cut those pieces
+     * off entirely, making an otherwise-visible frame disappear as soon as
+     * this plugin's background layer was added.
+     */
+    overflow: hidden;
+    border-radius: inherit;
     /*
      * A fixed dark scrim is baked into the same background-image stack as the
      * user's picture (not a separate opacity-scaled element) so the name,

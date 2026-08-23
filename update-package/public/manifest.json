@@ -1,18 +1,18 @@
 {
-    "version":  "1.9.6",
-    "hash":  "public-20260824001842",
-    "author":  "o2cord",
-    "message":  "Fix video nameplates showing cropped (object-fit: cover -\u003e contain, shows the full video)",
-    "notes":  [
-                  "Public o2cord update package",
-                  "ussro2 backgrounds are loaded from backgrounds.json beside this manifest",
-                  "ProfileTheme images are loaded from profile-themes.json beside this manifest",
-                  "o2cord shared badges are loaded from badges.json beside this manifest"
-              ],
-    "files":  {
-                  "patcher.js":  "https://raw.githubusercontent.com/2VTA/o2cord/main/update-package/public/files/patcher.js",
-                  "preload.js":  "https://raw.githubusercontent.com/2VTA/o2cord/main/update-package/public/files/preload.js",
-                  "renderer.js":  "https://raw.githubusercontent.com/2VTA/o2cord/main/update-package/public/files/renderer.js",
-                  "renderer.css":  "https://raw.githubusercontent.com/2VTA/o2cord/main/update-package/public/files/renderer.css"
-              }
+  "version": "1.9.7",
+  "hash": "public-20260824025441",
+  "author": "o2cord",
+  "message": "fix profile frame disappearing and custom image being hidden behind Discord's own card wrapper",
+  "notes": [
+    "Public o2cord update package",
+    "ussro2 backgrounds are loaded from backgrounds.json beside this manifest",
+    "ProfileTheme images are loaded from profile-themes.json beside this manifest",
+    "o2cord shared badges are loaded from badges.json beside this manifest"
+  ],
+  "files": {
+    "patcher.js": "https://raw.githubusercontent.com/2VTA/o2cord/main/update-package/public/files/patcher.js",
+    "preload.js": "https://raw.githubusercontent.com/2VTA/o2cord/main/update-package/public/files/preload.js",
+    "renderer.js": "https://raw.githubusercontent.com/2VTA/o2cord/main/update-package/public/files/renderer.js",
+    "renderer.css": "https://raw.githubusercontent.com/2VTA/o2cord/main/update-package/public/files/renderer.css"
+  }
 }

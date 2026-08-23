@@ -634,17 +634,30 @@ function isCurrentUserProfileShell(element: HTMLElement) {
 }
 
 function ensureImageLayer(element: HTMLElement) {
-    const existingLayer = Array
-        .from(element.children)
-        .find(child => child instanceof HTMLElement && child.hasAttribute(IMAGE_LAYER_ATTR));
-
-    if (existingLayer) return;
+    if (element.querySelector(`[${IMAGE_LAYER_ATTR}]`)) return;
 
     const layer = document.createElement("div");
     layer.className = "o2-profile-theme-image-layer";
     layer.setAttribute(IMAGE_LAYER_ATTR, "true");
     layer.setAttribute("aria-hidden", "true");
-    element.prepend(layer);
+
+    /*
+     * Discord's own content wrapper inside the card (e.g. "inner_xxxxxx")
+     * is a positioned element with z-index:1, which establishes its own
+     * stacking context. Placed as a sibling of that wrapper, this layer
+     * (z-index:0) would sit entirely behind it and never be visible, no
+     * matter how transparent the wrapper's own background is - stacking
+     * order between sibling stacking contexts is all-or-nothing, it isn't
+     * per-pixel. Prepending into the wrapper instead makes the layer the
+     * first child there, so it paints behind the wrapper's real content
+     * (avatar, banner, name, badges) in normal DOM order, but still shows
+     * through wherever that content doesn't cover it.
+     */
+    const contentWrapper = Array
+        .from(element.children)
+        .find(child => child instanceof HTMLElement) as HTMLElement | undefined;
+
+    (contentWrapper ?? element).prepend(layer);
 }
 
 function getProfileThemeKind(element: HTMLElement): ProfileThemeKind {
