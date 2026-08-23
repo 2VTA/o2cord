@@ -21,7 +21,6 @@ function applyO2GlassDefaults(settings: Partial<Settings>) {
     settings.frameless = false;
     settings.winNativeTitleBar = false;
     settings.transparent = false;
-    settings.windowsMaterial = "none";
 }
 
 function readSettings<T = object>(name: string, file: string): Partial<T> {
