@@ -626,6 +626,10 @@ export const Devs = /* #__PURE__*/ Object.freeze({
         name: "Lunascape",
         id: 383365021415243776n
     },
+    ThaUnknown: {
+        name: "ThaUnknown_",
+        id: 252390917665718273n
+    },
     BachLe2000: {
         name: "BachLe2000",
         id: 624091967625625610n
