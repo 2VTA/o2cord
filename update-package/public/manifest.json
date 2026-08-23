@@ -1,8 +1,8 @@
 {
-    "version":  "1.9.2",
-    "hash":  "public-20260823043458",
+    "version":  "1.9.3",
+    "hash":  "public-20260823230330",
     "author":  "o2cord",
-    "message":  "Fix windowsMaterial being force-reset to none on every startup, so the acrylic blur setting actually sticks",
+    "message":  "Fix a second windowsMaterial override in the renderer settings that was still resetting it to none after the 1.9.2 fix",
     "notes":  [
                   "Public o2cord update package",
                   "ussro2 backgrounds are loaded from backgrounds.json beside this manifest",

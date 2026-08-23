@@ -138,7 +138,6 @@ if (!IS_REPORTER) {
     settings.frameless = false;
     settings.winNativeTitleBar = false;
     settings.transparent = false;
-    settings.windowsMaterial = "none";
 }
 
 export const SettingsStore = new SettingsStoreClass(settings, {
