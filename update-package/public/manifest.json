@@ -1,8 +1,8 @@
 {
-    "version":  "1.9.5",
-    "hash":  "public-20260823232852",
+    "version":  "1.9.6",
+    "hash":  "public-20260824001842",
     "author":  "o2cord",
-    "message":  "Fix the Themes tab actually working - enabledThemes was also being force-reset on every launch, same bug class as the windowsMaterial fix",
+    "message":  "Fix video nameplates showing cropped (object-fit: cover -\u003e contain, shows the full video)",
     "notes":  [
                   "Public o2cord update package",
                   "ussro2 backgrounds are loaded from backgrounds.json beside this manifest",
