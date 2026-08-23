@@ -1,8 +1,8 @@
 {
-    "version":  "1.9.1",
-    "hash":  "public-20260823035719",
+    "version":  "1.9.2",
+    "hash":  "public-20260823043458",
     "author":  "o2cord",
-    "message":  "Remove broken o2Acrylic settings plugin; round window corners to match Mica/Acrylic backdrop (MicaForEveryone-style)",
+    "message":  "Fix windowsMaterial being force-reset to none on every startup, so the acrylic blur setting actually sticks",
     "notes":  [
                   "Public o2cord update package",
                   "ussro2 backgrounds are loaded from backgrounds.json beside this manifest",
