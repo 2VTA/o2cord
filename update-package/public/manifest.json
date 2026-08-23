@@ -1,8 +1,8 @@
 {
-    "version":  "1.9.3",
-    "hash":  "public-20260823230330",
+    "version":  "1.9.4",
+    "hash":  "public-20260823231811",
     "author":  "o2cord",
-    "message":  "Fix a second windowsMaterial override in the renderer settings that was still resetting it to none after the 1.9.2 fix",
+    "message":  "Add WebPWA plugin: notification badge counts, global keybinds, and PWA installability (ported from Vencord)",
     "notes":  [
                   "Public o2cord update package",
                   "ussro2 backgrounds are loaded from backgrounds.json beside this manifest",
