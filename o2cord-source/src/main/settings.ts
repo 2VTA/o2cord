@@ -17,7 +17,6 @@ mkdirSync(SETTINGS_DIR, { recursive: true });
 
 function applyO2GlassDefaults(settings: Partial<Settings>) {
     settings.useQuickCss = true;
-    settings.enabledThemes = [];
     settings.frameless = false;
     settings.winNativeTitleBar = false;
     settings.transparent = false;

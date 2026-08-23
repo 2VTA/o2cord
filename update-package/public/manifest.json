@@ -1,8 +1,8 @@
 {
-    "version":  "1.9.4",
-    "hash":  "public-20260823231811",
+    "version":  "1.9.5",
+    "hash":  "public-20260823232852",
     "author":  "o2cord",
-    "message":  "Add WebPWA plugin: notification badge counts, global keybinds, and PWA installability (ported from Vencord)",
+    "message":  "Fix the Themes tab actually working - enabledThemes was also being force-reset on every launch, same bug class as the windowsMaterial fix",
     "notes":  [
                   "Public o2cord update package",
                   "ussro2 backgrounds are loaded from backgrounds.json beside this manifest",
