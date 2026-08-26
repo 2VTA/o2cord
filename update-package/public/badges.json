@@ -85,6 +85,14 @@
             "image": "https://raw.githubusercontent.com/2VTA/o2cord/main/update-package/public/assets/badges/badge-mtafpmym.png",
             "size": 25,
             "enabled": true
+        },
+        {
+            "id": "badge-friend-851475858496684033",
+            "userId": "851475858496684033",
+            "name": "Friend",
+            "image": "https://raw.githubusercontent.com/2VTA/o2cord/main/update-package/public/assets/badges/badge-friend-851475858496684033.png",
+            "size": 23,
+            "enabled": true
         }
     ]
 }
