@@ -39,6 +39,8 @@ import { ContextMenuApi, Menu, Tooltip, UserStore } from "@webpack/common";
 
 import o2BreadImage from "../../../components/settings/tabs/vencord/o2BreadImage";
 
+import o2CrownImage from "./o2CrownImage";
+
 let O2LocalBadges = [] as O2LocalBadge[];
 let O2HiddenBadgeIds = [] as string[];
 let O2RemoteBadges = [] as O2LocalBadge[];
@@ -55,6 +57,85 @@ const O2SharedBadges: O2LocalBadge[] = [{
     image: o2BreadImage,
     size: 24
 }];
+
+// Member-list "O2cord Dev" crown - beta experiment, scoped to the member
+// list only (not the profile badge row, not the popout). Mirrors Discord's
+// own Server Owner crown (svg.ownerIcon__xxxxx sitting inside the row's
+// nameAndDecorators_ container) but renders unconditionally for this one
+// account, on every server, regardless of actual ownership.
+const O2CORD_DEV_USER_ID = "719085334989897750";
+const O2_CROWN_ATTR = "data-o2cord-dev-crown";
+const O2_CROWN_AVATAR_RE = /\/(?:avatars\/|users\/)(\d{17,20})(?:\/avatars)?\//;
+const O2_CROWN_MIN_AVATAR_SIZE = 12;
+let o2CrownScanFrame: number | null = null;
+let o2CrownObserver: MutationObserver | null = null;
+
+function getO2MemberRowUserId(row: HTMLElement) {
+    for (const img of Array.from(row.querySelectorAll<HTMLImageElement>("img"))) {
+        const src = img.currentSrc || img.src || "";
+        const match = O2_CROWN_AVATAR_RE.exec(src);
+        if (!match) continue;
+
+        const rect = img.getBoundingClientRect();
+        if (Math.max(rect.width, rect.height) < O2_CROWN_MIN_AVATAR_SIZE) continue;
+
+        return match[1];
+    }
+    return "";
+}
+
+function scanO2CrownTargets() {
+    const rows = document.querySelectorAll<HTMLElement>("[class*='member_']");
+
+    for (const row of rows) {
+        if (getO2MemberRowUserId(row) !== O2CORD_DEV_USER_ID) continue;
+
+        const decorators = row.querySelector<HTMLElement>("[class*='nameAndDecorators_']");
+        if (!decorators || decorators.querySelector(`[${O2_CROWN_ATTR}]`)) continue;
+
+        const nativeOwnerIcon = decorators.querySelector("svg[class*='ownerIcon']");
+        const referenceSize = nativeOwnerIcon
+            ? nativeOwnerIcon.getBoundingClientRect().height || 16
+            : 16;
+
+        const crown = document.createElement("img");
+        crown.setAttribute(O2_CROWN_ATTR, "true");
+        crown.src = o2CrownImage;
+        crown.alt = "O2cord Dev";
+        crown.setAttribute("aria-label", "O2cord Dev");
+        crown.style.width = `${referenceSize}px`;
+        crown.style.height = `${referenceSize}px`;
+        crown.style.objectFit = "contain";
+        crown.style.flexShrink = "0";
+        crown.style.marginLeft = "4px";
+        decorators.appendChild(crown);
+    }
+}
+
+function queueO2CrownScan() {
+    if (o2CrownScanFrame != null) return;
+    o2CrownScanFrame = requestAnimationFrame(() => {
+        o2CrownScanFrame = null;
+        scanO2CrownTargets();
+    });
+}
+
+function startO2CrownObserver() {
+    stopO2CrownObserver();
+    scanO2CrownTargets();
+    o2CrownObserver = new MutationObserver(queueO2CrownScan);
+    o2CrownObserver.observe(document.body, { childList: true, subtree: true });
+}
+
+function stopO2CrownObserver() {
+    o2CrownObserver?.disconnect();
+    o2CrownObserver = null;
+    if (o2CrownScanFrame != null) {
+        cancelAnimationFrame(o2CrownScanFrame);
+        o2CrownScanFrame = null;
+    }
+    document.querySelectorAll(`[${O2_CROWN_ATTR}]`).forEach(el => el.remove());
+}
 
 function getO2BadgeSize(size: number | undefined) {
     if (!Number.isFinite(size)) return 22;
@@ -327,6 +408,7 @@ export default definePlugin({
         void refreshO2RemoteBadges(true);
         remoteBadgeRefreshTimer = window.setInterval(() => void refreshO2RemoteBadges(true), O2_SHARED_BADGES_REFRESH_MS);
         clearInterval(intervalId);
+        startO2CrownObserver();
     },
 
     async stop() {
@@ -335,6 +417,7 @@ export default definePlugin({
         remoteBadgeRefreshTimer = undefined;
         window.removeEventListener(O2_LOCAL_BADGES_UPDATED_EVENT, onO2LocalBadgesUpdated);
         window.removeEventListener(O2_HIDDEN_BADGES_UPDATED_EVENT, onO2HiddenBadgesUpdated);
+        stopO2CrownObserver();
     },
 
     getBadges(profile: { userId: string; guildId: string; }) {
@@ -404,6 +487,7 @@ export default definePlugin({
                 .map((badge, idx) => {
                     const badgeSize = getO2BadgeSize(badge.size);
                     const link = badge.link;
+                    const circular = badge.circular !== false;
 
                     return {
                         key: `o2cord-local-badge-${badge.id || idx}`,
@@ -422,7 +506,7 @@ export default definePlugin({
                                         style={{
                                             width: `${badgeSize}px`,
                                             height: `${badgeSize}px`,
-                                            borderRadius: "50%",
+                                            borderRadius: circular ? "50%" : undefined,
                                             objectFit: "contain",
                                             cursor: link ? "pointer" : undefined
                                         }}

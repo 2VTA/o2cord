@@ -403,7 +403,7 @@ function DebugO2Tab() {
 
         const json = JSON.stringify(getPublicBadgePayload(nextBadge), null, 2);
         saveFile(new File([json], `o2cord-badge-${nextBadge.userId}.txt`, { type: "text/plain" }));
-        setSaveStatus(`Saved to your Downloads folder. Attach it with: -badge`);
+        setSaveStatus("Saved to your Downloads folder. Attach it to /add-badge in Discord.");
     }
 
     function resetNameplateForm() {

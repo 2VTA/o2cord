@@ -494,20 +494,29 @@
     cursor: grabbing;
 }
 
-.cp-edit-image-crop {
+.cp-edit-image-crop-wrap {
     position: relative;
     width: 330px;
     height: 330px;
+}
+
+.cp-edit-image-crop {
+    position: absolute;
+    inset: 0;
     overflow: hidden;
     background: #8a8d91;
 }
 
-.cp-edit-image-crop--circle::after {
-    content: "";
+.cp-edit-image-crop--circle {
+    border-radius: 50%;
+}
+
+.cp-edit-image-mask {
     position: absolute;
     inset: 0;
-    border: 8px solid #fff;
     border-radius: 50%;
+    border: 3px solid rgba(255, 255, 255, 0.9);
+    box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.55);
     pointer-events: none;
     box-sizing: border-box;
 }
@@ -547,16 +556,10 @@
     border-radius: 6px;
     background: transparent;
     color: #b5bac1;
-    font-size: 16px;
-    font-weight: 700;
 }
 
 .cp-edit-image-side-icon {
     pointer-events: none;
-}
-
-.cp-edit-image-side-icon--large {
-    font-size: 22px;
 }
 
 .cp-edit-image-rotate {
@@ -580,6 +583,68 @@
 
 .cp-edit-image-footer-spacer {
     flex: 1;
+}
+
+/* ── Picker summary button (opens a PickerModal instead of an inline grid) ── */
+.cp-picker-summary-btn {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    padding: 8px 10px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.03);
+    color: var(--text-normal);
+    text-align: left;
+    cursor: pointer;
+}
+
+.cp-picker-summary-btn:hover {
+    background: rgba(255, 255, 255, 0.06);
+}
+
+.cp-picker-summary-thumb {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    flex-shrink: 0;
+    border-radius: 6px;
+    overflow: hidden;
+    background: rgba(255, 255, 255, 0.06);
+}
+
+.cp-picker-summary-thumb img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+}
+
+.cp-picker-summary-none {
+    width: 100%;
+    height: 100%;
+}
+
+.cp-picker-summary-label {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 14px;
+}
+
+.cp-picker-summary-choose {
+    flex-shrink: 0;
+    font-size: 12px;
+    font-weight: 600;
+    color: #5865f2;
+}
+
+.cp-picker-modal-content {
+    padding: 16px 20px 20px !important;
 }
 
 .cp-profile-effects-grid {

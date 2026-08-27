@@ -56,9 +56,9 @@
 
 .o2-profile-theme-preview {
     position: relative;
-    width: var(--o2-profile-theme-card-width, 320px);
+    width: var(--o2-profile-theme-card-width, 300px);
     max-width: 100%;
-    aspect-ratio: 320 / 580;
+    aspect-ratio: 300 / 465.82;
     overflow: hidden;
     border: 1px solid var(--background-modifier-accent);
     border-radius: 10px;
@@ -117,11 +117,11 @@ html.o2-profile-theme-active [data-o2-profile-theme-target="true"] {
     --o2-profile-theme-popout-max-width: 340px;
     --o2-profile-theme-full-min-width: 600px;
     --o2-profile-theme-full-max-width: 800px;
-    --o2-profile-theme-card-width: 320px;
-    --o2-profile-theme-card-height: 580px;
-    --o2-profile-theme-card-ratio: 320 / 580;
-    --o2-profile-theme-banner-width: 320px;
-    --o2-profile-theme-banner-height: 120px;
+    --o2-profile-theme-card-width: 300px;
+    --o2-profile-theme-card-height: 465.82px;
+    --o2-profile-theme-card-ratio: 300 / 465.82;
+    --o2-profile-theme-banner-width: 300px;
+    --o2-profile-theme-banner-height: 105px;
     --o2-profile-theme-background-position: center;
     --o2-profile-theme-background-size: cover;
     --profile-gradient-primary-color: transparent !important;
@@ -191,6 +191,22 @@ html.o2-profile-theme-active [data-o2-profile-theme-kind="full"] {
     --o2-profile-theme-background-size: cover;
 }
 
+/*
+ * Card height isn't fixed - a member with a lot of role badges can push it
+ * far past a normal profile's height (observed range: as short as ~466px up
+ * to 3000px+ at a 300px-wide card). cover fills BOTH dimensions, which at
+ * these extreme height:width ratios means an absurd zoom that crops almost
+ * the whole image down to a sliver - so only cards actually pushed past
+ * TALL_CARD_HEIGHT_PX (markProfileTargets, index.tsx) switch to sizing by
+ * width and pinning to the top instead, with the scrim/solid background
+ * showing through below the image. Normal-height cards keep the plain
+ * cover behavour above so they still fill the card same as before.
+ */
+html.o2-profile-theme-active [data-o2-profile-theme-tall="true"] {
+    --o2-profile-theme-background-position: top !important;
+    --o2-profile-theme-background-size: 100% auto !important;
+}
+
 html.o2-profile-theme-active [data-o2-profile-theme-layer="true"] {
     position: absolute !important;
     inset: 0 !important;
@@ -213,7 +229,7 @@ html.o2-profile-theme-active [data-o2-profile-theme-layer="true"] {
      * readable no matter how bright or busy the chosen image is.
      */
     background-image:
-        linear-gradient(180deg, rgba(0, 0, 0, 0.58) 0%, rgba(0, 0, 0, 0.2) 28%, rgba(0, 0, 0, 0.2) 62%, rgba(0, 0, 0, 0.68) 100%),
+        linear-gradient(180deg, rgba(0, 0, 0, 0.5) 0%, rgba(0, 0, 0, 0.15) 28%, rgba(0, 0, 0, 0.15) 62%, rgba(0, 0, 0, 0.45) 100%),
         var(--o2-profile-theme-image) !important;
     background-position: center, var(--o2-profile-theme-background-position, center) !important;
     background-repeat: no-repeat, no-repeat !important;
