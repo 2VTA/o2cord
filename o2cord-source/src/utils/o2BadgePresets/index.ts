@@ -24,6 +24,11 @@ export interface O2LocalBadge {
     // Lets a badge be hidden without losing its saved config; treated as
     // shown when omitted so existing saved/published badges keep working.
     enabled?: boolean;
+    // o2cord badges default to a circular crop (matching the "bread" badge's
+    // look). Some icons - like a crown shaped like Discord's own native
+    // Server Owner badge - are meant to be shown whole instead, so this
+    // opts a specific badge out of the circular treatment.
+    circular?: boolean;
 }
 
 export interface O2PresetBadge {

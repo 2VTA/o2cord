@@ -13,11 +13,13 @@ import { DataStore } from "@api/index";
 import { Devs } from "@utils/constants";
 import { ModalCloseButton, ModalContent, ModalFooter, ModalHeader, ModalRoot, openModal } from "@utils/modal";
 import definePlugin from "@utils/types";
-import { AuthenticationStore, Button, FluxDispatcher, IconUtils, Menu, React, Select, SnowflakeUtils, UserStore } from "@webpack/common";
+import { AuthenticationStore, Button, FluxDispatcher, IconUtils, Menu, React, Select, showToast, SnowflakeUtils, UserStore } from "@webpack/common";
 import { Settings } from "@api/Settings";
+import { fetchWithGithubFallback } from "@utils/githubFallbackFetch";
 import virtualMerge from "virtual-merge";
 
 import { PROFILE_EFFECTS, CustomProfileEffect } from "./profileEffects";
+import { PROFILE_FRAMES, CustomProfileFrame } from "./profileFrames";
 
 const t = (text: string) => text;
 
@@ -136,7 +138,9 @@ interface CustomProfileData {
     oldName?: string;
     decorationAsset?: string;
     profileEffectId?: string;
+    profileFrameId?: string;
     copiedUserId?: string;
+    publishOnSave?: boolean;
 }
 
 function clampColorChannel(value: number) {
@@ -199,6 +203,39 @@ function applyProfileEffectPatch(target: any, profileEffectId?: string) {
     target.collectibles = [
         normalized,
         ...((Array.isArray(target.collectibles) ? target.collectibles : []).filter((item: any) => item?.id !== normalized.id && item?.skuId !== normalized.skuId))
+    ];
+}
+
+function findProfileFrame(skuId?: string) {
+    if (!skuId) return undefined;
+    return PROFILE_FRAMES.find(frame => frame.skuId === skuId);
+}
+
+// Discord's own profile-frame renderer reads a bare {skuId, type:3} off the
+// profile object and resolves every layer's actual image purely from
+// skuId + layer.id (https://cdn.discordapp.com/media/v1/collectibles-shop/
+// {skuId}/{layer.id}/static) - unlike profile effects, no explicit asset
+// URLs are needed here, just the same layer/overflow descriptor real
+// Discord frames carry (captured live from the "Change Profile Frame"
+// shop picker).
+function applyProfileFramePatch(target: any, profileFrameId?: string) {
+    const frame = findProfileFrame(profileFrameId);
+    if (!frame) return;
+
+    const frameData = {
+        skuId: frame.skuId,
+        label: frame.label,
+        layers: frame.layers,
+        innerWidth: frame.innerWidth,
+        overflowTop: frame.overflowTop,
+        overflowBottom: frame.overflowBottom,
+        overflowHorizontal: frame.overflowHorizontal,
+        type: frame.type
+    };
+    target.profileFrame = frameData;
+    target.collectibles = [
+        { skuId: frame.skuId, type: frame.type },
+        ...((Array.isArray(target.collectibles) ? target.collectibles : []).filter((item: any) => item?.skuId !== frame.skuId))
     ];
 }
 
@@ -290,8 +327,54 @@ let domObserver: MutationObserver | null = null;
 const publicProfilesCache = new Map<string, { fetched: boolean, data: CustomProfileData | null, timestamp: number }>();
 const PUBLIC_CACHE_TTL = 1000 * 30; // 30 seconds — fast enough to see updates without hammering the API
 
-async function getPublicCustomProfile(_userId: string): Promise<CustomProfileData | null> {
-    return null;
+// {userId: CustomProfileData} registry published via callie's /publish-profile
+// command. One shared JSON file, same pattern as profile-themes.json / badges.json.
+let remoteCustomProfiles: Record<string, CustomProfileData> = {};
+let lastCustomProfileRegistryRefresh = 0;
+let customProfileRegistryPromise: Promise<void> | null = null;
+const CUSTOM_PROFILE_REGISTRY_REFRESH_MS = 1000 * 30;
+
+function getCustomProfileRegistryUrl() {
+    const manifestUrl = typeof O2CORD_UPDATE_MANIFEST === "string" ? O2CORD_UPDATE_MANIFEST.trim() : "";
+    if (!manifestUrl) return "";
+
+    try {
+        return new URL("custom-profiles.json", manifestUrl).href;
+    } catch {
+        return "";
+    }
+}
+
+function refreshCustomProfileRegistry(force = false) {
+    const registryUrl = getCustomProfileRegistryUrl();
+    if (!registryUrl) return Promise.resolve();
+
+    const now = Date.now();
+    if (!force && now - lastCustomProfileRegistryRefresh < CUSTOM_PROFILE_REGISTRY_REFRESH_MS) return Promise.resolve();
+    if (customProfileRegistryPromise) return customProfileRegistryPromise;
+
+    customProfileRegistryPromise = fetchWithGithubFallback(`${registryUrl}${registryUrl.includes("?") ? "&" : "?"}t=${now}`, {
+        cache: "no-store"
+    })
+        .then(async res => {
+            if (!res.ok) throw new Error(`o2cord custom-profiles registry returned ${res.status}`);
+            const raw = await res.json();
+            remoteCustomProfiles = raw && typeof raw === "object" && !Array.isArray(raw) ? raw : {};
+            lastCustomProfileRegistryRefresh = Date.now();
+        })
+        .catch(() => {
+            lastCustomProfileRegistryRefresh = Date.now();
+        })
+        .finally(() => {
+            customProfileRegistryPromise = null;
+        });
+
+    return customProfileRegistryPromise;
+}
+
+async function getPublicCustomProfile(userId: string): Promise<CustomProfileData | null> {
+    await refreshCustomProfileRegistry();
+    return remoteCustomProfiles[userId] ?? null;
 }
 
 // Watch for seeAllCustomProfile being toggled off — flush the cache immediately
@@ -315,13 +398,8 @@ async function fetchPublicProfileIfNeeded(userId: string) {
 
     const dataToSave = await getPublicCustomProfile(userId);
     if (dataToSave) {
-        delete dataToSave.username;
-        delete dataToSave.globalName;
-        delete dataToSave.avatar;
-        delete dataToSave.bio;
-        delete dataToSave.pronouns;
-        delete dataToSave.email;
-        delete dataToSave.phone;
+        // copiedUserId is bookkeeping for the local "import from" dropdown,
+        // not a visual field the user picked — never publish/apply it for others.
         delete dataToSave.copiedUserId;
     }
     publicProfilesCache.set(userId, { fetched: true, data: dataToSave, timestamp: Date.now() });
@@ -530,6 +608,7 @@ async function copyUserProfile(userId: string) {
             boostMonths: -1,
             decorationAsset: undefined,
             profileEffectId: undefined,
+            profileFrameId: undefined,
             createdAt: undefined,
             copiedUserId: userId
         };
@@ -604,6 +683,8 @@ async function copyUserProfile(userId: string) {
             if (user.avatarDecorationData?.asset) newData.decorationAsset = user.avatarDecorationData.asset;
             const copiedEffect = findProfileEffect(profile.profileEffectId ?? profile.profileEffect?.id ?? profile.profileEffect?.skuId);
             if (copiedEffect) newData.profileEffectId = copiedEffect.id;
+            const copiedFrame = findProfileFrame(profile.profileFrame?.skuId);
+            if (copiedFrame) newData.profileFrameId = copiedFrame.skuId;
         } catch { }
 
         newData.copiedUserId = userId;
@@ -833,6 +914,16 @@ function TrashIcon() {
 function SaveIcon() {
     return <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M17 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V7l-4-4Zm-5 16a3 3 0 1 1 0-6 3 3 0 0 1 0 6Zm3-10H5V5h10v4Z" /></svg>;
 }
+function ImageSizeIcon({ size = 14 }: { size?: number; }) {
+    return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <rect x="3" y="3" width="18" height="18" rx="2" /><circle cx="9" cy="9" r="1.5" fill="currentColor" stroke="none" /><path d="m21 15-4.5-4.5a1.5 1.5 0 0 0-2.1 0L3 21" />
+    </svg>;
+}
+function RotateIcon({ size = 16 }: { size?: number; }) {
+    return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M3 12a9 9 0 1 1 3.13 6.81" /><path d="M3 21v-6h6" />
+    </svg>;
+}
 
 function SectionLabel({ children, style }: { children: React.ReactNode; style?: React.CSSProperties; }) {
     return <div className="cp-section-label" style={style}>{children}</div>;
@@ -924,19 +1015,22 @@ function EditImageModal({ rootProps, src, circular = true, onApply }: {
                     onPointerUp={() => setDrag(null)}
                     onPointerCancel={() => setDrag(null)}
                 >
-                    <div className={`cp-edit-image-crop ${circular ? "cp-edit-image-crop--circle" : ""}`}>
-                        <img
-                            src={src}
-                            alt=""
-                            className="cp-edit-image-preview"
-                            style={{
-                                transform: `translate(${offset.x}px, ${offset.y}px) scale(${zoom})`
-                            }}
-                        />
+                    <div className="cp-edit-image-crop-wrap">
+                        <div className={`cp-edit-image-crop ${circular ? "cp-edit-image-crop--circle" : ""}`}>
+                            <img
+                                src={src}
+                                alt=""
+                                className="cp-edit-image-preview"
+                                style={{
+                                    transform: `translate(${offset.x}px, ${offset.y}px) scale(${zoom})`
+                                }}
+                            />
+                        </div>
+                        {circular && <div className="cp-edit-image-mask" />}
                     </div>
                 </div>
                 <div className="cp-edit-image-controls">
-                    <span className="cp-edit-image-side-icon">▧</span>
+                    <span className="cp-edit-image-side-icon"><ImageSizeIcon size={12} /></span>
                     <input
                         className="cp-edit-image-slider"
                         type="range"
@@ -946,8 +1040,8 @@ function EditImageModal({ rootProps, src, circular = true, onApply }: {
                         value={zoom}
                         onChange={e => setZoom(Number(e.target.value))}
                     />
-                    <span className="cp-edit-image-side-icon cp-edit-image-side-icon--large">▧</span>
-                    <button className="cp-edit-image-rotate" onClick={() => setOffset({ x: 0, y: 0 })} title={t("Center image")}>↪</button>
+                    <span className="cp-edit-image-side-icon cp-edit-image-side-icon--large"><ImageSizeIcon size={18} /></span>
+                    <button className="cp-edit-image-rotate" onClick={() => setOffset({ x: 0, y: 0 })} title={t("Center image")}><RotateIcon /></button>
                 </div>
             </ModalContent>
             <ModalFooter>
@@ -970,7 +1064,9 @@ function ImageUpload({ label, value, onChange, editOnFile = false }: { label: st
             const result = ev.target?.result;
             if (!result) return;
             const src = result as string;
-            if (editOnFile) {
+            // GIFs go straight through uncropped - the crop stage draws a single
+            // canvas frame, which would flatten an animated GIF into a static image.
+            if (editOnFile && file.type !== "image/gif") {
                 openModal(props => <EditImageModal rootProps={props} src={src} circular onApply={onChange} />);
             } else {
                 onChange(src);
@@ -1079,39 +1175,162 @@ function BadgePicker({ selected, onChange, nitroType, onNitroType, boostLevel, o
     );
 }
 
+// Wraps a picker grid (effects/frames/decorations) in its own small modal so
+// the main CustomProfile modal only needs a single summary button per
+// category instead of a whole inline grid - same content, far less vertical
+// space, and each catalog can keep growing without the main modal growing too.
+function PickerModal({ rootProps, title, children }: { rootProps: any; title: string; children: React.ReactNode; }) {
+    return (
+        <ModalRoot {...rootProps} size="medium">
+            <ModalHeader separator={false}>
+                <div className="cp-header-title">{title}</div>
+                <ModalCloseButton onClick={rootProps.onClose} />
+            </ModalHeader>
+            <ModalContent className="cp-picker-modal-content">
+                {children}
+            </ModalContent>
+        </ModalRoot>
+    );
+}
+
+function PickerSummaryButton({ label, thumbSrc, onClick }: { label: string; thumbSrc?: string; onClick: () => void; }) {
+    return (
+        <button type="button" className="cp-picker-summary-btn" onClick={onClick}>
+            <span className="cp-picker-summary-thumb">
+                {thumbSrc ? <img src={thumbSrc} alt="" /> : <span className="cp-picker-summary-none" />}
+            </span>
+            <span className="cp-picker-summary-label">{label}</span>
+            <span className="cp-picker-summary-choose">{t("Choose…")}</span>
+        </button>
+    );
+}
+
 function ProfileEffectPicker({ selected, onChange }: { selected?: string; onChange: (v: string | undefined) => void; }) {
+    const current = PROFILE_EFFECTS.find(e => e.id === selected || e.skuId === selected);
+    const currentThumb = current?.thumbnailPreviewSrc ?? current?.staticFrameSrc ?? current?.reducedMotionSrc;
+
+    function openPicker() {
+        openModal(props => (
+            <PickerModal rootProps={props} title={t("Profile Effects")}>
+                <div className="cp-profile-effects-grid">
+                    <button
+                        type="button"
+                        className={`cp-profile-effect-card ${!selected ? "cp-profile-effect-card--on" : ""}`}
+                        onClick={() => { onChange(undefined); props.onClose(); }}
+                    >
+                        <span className="cp-profile-effect-none">{t("None")}</span>
+                    </button>
+                    {PROFILE_EFFECTS.map(effect => (
+                        <button
+                            type="button"
+                            key={effect.id}
+                            title={effect.title}
+                            className={`cp-profile-effect-card ${selected === effect.id || selected === effect.skuId ? "cp-profile-effect-card--on" : ""}`}
+                            onClick={() => { onChange(selected === effect.id ? undefined : effect.id); props.onClose(); }}
+                        >
+                            {effect.thumbnailPreviewSrc || effect.staticFrameSrc || effect.reducedMotionSrc ? (
+                                <img
+                                    src={effect.thumbnailPreviewSrc ?? effect.staticFrameSrc ?? effect.reducedMotionSrc}
+                                    alt={effect.title}
+                                    className="cp-profile-effect-thumb"
+                                />
+                            ) : (
+                                <span className="cp-profile-effect-none">{effect.title}</span>
+                            )}
+                            <span className="cp-profile-effect-name">{effect.title}</span>
+                        </button>
+                    ))}
+                </div>
+            </PickerModal>
+        ));
+    }
+
     return (
         <div className="cp-field">
             <SectionLabel>{t("Profile Effects")}</SectionLabel>
-            <div className="cp-profile-effects-grid">
-                <button
-                    type="button"
-                    className={`cp-profile-effect-card ${!selected ? "cp-profile-effect-card--on" : ""}`}
-                    onClick={() => onChange(undefined)}
-                >
-                    <span className="cp-profile-effect-none">{t("None")}</span>
-                </button>
-                {PROFILE_EFFECTS.map(effect => (
+            <PickerSummaryButton label={current?.title ?? t("None")} thumbSrc={currentThumb} onClick={openPicker} />
+        </div>
+    );
+}
+
+function getFrameThumbnailUrl(frame: CustomProfileFrame): string | undefined {
+    const layer = frame.layers.find(l => l.type === "border") ?? frame.layers[0];
+    if (!layer) return undefined;
+    return `https://cdn.discordapp.com/media/v1/collectibles-shop/${frame.skuId}/${layer.id}/static`;
+}
+
+function ProfileFramePicker({ selected, onChange }: { selected?: string; onChange: (v: string | undefined) => void; }) {
+    const current = PROFILE_FRAMES.find(f => f.skuId === selected);
+
+    function openPicker() {
+        openModal(props => (
+            <PickerModal rootProps={props} title={t("Profile Frames")}>
+                <div className="cp-profile-effects-grid">
                     <button
                         type="button"
-                        key={effect.id}
-                        title={effect.title}
-                        className={`cp-profile-effect-card ${selected === effect.id || selected === effect.skuId ? "cp-profile-effect-card--on" : ""}`}
-                        onClick={() => onChange(selected === effect.id ? undefined : effect.id)}
+                        className={`cp-profile-effect-card ${!selected ? "cp-profile-effect-card--on" : ""}`}
+                        onClick={() => { onChange(undefined); props.onClose(); }}
                     >
-                        {effect.thumbnailPreviewSrc || effect.staticFrameSrc || effect.reducedMotionSrc ? (
+                        <span className="cp-profile-effect-none">{t("None")}</span>
+                    </button>
+                    {PROFILE_FRAMES.map(frame => (
+                        <button
+                            type="button"
+                            key={frame.skuId}
+                            title={frame.label}
+                            className={`cp-profile-effect-card ${selected === frame.skuId ? "cp-profile-effect-card--on" : ""}`}
+                            onClick={() => { onChange(selected === frame.skuId ? undefined : frame.skuId); props.onClose(); }}
+                        >
                             <img
-                                src={effect.thumbnailPreviewSrc ?? effect.staticFrameSrc ?? effect.reducedMotionSrc}
-                                alt={effect.title}
+                                src={getFrameThumbnailUrl(frame)}
+                                alt={frame.title}
                                 className="cp-profile-effect-thumb"
                             />
-                        ) : (
-                            <span className="cp-profile-effect-none">{effect.title}</span>
-                        )}
-                        <span className="cp-profile-effect-name">{effect.title}</span>
+                            <span className="cp-profile-effect-name">{frame.title}</span>
+                        </button>
+                    ))}
+                </div>
+            </PickerModal>
+        ));
+    }
+
+    return (
+        <div className="cp-field">
+            <SectionLabel>{t("Profile Frames")}</SectionLabel>
+            <PickerSummaryButton label={current?.title ?? t("None")} thumbSrc={current ? getFrameThumbnailUrl(current) : undefined} onClick={openPicker} />
+        </div>
+    );
+}
+
+function AvatarDecorationPicker({ selected, onChange }: { selected?: string; onChange: (v: string | undefined) => void; }) {
+    const current = AVATAR_DECORATIONS.find(d => d.id === selected);
+
+    function openPicker() {
+        openModal(props => (
+            <PickerModal rootProps={props} title={t("Avatar Decoration")}>
+                <div className="cp-badges" style={{ flexWrap: "wrap", gap: 6 }}>
+                    <button onClick={() => { onChange(undefined); props.onClose(); }}
+                        className={`cp-badge ${!selected ? "cp-badge--on" : ""}`} style={{ minWidth: 60 }}>
+                        {t("None")}
                     </button>
-                ))}
-            </div>
+                    {AVATAR_DECORATIONS.map(dec => (
+                        <button key={dec.id}
+                            onClick={() => { onChange(selected === dec.id ? undefined : dec.id); props.onClose(); }}
+                            className={`cp-badge ${selected === dec.id ? "cp-badge--on" : ""}`}
+                            title={dec.label} style={{ padding: 3, lineHeight: 0, width: 52, height: 52, borderRadius: 6 }}>
+                            <img src={getDecorationUrl(dec.id)} alt={dec.label}
+                                style={{ width: 46, height: 46, objectFit: "contain", display: "block" }} />
+                        </button>
+                    ))}
+                </div>
+            </PickerModal>
+        ));
+    }
+
+    return (
+        <div className="cp-field">
+            <SectionLabel>{t("Avatar decoration")}</SectionLabel>
+            <PickerSummaryButton label={current?.label ?? t("None")} thumbSrc={current ? getDecorationUrl(current.id) : undefined} onClick={openPicker} />
         </div>
     );
 }
@@ -1211,6 +1430,8 @@ function CustomProfileModal({ rootProps }: { rootProps: any; }) {
 
             updateCachedRealData();
             forceAccountPanelRerender();
+
+            if (selectedAccountId === myId && savedData.publishOnSave) exportForPublish();
         } catch (err) {
             console.error("[CustomProfile] save error:", err);
         } finally {
@@ -1243,6 +1464,24 @@ function CustomProfileModal({ rootProps }: { rootProps: any; }) {
 
         forceAccountPanelRerender();
         rootProps.onClose();
+    }
+
+    function exportForPublish() {
+        if (selectedAccountId !== myId) {
+            showToast(t("Switch to your real account first — only your own profile can be published."));
+            return;
+        }
+
+        const { copiedUserId: _drop, ...publishable } = data;
+        const blob = new Blob([JSON.stringify(publishable, null, 2)], { type: "application/json" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `customprofile-${myId}.json`;
+        a.click();
+        URL.revokeObjectURL(url);
+
+        showToast(t("Exported. Attach this file to /publish-profile in #callie to show it to other o2cord users."));
     }
 
     const accentHex = data.accentColor != null ? "#" + data.accentColor.toString(16).padStart(6, "0") : "";
@@ -1295,7 +1534,7 @@ function CustomProfileModal({ rootProps }: { rootProps: any; }) {
                 <Field label={t("Username")} value={data.username ?? ""} placeholder="my_username_00" onChange={v => set("username", v)} />
                 <Field label={t("Display name")} value={data.globalName ?? ""} placeholder="My Name" onChange={v => set("globalName", v)} />
                 <ImageUpload label={t("Profile picture")} value={data.avatar ?? ""} onChange={v => set("avatar", v)} editOnFile />
-                <Toggle label={t("Simulate Nitro")} sublabel={t("Enables banner and profile color")} checked={data.nitro ?? false} onChange={v => set("nitro", v)} />
+                <Toggle label={t("I have Nitro!")} sublabel={t("Enables banner and profile color")} checked={data.nitro ?? false} onChange={v => set("nitro", v)} />
                 {data.nitro && <ImageUpload label={t("Banner")} value={data.banner ?? ""} onChange={v => set("banner", v)} />}
                 <div className="cp-divider" />
                 <Field label={t("Bio")} value={data.bio ?? ""} placeholder={t("My description...")} onChange={v => set("bio", v)} />
@@ -1352,28 +1591,26 @@ function CustomProfileModal({ rootProps }: { rootProps: any; }) {
                     selected={data.profileEffectId}
                     onChange={v => set("profileEffectId", v)}
                 />
+                <ProfileFramePicker
+                    selected={data.profileFrameId}
+                    onChange={v => set("profileFrameId", v)}
+                />
                 <div className="cp-divider" />
-                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    <SectionLabel>{t("Avatar decoration")}</SectionLabel>
-                </div>
-                <div className="cp-badges" style={{ flexWrap: "wrap", gap: 6 }}>
-                    <button onClick={() => set("decorationAsset", undefined)}
-                        className={`cp-badge ${!data.decorationAsset ? "cp-badge--on" : ""}`} style={{ minWidth: 60 }}>
-                        {t("None")}
-                    </button>
-                    {AVATAR_DECORATIONS.map(dec => (
-                        <button key={dec.id}
-                            onClick={() => set("decorationAsset", data.decorationAsset === dec.id ? undefined : dec.id)}
-                            className={`cp-badge ${data.decorationAsset === dec.id ? "cp-badge--on" : ""}`}
-                            title={dec.label} style={{ padding: 3, lineHeight: 0, width: 52, height: 52, borderRadius: 6 }}>
-                            <img src={getDecorationUrl(dec.id)} alt={dec.label}
-                                style={{ width: 46, height: 46, objectFit: "contain", display: "block" }} />
-                        </button>
-                    ))}
-                </div>
+                <AvatarDecorationPicker
+                    selected={data.decorationAsset}
+                    onChange={v => set("decorationAsset", v)}
+                />
+                <div className="cp-divider" />
+                <Toggle
+                    label={t("Publish to others")}
+                    sublabel={t("Your choice — when on, saving also exports a file to attach to /publish-profile so other o2cord users see this profile")}
+                    checked={data.publishOnSave ?? false}
+                    onChange={v => set("publishOnSave", v)}
+                />
             </ModalContent>
             <ModalFooter className="cp-footer">
                 <button className="cp-btn cp-btn-ghost" onClick={rootProps.onClose}>{t("Cancel")}</button>
+                <button className="cp-btn cp-btn-ghost" onClick={exportForPublish} title={t("Export a file to publish this profile to other o2cord users via /publish-profile")}>{t("Publish to others…")}</button>
                 <button className="cp-btn cp-btn-danger" onClick={reset}><TrashIcon /><span>{t("Reset")}</span></button>
                 <button className="cp-btn cp-btn-primary" onClick={save} disabled={saving}><SaveIcon /><span>{saving ? t("Saving...") : t("Save")}</span></button>
             </ModalFooter>
@@ -1393,7 +1630,7 @@ function CPDMNotice({ userId }: { userId: string; }) {
     const hasRealModifications = data && (
         data.username || data.globalName || data.avatar || data.banner ||
         data.bio || data.pronouns || data.accentColor != null ||
-        data.badgeFlags || data.nitro || data.decorationAsset || data.profileEffectId ||
+        data.badgeFlags || data.nitro || data.decorationAsset || data.profileEffectId || data.profileFrameId ||
         (data.customBadgeIds && data.customBadgeIds.length > 0) ||
         data.createdAt
     );
@@ -1657,6 +1894,7 @@ export default definePlugin({
         }
 
         applyProfileEffectPatch(clone, storedData.profileEffectId);
+        applyProfileFramePatch(clone, storedData.profileFrameId);
 
         // Override flags/nitro/boost so Discord doesn't show real native badges
         const wantedFlags = (isEnabled && storedData.badgeFlags != null) ? storedData.badgeFlags : realUser.publicFlags;
@@ -1740,6 +1978,7 @@ export default definePlugin({
         }
 
         applyProfileEffectPatch(clone, data.profileEffectId);
+        applyProfileFramePatch(clone, data.profileFrameId);
 
         const wantedFlags = data.badgeFlags != null ? data.badgeFlags : realUser.publicFlags;
         clone.publicFlags = wantedFlags;
@@ -1791,6 +2030,7 @@ export default definePlugin({
             }
 
             applyProfileEffectPatch(merged, data.profileEffectId);
+            applyProfileFramePatch(merged, data.profileFrameId);
 
             if (data.nitro || data.badgeFlags != null) {
                 merged.premiumType = data.nitro ? 2 : 0;
@@ -1870,6 +2110,7 @@ export default definePlugin({
             }
 
             applyProfileEffectPatch(merged, storedData.profileEffectId);
+            applyProfileFramePatch(merged, storedData.profileFrameId);
 
             if (isEnabled && (storedData.nitro || storedData.badgeFlags != null)) {
                 merged.premiumType = storedData.nitro ? 2 : 0;
@@ -1951,7 +2192,7 @@ export default definePlugin({
             const d = cached.data;
             const hasRealModifications = d.username || d.globalName || d.avatar || d.banner ||
                 d.bio || d.pronouns || d.accentColor != null || d.badgeFlags ||
-                d.nitro || d.decorationAsset || d.profileEffectId || (d.customBadgeIds && d.customBadgeIds.length > 0) || d.createdAt;
+                d.nitro || d.decorationAsset || d.profileEffectId || d.profileFrameId || (d.customBadgeIds && d.customBadgeIds.length > 0) || d.createdAt;
             if (!hasRealModifications) return null;
             return <CPDMNotice userId={recipientId} />;
         } catch { return null; }

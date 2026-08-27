@@ -28,6 +28,14 @@ const TARGET_KIND_ATTR = "data-o2-profile-theme-kind";
 const IMAGE_LAYER_ATTR = "data-o2-profile-theme-layer";
 const TRANSPARENT_CHILD_ATTR = "data-o2-profile-theme-transparent";
 const PANEL_CHILD_ATTR = "data-o2-profile-theme-panel";
+const TALL_CARD_ATTR = "data-o2-profile-theme-tall";
+// A normal card can already reach ~650-750px once extra content is present
+// (voice status row, many badges, etc.) without anything being wrong - only
+// genuinely extreme cases (dozens of role badges pushing well past 1000px)
+// should switch away from `cover`. Set well above normal variation so
+// ordinary busy cards don't misfire into "tall" mode and end up with a real
+// gap below a `100% auto`-sized image that doesn't reach that far.
+const TALL_CARD_HEIGHT_PX = 1400;
 const MAX_LOCAL_IMAGE_BYTES = 8 * 1024 * 1024;
 const RYDER_USER_ID = "719085334989897750";
 const DISCORD_ID_RE = /^\d{17,20}$/;
@@ -686,6 +694,15 @@ function applyTargetFallback({ element, userId, imageUrl }: ProfileThemeTarget) 
         element.setAttribute("data-o2-profile-theme-user-id", userId);
     if (element.style.getPropertyValue("--o2-profile-theme-image") !== imageValue)
         element.style.setProperty("--o2-profile-theme-image", imageValue);
+
+    // Normal-height cards should have the image cover the whole card like
+    // before (no gap at the bottom). Only cards pushed unusually tall by a
+    // long role/badge row switch to the "pin to top, don't stretch" sizing -
+    // otherwise `cover` would zoom absurdly to fill that extra height.
+    const isTall = element.getBoundingClientRect().height > TALL_CARD_HEIGHT_PX;
+    if (element.getAttribute(TALL_CARD_ATTR) !== String(isTall))
+        element.setAttribute(TALL_CARD_ATTR, String(isTall));
+
     ensureImageLayer(element);
     if (element.style.getPropertyValue("background-color") !== "transparent")
         element.style.setProperty("background-color", "transparent", "important");
@@ -786,8 +803,17 @@ function markProfileTargets() {
         });
 
         document.querySelectorAll(`[${IMAGE_LAYER_ATTR}]`).forEach(layer => {
-            const parent = layer.parentElement;
-            if (!parent || !targets.has(parent))
+            // The layer lives inside Discord's own content wrapper now (see
+            // ensureImageLayer), not as a direct child of the target, so its
+            // owning target has to be found via closest() rather than a
+            // direct parentElement lookup. Getting this wrong meant every
+            // scan treated a perfectly valid layer as orphaned and removed
+            // it, only for ensureImageLayer to immediately recreate it -
+            // constant add/remove churn of a raw DOM node inside a
+            // React-managed subtree, which is exactly the kind of thing
+            // that desyncs React's reconciliation on the next re-render.
+            const owner = layer.parentElement?.closest<HTMLElement>(`.${TARGET_CLASS}, [${TARGET_ATTR}]`);
+            if (!owner || !targets.has(owner))
                 layer.remove();
         });
 
@@ -1183,7 +1209,7 @@ function DebugProfileThemeSettings() {
         <Forms.FormSection className="o2-profile-theme-settings">
             <Forms.FormTitle tag="h3">Profile Theme</Forms.FormTitle>
             <Forms.FormText>
-                Set a 320x580-style profile background image or GIF for selected Discord profiles.
+                Set a 300x466-style profile background image or GIF for selected Discord profiles. Cards can grow much taller than that (lots of role badges, etc) - the image pins to the top instead of stretching.
             </Forms.FormText>
 
             <Forms.FormTitle tag="h5">Image</Forms.FormTitle>
@@ -1253,7 +1279,7 @@ function DebugProfileThemeSettings() {
                 <Button color={Button.Colors.RED} onClick={clear}>Clear</Button>
             </div>
 
-            <Forms.FormTitle tag="h5" className={Margins.top8}>Preview 320x580</Forms.FormTitle>
+            <Forms.FormTitle tag="h5" className={Margins.top8}>Preview 300x466</Forms.FormTitle>
             <div className="o2-profile-theme-preview" style={previewVars}>
                 {!imageUrl && <div className="o2-profile-theme-preview-empty">No image selected</div>}
                 <div className="o2-profile-theme-preview-card">
