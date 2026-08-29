@@ -269,7 +269,8 @@ export default definePlugin({
                     <HeadingSecondary className={cl("spectating-header")}>
                         {getIntlMessage("SPECTATORS", { numViewers: userIds.length })}
                     </HeadingSecondary>
-                    {users.length ?
+                    {settings.store.shareAvatarImage && <ShareAvatarSlot />}
+                    {users.length > 0 &&
                         <div className={cl("spectating-users")}>
                             <UserSummaryItem
                                 users={users}
@@ -294,8 +295,8 @@ export default definePlugin({
                                 )}
                             />
                         </div>
-                        : <ShareAvatarSlot />
                     }
+                    {!settings.store.shareAvatarImage && !users.length && <ShareAvatarSlot />}
                 </div>
             </div>
         );
