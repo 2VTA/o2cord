@@ -1,0 +1,7 @@
+/* Kills backdrop-filter blur everywhere (popouts, modals, acrylic panels) -
+   broad on purpose, blur is GPU-expensive and this avoids having to chase
+   every hashed class that applies it. */
+* {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+}

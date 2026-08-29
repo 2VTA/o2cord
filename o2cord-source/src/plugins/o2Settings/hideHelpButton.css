@@ -1,0 +1,7 @@
+/* The native Help (?) button is being replaced by the o2cord Settings
+   button added via addHeaderBarButton - hide the original rather than
+   fight over its position/behavior. aria-label="Help" is Discord's own
+   accessibility label, stable across hash rotations. */
+a:has([aria-label="Help"]) {
+    display: none !important;
+}

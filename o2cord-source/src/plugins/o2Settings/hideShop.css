@@ -1,0 +1,5 @@
+/* "private-channels-uid_N___shop" - the uid_N prefix is per-render-instance,
+   only the ___shop suffix is stable. */
+[data-list-item-id$="___shop"] {
+    display: none !important;
+}
