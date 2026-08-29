@@ -1,0 +1,11 @@
+/* Collapses every CSS animation/transition to effectively zero duration
+   instead of chasing individual spring/transition rules across Discord's
+   hashed classes - the standard broad "kill all motion" technique. */
+*, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-delay: -0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    transition-delay: 0s !important;
+    scroll-behavior: auto !important;
+}

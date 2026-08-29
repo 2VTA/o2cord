@@ -1,0 +1,104 @@
+/*
+ * o2cord is not shipping a color theme to everyone yet - every rule here is
+ * scoped under html.o2-owner-theme, a class only added (in Vencord.ts's
+ * init()) when the current user is Ryder. Nobody else's client matches any
+ * of this.
+ *
+ * Kept simple at Ryder's request - just colors on the account-row/call-
+ * controls pill, nothing structural, no hover reveals, no new selectors
+ * elsewhere.
+ */
+
+/* One shared box for the whole widget (Screen 1 card + Voice Connected +
+   account row) instead of three separate pieces - square corners, not a
+   pill. The individual pieces below go transparent so they read as one
+   piece; overflow:hidden clips them to this box's corners. */
+html.o2-owner-theme [class*="panels_"] {
+    background-color: rgba(0, 0, 0, 0.7);
+    border-radius: 12px;
+    overflow: hidden;
+    padding: 8px;
+    box-sizing: border-box;
+    border-top: none !important;
+}
+
+html.o2-owner-theme [class*="panels_"] > [class*="container__"] {
+    background-color: transparent;
+    border-radius: 4px;
+}
+
+/* Name only shows up while hovering the avatar pill - hidden the rest of
+   the time, no click needed. nameTag__ is a grandchild of container__
+   (nested inside accountPopoutButtonWrapper__), not a direct child -
+   descendant selector, not ">", or this silently never matches. */
+html.o2-owner-theme [class*="panels_"] > [class*="container__"] [class*="nameTag__"] {
+    opacity: 0;
+    max-width: 0;
+    overflow: hidden;
+    transition: opacity 0.2s ease, max-width 0.2s ease;
+}
+html.o2-owner-theme [class*="panels_"] > [class*="container__"]:hover [class*="nameTag__"] {
+    opacity: 1;
+    max-width: 160px;
+}
+
+html.o2-owner-theme [class*="activityPanel__"] {
+    background-color: transparent !important;
+    border-radius: 0;
+}
+/* "Screen 1" title/icon row sat too close to the top edge - nudge down. */
+html.o2-owner-theme [class*="activityPanel__"] [class*="gameWrapper__"] {
+    margin-top: 8px;
+}
+/* Redundant now that right-click on the call-controls screen-share button
+   (o2VoicePanel.ts) instantly stops sharing - has a real aria-label, no
+   hash-rotation risk. */
+html.o2-owner-theme [class*="activityPanel__"] button[aria-label="Stop Streaming"] {
+    display: none;
+}
+
+/* container_e131a9 - the box holding "Voice Connected" - taller (height
+   only, no width change) to give the floating actionButtons_ row below it
+   more clearance. */
+html.o2-owner-theme [class*="container_e131a9"] {
+    padding-bottom: 48px;
+}
+
+/* Camera/screen-share/reactions/soundboard buttons - hidden by default,
+   floats in on hover of the call-info row (wrapper_e131a9) instead of
+   sitting there always. position:absolute + opacity/transform only (no
+   max-height) so revealing it never reflows anything below it. */
+html.o2-owner-theme [class*="actionButtons_"] {
+    position: absolute;
+    top: calc(100% - 39px);
+    left: 4px;
+    z-index: 10;
+    display: flex;
+    gap: 4px;
+    background: transparent;
+    border-radius: 500px;
+    width: fit-content;
+    box-sizing: border-box;
+    padding: 4px;
+    opacity: 0;
+    transform: translateY(-4px) scale(0.96);
+    transform-origin: top left;
+    pointer-events: none;
+    transition: opacity 0.2s cubic-bezier(0.4, 0, 0.2, 1), transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+html.o2-owner-theme [class*="wrapper_e131a9"]:hover [class*="actionButtons_"] {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    pointer-events: auto;
+}
+html.o2-owner-theme [class*="actionButtons_"] > * {
+    border-radius: 500px !important;
+    background: rgba(255, 255, 255, 0.06) !important;
+}
+
+/* The floating actionButtons_ row overlaps the "Voice Connected" pill above
+   it - keep that pill's stacking order on top so it isn't covered. */
+html.o2-owner-theme [class*="connection_e131a9"] {
+    position: relative;
+    z-index: 20;
+}

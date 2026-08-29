@@ -1,0 +1,30 @@
+.o2-settings-popout {
+    width: 280px;
+    background: var(--background-base-low, #2b2d31);
+    border-radius: 8px;
+    padding: 8px 4px;
+    box-shadow: var(--elevation-high);
+}
+
+.o2-settings-popout-header {
+    padding: 8px 12px 4px;
+    font-size: 16px;
+    font-weight: 700;
+    text-transform: uppercase;
+    color: #fff;
+    letter-spacing: 0.02em;
+}
+
+.o2-settings-popout .vc-form-switch-wrapper {
+    padding: 0 8px;
+}
+
+.o2-settings-popout .vc-form-switch {
+    padding: 8px 4px;
+}
+
+/* Plain circle knob, no checkmark/X icon inside it - Ryder wanted the
+   flatter look from the mockup instead of Discord's default switch. */
+.o2-settings-popout .vc-switch-slider > svg {
+    display: none;
+}

@@ -1,8 +1,8 @@
 {
-    "version":  "1.9.8",
-    "hash":  "public-20260827170618",
+    "version":  "1.3.8",
+    "hash":  "public-20260829123643",
     "author":  "o2cord",
-    "message":  "CustomProfile picker redesign, ProfileTheme sizing fixes, badge crown",
+    "message":  "o2cord public update: o2cord Settings quick panel (Hide Shop/Quests/Nitro tab, Disable Blur/Animations), custom Screen 1 share image/gif with talk-to-animate",
     "notes":  [
                   "Public o2cord update package",
                   "ussro2 backgrounds are loaded from backgrounds.json beside this manifest",

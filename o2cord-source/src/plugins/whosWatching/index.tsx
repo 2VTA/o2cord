@@ -19,7 +19,7 @@ import { classes } from "@utils/misc";
 import definePlugin, { OptionType } from "@utils/types";
 import { User } from "@vencord/discord-types";
 import { findComponentByCodeLazy, findCssClassesLazy, findStoreLazy } from "@webpack";
-import { Clickable, RelationshipStore, Tooltip, UserStore, useStateFromStores } from "@webpack/common";
+import { Clickable, RelationshipStore, Tooltip, UserStore, useRef, useState, useStateFromStores } from "@webpack/common";
 import { JSX } from "react";
 
 interface WatchingProps {
@@ -28,6 +28,7 @@ interface WatchingProps {
 }
 
 const ApplicationStreamingStore = findStoreLazy("ApplicationStreamingStore");
+const SpeakingStore = findStoreLazy("SpeakingStore");
 const UserSummaryItem = findComponentByCodeLazy("defaultRenderUser", "showDefaultAvatarsForNullUsers");
 const AvatarStyles = findCssClassesLazy("moreUsers", "clickableAvatar", "avatar");
 const cl = classNameFactory("vc-whos-watching-");
@@ -77,7 +78,141 @@ const settings = definePluginSettings({
         default: true,
         restartNeeded: true
     },
+    shareAvatarImage: {
+        description: "Custom image/gif shown in the empty spectators space (data URL)",
+        type: OptionType.STRING,
+        default: ""
+    },
+    shareAvatarStaticFrame: {
+        description: "First frame of shareAvatarImage, extracted at upload time - shown paused while not talking, if the image is a gif",
+        type: OptionType.STRING,
+        default: ""
+    },
+    shareAvatarMode: {
+        description: "When to show the custom share avatar image",
+        type: OptionType.SELECT,
+        options: [
+            { label: "Show when talking", value: "talking", default: true },
+            { label: "Always show", value: "always" }
+        ]
+    }
 });
+
+// Draws the gif's first frame to a canvas and returns it as a PNG data URL -
+// used as the "paused" look, since CSS can't pause a gif and swapping an
+// <img src> to itself just restarts it rather than freezing it.
+function extractFirstFrame(dataUrl: string): Promise<string> {
+    return new Promise(resolve => {
+        const img = new Image();
+        img.onload = () => {
+            const canvas = document.createElement("canvas");
+            canvas.width = img.naturalWidth;
+            canvas.height = img.naturalHeight;
+            const ctx = canvas.getContext("2d");
+            if (!ctx) return resolve("");
+            ctx.drawImage(img, 0, 0);
+            resolve(canvas.toDataURL("image/png"));
+        };
+        img.onerror = () => resolve("");
+        img.src = dataUrl;
+    });
+}
+
+// Ryder's own add-on: when nobody's watching the stream, that space is
+// empty - lets him drop in a custom image/gif there instead, either always
+// visible or only while SpeakingStore reports he's actually talking.
+function ShareAvatarSlot() {
+    const fileInputRef = useRef<HTMLInputElement>(null);
+    const [, forceUpdate] = useState(0);
+    const image = settings.store.shareAvatarImage;
+    const staticFrame = settings.store.shareAvatarStaticFrame;
+    const mode = settings.store.shareAvatarMode || "talking";
+    const isSpeaking = useStateFromStores([SpeakingStore], () => SpeakingStore.isCurrentUserSpeaking());
+    const isGif = image.startsWith("data:image/gif");
+    // A gif only actually plays while talking - paused on its first frame
+    // otherwise. Non-gif images have nothing to pause, always show as-is.
+    const animating = mode === "always" || isSpeaking;
+
+    async function onFileChosen(e: React.ChangeEvent<HTMLInputElement>) {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = async () => {
+            const dataUrl = String(reader.result);
+            const frame = file.type === "image/gif" ? await extractFirstFrame(dataUrl) : "";
+            // Mutating settings.store alone doesn't re-render this component -
+            // it's not React state, nothing here subscribes to it. Force one.
+            settings.store.shareAvatarImage = dataUrl;
+            settings.store.shareAvatarStaticFrame = frame;
+            forceUpdate(n => n + 1);
+        };
+        reader.readAsDataURL(file);
+    }
+
+    if (!image) {
+        return (
+            <div className={cl("share-avatar-add")} onClick={() => fileInputRef.current?.click()}>
+                <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    style={{ display: "none" }}
+                    onChange={onFileChosen}
+                />
+                <span>+</span>
+            </div>
+        );
+    }
+
+    const displaySrc = isGif && !animating && staticFrame ? staticFrame : image;
+
+    return (
+        <>
+            <div className={cl("share-avatar-wrapper")}>
+                <img
+                    key={isGif ? String(animating) : "static"}
+                    className={cl("share-avatar-image")}
+                    src={displaySrc}
+                    alt=""
+                />
+            </div>
+            <div className={cl("share-avatar-controls")}>
+                <Clickable
+                    className={cl("share-avatar-control-btn")}
+                    onClick={() => fileInputRef.current?.click()}
+                >
+                    Change
+                </Clickable>
+                <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    style={{ display: "none" }}
+                    onChange={onFileChosen}
+                />
+                <Clickable
+                    className={cl("share-avatar-control-btn")}
+                    onClick={() => {
+                        settings.store.shareAvatarMode = mode === "talking" ? "always" : "talking";
+                        forceUpdate(n => n + 1);
+                    }}
+                >
+                    {mode === "talking" ? "When talking" : "Always"}
+                </Clickable>
+                <Clickable
+                    className={cl("share-avatar-control-btn")}
+                    onClick={() => {
+                        settings.store.shareAvatarImage = "";
+                        settings.store.shareAvatarStaticFrame = "";
+                        forceUpdate(n => n + 1);
+                    }}
+                >
+                    Remove
+                </Clickable>
+            </div>
+        </>
+    );
+}
 
 export default definePlugin({
     name: "WhosWatching",
@@ -159,9 +294,7 @@ export default definePlugin({
                                 )}
                             />
                         </div>
-                        : <Paragraph>
-                            No spectators
-                        </Paragraph>
+                        : <ShareAvatarSlot />
                     }
                 </div>
             </div>

@@ -19,6 +19,7 @@
 // DO NOT REMOVE UNLESS YOU WISH TO FACE THE WRATH OF THE CIRCULAR DEPENDENCY DEMON!!!!!!!
 import "~plugins";
 import "./fixWeirdAppRegionBug.css";
+import "./o2Theme.css";
 
 export * as Api from "./api";
 export * as Plugins from "./api/PluginManager";
@@ -32,21 +33,33 @@ export { PlainSettings, Settings };
 import { coreStyleRootNode, initStyles } from "@api/Styles";
 import { popNotice, showNotice } from "@api/Notices";
 import { openSettingsTabModal, UpdaterTab } from "@components/settings";
-import { IS_WINDOWS } from "@utils/constants";
+import { Devs, IS_WINDOWS } from "@utils/constants";
 import { createAndAppendStyle } from "@utils/css";
 import { relaunch } from "@utils/native";
 import { StartAt } from "@utils/types";
-import { React } from "@webpack/common";
+import { React, UserStore } from "@webpack/common";
 
 import { NotificationData, showNotification } from "./api/Notifications";
 import { initPluginManager, PMLogger, startAllPlugins } from "./api/PluginManager";
 import { PlainSettings, Settings, SettingsStore } from "./api/Settings";
+import { initVoicePanel } from "./o2VoicePanel";
 import { changes, checkForUpdates, update as applyO2Update, UpdateLogger } from "./utils/updater";
 import { onceReady } from "./webpack";
 import { patches } from "./webpack/patchWebpack";
 
 if (IS_REPORTER) {
     require("./debug/runReporter");
+}
+
+// Toggled live from the o2cord Settings popout (o2Settings' "Enable Custom
+// Theme" switch calls this directly on change, in addition to the
+// MutationObserver in init() re-syncing it whenever Discord rewrites
+// <html>'s class attribute wholesale).
+export function syncOwnerThemeClass() {
+    const enabled = Settings.plugins.o2Settings?.enableTheme !== false;
+    const has = document.documentElement.classList.contains("o2-owner-theme");
+    if (enabled && !has) document.documentElement.classList.add("o2-owner-theme");
+    if (!enabled && has) document.documentElement.classList.remove("o2-owner-theme");
 }
 
 async function syncSettings() {
@@ -205,6 +218,23 @@ async function runUpdateCheck() {
 async function init() {
     await onceReady;
     startAllPlugins(StartAt.WebpackReady);
+
+    initVoicePanel();
+
+    // o2Theme.css is Ryder-only for now - scoped under this class instead of
+    // shipping it to every o2cord install. Also toggleable live from the
+    // o2cord Settings popout (o2Settings' "Enable Custom Theme" switch) via
+    // Settings.plugins.o2Settings.enableTheme, checked fresh on every sync
+    // instead of once, so flipping that switch takes effect immediately.
+    // Discord periodically rewrites <html>'s class attribute wholesale, so
+    // a one-time add()/remove() isn't enough - a MutationObserver re-syncs
+    // it immediately whenever that happens (and also whenever the settings
+    // switch itself calls syncOwnerThemeClass, since that's itself a class
+    // mutation the observer picks up).
+    if (UserStore.getCurrentUser()?.id === String(Devs.Ryder.id)) {
+        syncOwnerThemeClass();
+        new MutationObserver(syncOwnerThemeClass).observe(document.documentElement, { attributes: true, attributeFilter: ["class"] });
+    }
 
     syncSettings();
 

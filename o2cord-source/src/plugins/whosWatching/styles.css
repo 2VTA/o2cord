@@ -9,3 +9,70 @@
     margin-bottom: 0;
     text-transform: uppercase;
 }
+
+/* Exact layout Ryder pinned down using the drag-to-arrange mockup (323x200
+   reference card): Screen 1 at (8,6), SPECTATORS at (9,52) - both left in
+   their natural stacked flow - image box docked top-right at (163,11)
+   145x141, controls row at (118,166). Percentages below are those pixel
+   values expressed relative to the 323x200 reference so it scales with the
+   real card instead of being pinned to that exact pixel size. */
+.vc-whos-watching-screenshare-panel {
+    position: relative;
+    min-height: 155px;
+}
+
+.vc-whos-watching-share-avatar-add,
+.vc-whos-watching-share-avatar-wrapper {
+    position: absolute;
+    left: 52.5%;
+    top: 4px;
+    width: 50%;
+    height: 130px;
+    margin: 0;
+    box-sizing: border-box;
+}
+
+.vc-whos-watching-share-avatar-add {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px dashed var(--interactive-muted, #4e5058);
+    border-radius: 8px;
+    color: var(--interactive-muted, #4e5058);
+    font-size: 24px;
+    cursor: pointer;
+}
+.vc-whos-watching-share-avatar-add:hover {
+    border-color: var(--interactive-active, #fff);
+    color: var(--interactive-active, #fff);
+}
+
+.vc-whos-watching-share-avatar-image {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 8px;
+    transition: opacity 0.15s ease;
+}
+
+.vc-whos-watching-share-avatar-controls {
+    position: absolute;
+    left: 118px;
+    top: 144px;
+    display: flex;
+    gap: 4px;
+}
+
+.vc-whos-watching-share-avatar-control-btn {
+    font-size: 11px;
+    padding: 2px 6px;
+    border-radius: 4px;
+    background: rgba(255, 255, 255, 0.06);
+    color: var(--interactive-normal, #b5bac1);
+    cursor: pointer;
+}
+.vc-whos-watching-share-avatar-control-btn:hover {
+    background: rgba(255, 255, 255, 0.12);
+    color: var(--interactive-active, #fff);
+}
