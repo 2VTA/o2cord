@@ -84,7 +84,14 @@ async function refreshRegistry(force = false) {
         .then(async res => {
             if (!res.ok) throw new Error(`ussro2 registry returned ${res.status}`);
 
-            remoteBackgrounds = cleanBackgrounds(await res.json());
+            // Merge rather than replace: a CDN edge that briefly serves a
+            // stale/incomplete copy of backgrounds.json (raw.githubusercontent.com
+            // has no strong consistency guarantee across edges) used to wipe out
+            // an already-known-good entry for the ~30s until the next refresh
+            // corrected it - visible as someone's voice tile picture flickering
+            // out and back in on that exact cadence. Unlike getBackgroundUrl's
+            // per-render behavior, this only ever adds/updates entries.
+            remoteBackgrounds = { ...remoteBackgrounds, ...cleanBackgrounds(await res.json()) };
             lastRegistryRefresh = Date.now();
         })
         .catch(() => {
