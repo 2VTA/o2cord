@@ -1884,15 +1884,6 @@ export default definePlugin({
             });
         }
 
-        if (storedData.decorationAsset) {
-            const decoData = {
-                asset: storedData.decorationAsset,
-                skuId: storedData.decorationAsset
-            };
-            clone.avatarDecoration = null;
-            clone.avatarDecorationData = decoData;
-        }
-
         applyProfileEffectPatch(clone, storedData.profileEffectId);
         applyProfileFramePatch(clone, storedData.profileFrameId);
 
@@ -1968,15 +1959,6 @@ export default definePlugin({
             clone.__cp_fakeCreatedAt = fakeCreatedAt.getTime();
         }
 
-        if (data.decorationAsset) {
-            const decoData = {
-                asset: data.decorationAsset,
-                skuId: data.decorationAsset
-            };
-            clone.avatarDecoration = null;
-            clone.avatarDecorationData = decoData;
-        }
-
         applyProfileEffectPatch(clone, data.profileEffectId);
         applyProfileFramePatch(clone, data.profileFrameId);
 
@@ -2019,15 +2001,6 @@ export default definePlugin({
             if (data.pronouns) merged.pronouns = data.pronouns;
             if (data.accentColor != null) merged.accentColor = data.accentColor;
             if (data.banner) merged.banner = data.banner;
-
-            if (data.decorationAsset) {
-                const decoData = {
-                    asset: data.decorationAsset,
-                    skuId: data.decorationAsset
-                };
-                merged.avatarDecoration = null;
-                merged.avatarDecorationData = decoData;
-            }
 
             applyProfileEffectPatch(merged, data.profileEffectId);
             applyProfileFramePatch(merged, data.profileFrameId);
@@ -2099,15 +2072,6 @@ export default definePlugin({
             if (storedData.pronouns) merged.pronouns = storedData.pronouns;
             if (storedData.accentColor != null) merged.accentColor = storedData.accentColor;
             if (storedData.banner) merged.banner = storedData.banner;
-
-            if (storedData.decorationAsset) {
-                const decoData = {
-                    asset: storedData.decorationAsset,
-                    skuId: storedData.decorationAsset
-                };
-                merged.avatarDecoration = null;
-                merged.avatarDecorationData = decoData;
-            }
 
             applyProfileEffectPatch(merged, storedData.profileEffectId);
             applyProfileFramePatch(merged, storedData.profileFrameId);
