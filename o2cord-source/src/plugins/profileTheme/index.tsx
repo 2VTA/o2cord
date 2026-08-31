@@ -1095,7 +1095,7 @@ export function PublicProfileThemeSettings() {
     );
 }
 
-function DebugProfileThemeSettings() {
+export function DebugProfileThemeSettings() {
     const [imageUrl, setImageUrl] = React.useState(settings.store.imageUrl);
     const [publicImageUrl, setPublicImageUrl] = React.useState(settings.store.publicImageUrl);
     const [targetUserId, setTargetUserId] = React.useState(settings.store.targetUserId || RYDER_USER_ID);
