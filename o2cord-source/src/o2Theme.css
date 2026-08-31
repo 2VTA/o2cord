@@ -107,10 +107,10 @@ html.o2-owner-theme [class*="connection_e131a9"] {
    background / custom-user-profile-theme) renders a real two-tone
    linear-gradient - Discord's own code, not a bug, confirmed live via
    its inline --profile-gradient-primary/secondary-color vars and
-   backgroundImage. Ryder doesn't want the gradient look, just a flat
-   tile color - falls back to Discord's own tile gray if a tile has no
-   profile-gradient color set at all. */
+   backgroundImage. Ryder wants this removed entirely, not just
+   flattened - every tile gets Discord's own plain default tile gray,
+   no per-user color at all. */
 html.o2-owner-theme [class*="user-profile-video-tile-background"] {
     background-image: none !important;
-    background-color: var(--profile-gradient-primary-color, rgb(30, 31, 34)) !important;
+    background-color: rgb(30, 31, 34) !important;
 }
