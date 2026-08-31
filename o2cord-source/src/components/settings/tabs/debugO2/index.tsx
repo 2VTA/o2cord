@@ -38,6 +38,7 @@ import {
 import { chooseFile, saveFile } from "@utils/web";
 import { Button, Forms, React, TextInput, UserStore, useState } from "@webpack/common";
 
+import { DebugProfileThemeSettings } from "@plugins/profileTheme";
 import Plugins from "~plugins";
 
 import "./styles.css";
@@ -245,7 +246,7 @@ function DebugFeatureCard({
     );
 }
 
-type ActiveSettingsModal = "badge" | "nameplate" | "ussro2" | "nitroserver" | null;
+type ActiveSettingsModal = "badge" | "nameplate" | "ussro2" | "nitroserver" | "profileimage" | null;
 
 function DebugO2Tab() {
     const [badges, setBadges] = useState<LocalBadge[]>([]);
@@ -801,6 +802,11 @@ function DebugO2Tab() {
 
             {(SHOW_ADD_BADGE_FEATURE || SHOW_ADD_NAMEPLATE_FEATURE || SHOW_USSRO2_FEATURE || SHOW_NITROSERVER_FEATURE) && (
                 <section className="o2-debug-feature-grid">
+                    <DebugFeatureCard
+                        title="Profile Image"
+                        description="Set the ProfileTheme image/target locally, then export a publish code"
+                        onSettingsClick={() => setActiveSettingsModal("profileimage")}
+                    />
                     {SHOW_NITROSERVER_FEATURE && (
                         <DebugFeatureCard
                             title="NitroServer Role Icon"
@@ -1304,6 +1310,34 @@ function DebugO2Tab() {
                                 )}
                             </div>
                         </section>
+                    </div>
+                </div>
+            )}
+            {activeSettingsModal === "profileimage" && (
+                <div className="o2-debug-modal-backdrop" onClick={() => setActiveSettingsModal(null)}>
+                    <div
+                        className="o2-debug-modal o2-debug-modal-badge"
+                        onClick={event => event.stopPropagation()}
+                    >
+                        <div className="o2-debug-modal-header">
+                            <div>
+                                <h2>Profile Image</h2>
+                                <Forms.FormText>
+                                    Same ProfileTheme controls as before - just reachable from here now instead of
+                                    the Debug Plugins list below.
+                                </Forms.FormText>
+                            </div>
+                            <button
+                                type="button"
+                                className="o2-debug-modal-close"
+                                aria-label="Close"
+                                onClick={() => setActiveSettingsModal(null)}
+                            >
+                                X
+                            </button>
+                        </div>
+
+                        <DebugProfileThemeSettings />
                     </div>
                 </div>
             )}
