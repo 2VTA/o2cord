@@ -168,7 +168,16 @@ const PROFILE_THEME_EXCLUDED_SELECTOR = [
     "[class*='collectiblesShop']",
     "[class*='collectibles-shop']",
     "[class*='shop_']",
-    "[class*='shop__']"
+    "[class*='shop__']",
+    // Discord's own voice/video call tile background reuses the same
+    // --profile-gradient-* CSS variables real profile cards use (native
+    // per-user tinted tile color), so PROFILE_TARGET_SELECTOR was
+    // wrongly matching it too - confirmed live, it was getting
+    // o2-profile-theme-target + an injected image layer, showing
+    // Ryder's ProfileTheme picture on his own voice tile instead of his
+    // real avatar, and flickering since this element re-renders
+    // constantly during a call while ProfileTheme kept re-applying.
+    "[class*='user-profile-video-tile-background']"
 ].join(",");
 
 const TRANSPARENT_CHILD_SELECTOR = [
