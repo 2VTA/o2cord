@@ -28,7 +28,6 @@ import { HeadingTertiary } from "@components/Heading";
 import { Paragraph } from "@components/Paragraph";
 import { SettingsTab, wrapTab } from "@components/settings/tabs/BaseTab";
 import { ChangeList } from "@utils/ChangeList";
-import { Devs } from "@utils/constants";
 import { classNameFactory } from "@utils/css";
 import { isTruthy } from "@utils/guards";
 import { Logger } from "@utils/Logger";
@@ -82,6 +81,19 @@ const enum SearchStatus {
     API_PLUGINS,
     O2_PLUGINS
 }
+
+// "Show o2Plugins" used to just check authors.includes(Devs.Ryder), which
+// matched 78 plugins - most of them ordinary ported/customized community
+// plugins Ryder is credited on, not the curated set he actually wants this
+// filter to surface. Explicit allowlist instead, independent of authorship
+// credit (removing a plugin from here doesn't touch its real authors).
+const O2_PLUGIN_NAMES = new Set([
+    "ussro2Public",
+    "ProfileTheme",
+    "CustomProfile",
+    "NitroServer",
+    "FakePlaying"
+]);
 
 function ExcludedPluginsList({ search }: { search: string; }) {
     const matchingExcludedPlugins = search
@@ -191,7 +203,7 @@ function PluginSettings() {
                 if (!plugin.name.endsWith("API")) return false;
                 break;
             case SearchStatus.O2_PLUGINS:
-                if (!plugin.authors?.includes(Devs.Ryder)) return false;
+                if (!O2_PLUGIN_NAMES.has(plugin.name)) return false;
                 break;
         }
 
