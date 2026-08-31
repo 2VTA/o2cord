@@ -318,9 +318,14 @@ function wrapGuild(guild: any) {
     const features = new Set(guild.features ?? []);
     for (const feature of UNLOCK_FEATURES) features.add(feature);
 
+    // Faking premiumTier itself (not just features) crashed the Soundboard
+    // button - Discord's real soundboard slot count is calculated directly
+    // from premiumTier as a number (24/36/48 slots per tier), and that math
+    // apparently doesn't tolerate a tier that doesn't match the guild's
+    // real (much smaller) sound list. features alone is enough for the
+    // role-icon gate this plugin actually needs, so drop the tier/count
+    // override entirely rather than risk another mismatch like this one.
     return Object.assign(Object.create(Object.getPrototypeOf(guild)), guild, {
-        premiumTier: 3,
-        premiumSubscriptionCount: Math.max(guild.premiumSubscriptionCount ?? 0, 30),
         features
     });
 }
