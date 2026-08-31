@@ -169,8 +169,12 @@ function ShareAvatarSlot() {
     return (
         <>
             <div className={cl("share-avatar-wrapper")}>
+                {/* No key here on purpose - forcing a remount on every talk-state
+                    toggle destroyed and recreated this element each time,
+                    which is what caused the flicker. Swapping src in place on
+                    the same element is enough; browsers restart gif playback
+                    from frame 0 whenever src genuinely changes value. */}
                 <img
-                    key={isGif ? String(animating) : "static"}
                     className={cl("share-avatar-image")}
                     src={displaySrc}
                     alt=""
