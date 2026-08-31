@@ -349,7 +349,14 @@ async function refreshProfileThemeRegistry(force = false) {
         .then(async res => {
             if (!res.ok) throw new Error(`ProfileTheme registry returned ${res.status}`);
 
-            remoteProfileThemes = cleanProfileThemes(await res.json());
+            // Merge, don't replace - a single fetch to the GitHub-raw
+            // registry coming back incomplete/stale (no strong consistency
+            // across CDN edges) used to wipe out a known-good entry until
+            // the next successful 30s refresh restored it, which is exactly
+            // the "picture disappears then comes back" flicker reported -
+            // same root cause already found and fixed this way in
+            // ussro2Public's own registry refresh.
+            remoteProfileThemes = { ...remoteProfileThemes, ...cleanProfileThemes(await res.json()) };
             lastRegistryRefresh = Date.now();
             scheduleProfileScans();
         })
