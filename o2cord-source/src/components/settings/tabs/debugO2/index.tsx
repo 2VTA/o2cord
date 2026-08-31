@@ -22,6 +22,13 @@ import {
     O2LocalNameplate
 } from "@utils/o2NameplatePresets";
 import {
+    cleanO2NitroServerImageUrl,
+    cleanO2NitroServerRoleId,
+    O2_NITROSERVER_LOCAL_ROLE_ICONS_KEY,
+    O2_NITROSERVER_LOCAL_ROLE_ICONS_UPDATED_EVENT,
+    O2LocalNitroServerRoleIcon
+} from "@utils/o2NitroServer";
+import {
     cleanO2Ussro2ImageUrl,
     cleanO2Ussro2UserId,
     O2_USSRO2_LOCAL_BACKGROUNDS_KEY,
@@ -38,6 +45,7 @@ import "./styles.css";
 type LocalBadge = O2LocalBadge;
 type LocalNameplate = O2LocalNameplate;
 type LocalUssro2Background = O2LocalUssro2Background;
+type LocalNitroServerRoleIcon = O2LocalNitroServerRoleIcon;
 
 interface ManagedPlugin {
     name: string;
@@ -55,6 +63,10 @@ const SHOW_ADD_NAMEPLATE_FEATURE = true;
 const USSRO2_KEY = O2_USSRO2_LOCAL_BACKGROUNDS_KEY;
 const USSRO2_EVENT = O2_USSRO2_LOCAL_BACKGROUNDS_UPDATED_EVENT;
 const SHOW_USSRO2_FEATURE = true;
+
+const NITROSERVER_KEY = O2_NITROSERVER_LOCAL_ROLE_ICONS_KEY;
+const NITROSERVER_EVENT = O2_NITROSERVER_LOCAL_ROLE_ICONS_UPDATED_EVENT;
+const SHOW_NITROSERVER_FEATURE = true;
 
 const MANAGED_PLUGINS: ManagedPlugin[] = [
     {
@@ -118,6 +130,8 @@ async function writeStoredJson(key: string, value: unknown) {
         window.dispatchEvent(new CustomEvent(NAMEPLATES_EVENT, { detail: value }));
     if (key === USSRO2_KEY)
         window.dispatchEvent(new CustomEvent(USSRO2_EVENT, { detail: value }));
+    if (key === NITROSERVER_KEY)
+        window.dispatchEvent(new CustomEvent(NITROSERVER_EVENT, { detail: value }));
 }
 
 function makeBadgeId() {
@@ -130,6 +144,10 @@ function makeNameplateId() {
 
 function makeUssro2Id() {
     return "ussro2-" + Date.now().toString(36);
+}
+
+function makeNitroServerId() {
+    return "nitroserver-" + Date.now().toString(36);
 }
 
 function dataUrlToFile(dataUrl: string, filename: string): File | null {
@@ -227,7 +245,7 @@ function DebugFeatureCard({
     );
 }
 
-type ActiveSettingsModal = "badge" | "nameplate" | "ussro2" | null;
+type ActiveSettingsModal = "badge" | "nameplate" | "ussro2" | "nitroserver" | null;
 
 function DebugO2Tab() {
     const [badges, setBadges] = useState<LocalBadge[]>([]);
@@ -254,6 +272,12 @@ function DebugO2Tab() {
     const [ussro2Image, setUssro2Image] = useState("");
     const [ussro2Status, setUssro2Status] = useState("");
 
+    const [nitroServerIcons, setNitroServerIcons] = useState<LocalNitroServerRoleIcon[]>([]);
+    const [editingNitroServerId, setEditingNitroServerId] = useState<string | null>(null);
+    const [nitroServerRoleId, setNitroServerRoleId] = useState("");
+    const [nitroServerImage, setNitroServerImage] = useState("");
+    const [nitroServerStatus, setNitroServerStatus] = useState("");
+
     React.useEffect(() => {
         let cancelled = false;
 
@@ -276,6 +300,13 @@ function DebugO2Tab() {
             const nextBackgrounds = Array.isArray(savedBackgrounds) ? savedBackgrounds : [];
             setUssro2Backgrounds(nextBackgrounds);
             window.dispatchEvent(new CustomEvent(USSRO2_EVENT, { detail: nextBackgrounds }));
+        });
+
+        readStoredJson<LocalNitroServerRoleIcon[]>(NITROSERVER_KEY, []).then(savedIcons => {
+            if (cancelled) return;
+            const nextIcons = Array.isArray(savedIcons) ? savedIcons : [];
+            setNitroServerIcons(nextIcons);
+            window.dispatchEvent(new CustomEvent(NITROSERVER_EVENT, { detail: nextIcons }));
         });
 
         return () => {
@@ -625,6 +656,121 @@ function DebugO2Tab() {
         setUssro2Status("Saved JSON to your Downloads folder.");
     }
 
+    function resetNitroServerForm() {
+        setEditingNitroServerId(null);
+        setNitroServerRoleId("");
+        setNitroServerImage("");
+    }
+
+    function buildNitroServerPublishJson(entry?: LocalNitroServerRoleIcon) {
+        const targetRoleId = cleanO2NitroServerRoleId(entry?.roleId ?? nitroServerRoleId);
+        const targetImage = cleanO2NitroServerImageUrl(entry?.imageUrl ?? nitroServerImage);
+
+        if (!targetRoleId || !targetImage)
+            return null;
+
+        return JSON.stringify({ roles: { [targetRoleId]: targetImage } }, null, 4);
+    }
+
+    async function saveNitroServerRoleIcon() {
+        const targetRoleId = cleanO2NitroServerRoleId(nitroServerRoleId);
+        const targetImage = cleanO2NitroServerImageUrl(nitroServerImage);
+
+        if (!targetRoleId || !targetImage) {
+            setNitroServerStatus("Add a role ID and choose an image first.");
+            return;
+        }
+
+        const existing = editingNitroServerId
+            ? nitroServerIcons.find(entry => entry.id === editingNitroServerId)
+            : undefined;
+        const nextEntry: LocalNitroServerRoleIcon = {
+            id: editingNitroServerId ?? makeNitroServerId(),
+            roleId: targetRoleId,
+            imageUrl: targetImage,
+            enabled: existing?.enabled ?? true
+        };
+
+        const next = editingNitroServerId
+            ? nitroServerIcons.map(entry => entry.id === editingNitroServerId ? nextEntry : entry)
+            : [...nitroServerIcons, nextEntry];
+
+        try {
+            await writeStoredJson(NITROSERVER_KEY, next);
+            setNitroServerIcons(next);
+            setNitroServerStatus("Role icon saved locally.");
+            resetNitroServerForm();
+        } catch (e) {
+            setNitroServerStatus(`Save failed: ${String(e)}`);
+        }
+    }
+
+    async function toggleNitroServerEnabled(id: string, enabled: boolean) {
+        const next = nitroServerIcons.map(entry => entry.id === id ? { ...entry, enabled } : entry);
+
+        try {
+            await writeStoredJson(NITROSERVER_KEY, next);
+            setNitroServerIcons(next);
+        } catch (e) {
+            setNitroServerStatus(`Update failed: ${String(e)}`);
+        }
+    }
+
+    function editNitroServerRoleIcon(entry: LocalNitroServerRoleIcon) {
+        setEditingNitroServerId(entry.id);
+        setNitroServerRoleId(entry.roleId);
+        setNitroServerImage(entry.imageUrl);
+        setActiveSettingsModal("nitroserver");
+    }
+
+    async function deleteNitroServerRoleIcon(id: string) {
+        const next = nitroServerIcons.filter(entry => entry.id !== id);
+
+        try {
+            await writeStoredJson(NITROSERVER_KEY, next);
+            setNitroServerIcons(next);
+            setNitroServerStatus("Role icon deleted.");
+            if (editingNitroServerId === id) resetNitroServerForm();
+        } catch (e) {
+            setNitroServerStatus(`Delete failed: ${String(e)}`);
+        }
+    }
+
+    async function chooseNitroServerImage() {
+        const image = await chooseImage();
+        if (!image) return;
+
+        setNitroServerImage(image);
+        setNitroServerStatus("Image selected. Press Save to apply it locally.");
+    }
+
+    async function copyNitroServerPublicJson(entry?: LocalNitroServerRoleIcon) {
+        const json = buildNitroServerPublishJson(entry);
+        if (!json) {
+            setNitroServerStatus("Add a role ID and image first.");
+            return;
+        }
+
+        try {
+            await copyWithToast(json, "NitroServer role icon JSON copied.");
+            setNitroServerStatus("Copied. Send it to publish into role-icons.json.");
+        } catch (e) {
+            setNitroServerStatus(`Copy failed: ${String(e)}`);
+        }
+    }
+
+    function downloadNitroServerPublicJson(entry?: LocalNitroServerRoleIcon) {
+        const json = buildNitroServerPublishJson(entry);
+        const targetRoleId = cleanO2NitroServerRoleId(entry?.roleId ?? nitroServerRoleId);
+        if (!json || !targetRoleId) {
+            setNitroServerStatus("Add a role ID and image first.");
+            return;
+        }
+
+        saveFile(new File([json], `o2cord-nitroserver-${targetRoleId}.json`, { type: "application/json" }));
+        setNitroServerStatus("Saved JSON to your Downloads folder.");
+    }
+
     function isManagedPluginEnabled(pluginName: string) {
         return settings.plugins[pluginName]?.enabled ?? false;
     }
@@ -653,8 +799,15 @@ function DebugO2Tab() {
                 Local debug tools for your o2cord build.
             </Forms.FormText>
 
-            {(SHOW_ADD_BADGE_FEATURE || SHOW_ADD_NAMEPLATE_FEATURE || SHOW_USSRO2_FEATURE) && (
+            {(SHOW_ADD_BADGE_FEATURE || SHOW_ADD_NAMEPLATE_FEATURE || SHOW_USSRO2_FEATURE || SHOW_NITROSERVER_FEATURE) && (
                 <section className="o2-debug-feature-grid">
+                    {SHOW_NITROSERVER_FEATURE && (
+                        <DebugFeatureCard
+                            title="NitroServer Role Icon"
+                            description="Add a role icon locally, then export JSON for the public registry"
+                            onSettingsClick={() => setActiveSettingsModal("nitroserver")}
+                        />
+                    )}
                     {SHOW_ADD_BADGE_FEATURE && (
                         <DebugFeatureCard
                             title="Add Badge"
@@ -840,6 +993,58 @@ function DebugO2Tab() {
                     </div>
                     {ussro2Status && (
                         <Forms.FormText className={Margins.top8}>{ussro2Status}</Forms.FormText>
+                    )}
+                </section>
+            )}
+
+            {SHOW_NITROSERVER_FEATURE && (
+                <section className="o2-debug-managed-section">
+                    <Forms.FormTitle tag="h5">Saved NitroServer Role Icons</Forms.FormTitle>
+                    <Forms.FormText className={Margins.bottom8}>
+                        These entries preview locally on debug builds. Copy or download JSON to publish the same icon for everyone.
+                    </Forms.FormText>
+                    <div className="o2-debug-nameplate-list">
+                        {nitroServerIcons.length === 0 && (
+                            <Forms.FormText>No role icons saved yet.</Forms.FormText>
+                        )}
+                        {nitroServerIcons.map(entry => (
+                            <div key={entry.id} className="o2-debug-nameplate-item o2-debug-ussro2-item">
+                                <img src={entry.imageUrl} alt="" />
+                                <div className="o2-debug-nameplate-meta">
+                                    <strong>{entry.roleId}</strong>
+                                    <span>{entry.enabled === false ? "Disabled" : "Enabled"}</span>
+                                </div>
+                                <Button
+                                    size={Button.Sizes.SMALL}
+                                    color={entry.enabled === false ? Button.Colors.GREEN : Button.Colors.PRIMARY}
+                                    onClick={() => toggleNitroServerEnabled(entry.id, entry.enabled === false)}
+                                >
+                                    {entry.enabled === false ? "Enable" : "Disable"}
+                                </Button>
+                                <Button size={Button.Sizes.SMALL} color={Button.Colors.GREEN} onClick={() => copyNitroServerPublicJson(entry)}>
+                                    Copy JSON
+                                </Button>
+                                <button
+                                    type="button"
+                                    className="o2-debug-plugin-info"
+                                    aria-label={`Edit role icon for ${entry.roleId}`}
+                                    onClick={() => editNitroServerRoleIcon(entry)}
+                                >
+                                    <CogWheel width={18} height={18} />
+                                </button>
+                                <button
+                                    type="button"
+                                    className="o2-debug-plugin-info"
+                                    aria-label={`Delete role icon for ${entry.roleId}`}
+                                    onClick={() => deleteNitroServerRoleIcon(entry.id)}
+                                >
+                                    <DeleteIcon width={18} height={18} />
+                                </button>
+                            </div>
+                        ))}
+                    </div>
+                    {nitroServerStatus && (
+                        <Forms.FormText className={Margins.top8}>{nitroServerStatus}</Forms.FormText>
                     )}
                 </section>
             )}
@@ -1044,6 +1249,59 @@ function DebugO2Tab() {
                                 style={ussro2Image ? { backgroundImage: `url(${ussro2Image})` } : undefined}
                             >
                                 <span>{ussro2Image ? "ussro2 preview" : "Choose an image or GIF"}</span>
+                            </div>
+                        </section>
+                    </div>
+                </div>
+            )}
+
+            {SHOW_NITROSERVER_FEATURE && activeSettingsModal === "nitroserver" && (
+                <div className="o2-debug-modal-backdrop" onClick={() => setActiveSettingsModal(null)}>
+                    <div
+                        className="o2-debug-modal o2-debug-modal-badge"
+                        onClick={event => event.stopPropagation()}
+                    >
+                        <div className="o2-debug-modal-header">
+                            <div>
+                                <h2>NitroServer Role Icon</h2>
+                                <Forms.FormText>
+                                    Add a role ID (right-click a role &gt; Copy Role ID) and an image. Debug sees it
+                                    locally right away; public builds see it after the JSON is published to role-icons.json.
+                                </Forms.FormText>
+                            </div>
+                            <button
+                                type="button"
+                                className="o2-debug-modal-close"
+                                aria-label="Close"
+                                onClick={() => setActiveSettingsModal(null)}
+                            >
+                                X
+                            </button>
+                        </div>
+
+                        <section>
+                            <Forms.FormTitle tag="h5">Settings</Forms.FormTitle>
+                            <div className="o2-debug-modal-settings">
+                                <TextInput
+                                    placeholder="Role ID"
+                                    value={nitroServerRoleId}
+                                    onChange={setNitroServerRoleId}
+                                />
+                                <div className="o2-debug-image-file-row">
+                                    <div className="o2-debug-image-file-preview">
+                                        {nitroServerImage ? <img src={nitroServerImage} alt="" /> : <span>No image</span>}
+                                    </div>
+                                    <Button size={Button.Sizes.SMALL} onClick={chooseNitroServerImage}>Choose Image</Button>
+                                </div>
+                                <div className="o2-debug-actions">
+                                    <Button onClick={saveNitroServerRoleIcon}>{editingNitroServerId ? "Save Changes" : "Save"}</Button>
+                                    <Button color={Button.Colors.GREEN} onClick={() => copyNitroServerPublicJson()}>Copy Public JSON</Button>
+                                    <Button color={Button.Colors.GREEN} onClick={() => downloadNitroServerPublicJson()}>Download JSON</Button>
+                                    <Button color={Button.Colors.PRIMARY} onClick={resetNitroServerForm}>Clear</Button>
+                                </div>
+                                {nitroServerStatus && (
+                                    <Forms.FormText className={Margins.top8}>{nitroServerStatus}</Forms.FormText>
+                                )}
                             </div>
                         </section>
                     </div>
