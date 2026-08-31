@@ -880,8 +880,24 @@ function startProfileWatcher() {
     stopProfileWatcher(false);
 
     scheduleProfileScans();
-    observer = new MutationObserver(() => {
-        queueProfileTargetScan();
+    observer = new MutationObserver(mutations => {
+        // Every DOM mutation anywhere in the page (typing indicators,
+        // timers, unrelated re-renders) used to go through the same
+        // throttled path as a freshly-opened profile card, so opening a
+        // profile could sit behind up to PROFILE_SCAN_THROTTLE_MS of delay
+        // before the image/frame actually applied. Scan immediately - no
+        // throttle - specifically when a profile card/popout node just got
+        // added to the page, since that's the one case where the delay is
+        // actually visible to the user; keep throttling everything else.
+        const sawNewProfileNode = mutations.some(mutation =>
+            Array.from(mutation.addedNodes).some(node =>
+                node instanceof HTMLElement
+                && (node.matches(PROFILE_TARGET_SELECTOR) || node.querySelector(PROFILE_TARGET_SELECTOR) != null)
+            )
+        );
+
+        if (sawNewProfileNode) queueImmediateProfileTargetScan();
+        else queueProfileTargetScan();
     });
     observer.observe(document.body, {
         childList: true,
