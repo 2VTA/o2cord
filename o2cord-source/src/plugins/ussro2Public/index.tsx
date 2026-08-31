@@ -129,11 +129,18 @@ export default definePlugin({
             }
         },
         {
+            // $1.style is overwritten in place before the real component
+            // destructures it, so the merge has to read $1.style on the
+            // right-hand side first - overwriting outright (old version)
+            // dropped whatever style Discord's own tile component was
+            // already passing (e.g. mount/unmount opacity transitions),
+            // which showed up as the tile's picture flickering out and
+            // back in on every re-render, not just ones with a background.
             find: "\"data-selenium-video-tile\":",
             replacement: [
                 {
                     match: /(?<=function\((\i),\i\)\{)(?=let.{20,40},style:)/,
-                    replace: "$1.style=$self.getVoiceBackgroundStyles($1);"
+                    replace: "$1.style={...$1.style,...$self.getVoiceBackgroundStyles($1)};"
                 }
             ]
         },
