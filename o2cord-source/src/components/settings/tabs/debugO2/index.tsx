@@ -84,10 +84,6 @@ const MANAGED_PLUGINS: ManagedPlugin[] = [
     {
         name: "FakeVoice",
         description: "Debug-only fake mute and fake deafen controls"
-    },
-    {
-        name: "ProfileTheme",
-        description: "Private controls for the public ProfileTheme image/target (hidden from the normal plugin list)"
     }
 ];
 
