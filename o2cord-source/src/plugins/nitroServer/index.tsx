@@ -312,22 +312,31 @@ let originalGetRole: typeof GuildRoleStore.getRole | null = null;
 let originalGetManyRoles: typeof GuildRoleStore.getManyRoles | null = null;
 let originalGetGuildBannerURL: typeof IconUtils.getGuildBannerURL | null = null;
 
+// getGuild/getRole run on every render of anything that reads guild/role
+// data (e.g. the Soundboard popout). Returning a brand-new object each call
+// makes every consumer see "changed" identity every render, which for a
+// subscribed component means render -> re-read -> new object -> re-render
+// forever (confirmed live: this produced repeated React error #185,
+// "Maximum update depth exceeded", when the Soundboard button was clicked).
+// Cache the wrapped object per underlying guild/role reference so identity
+// only changes when Discord's own store actually gives back a new one.
+const wrappedGuildCache = new WeakMap<any, any>();
+const wrappedRoleCache = new WeakMap<any, any>();
+
 function wrapGuild(guild: any) {
     if (!guild) return guild;
+
+    const cached = wrappedGuildCache.get(guild);
+    if (cached) return cached;
 
     const features = new Set(guild.features ?? []);
     for (const feature of UNLOCK_FEATURES) features.add(feature);
 
-    // Faking premiumTier itself (not just features) crashed the Soundboard
-    // button - Discord's real soundboard slot count is calculated directly
-    // from premiumTier as a number (24/36/48 slots per tier), and that math
-    // apparently doesn't tolerate a tier that doesn't match the guild's
-    // real (much smaller) sound list. features alone is enough for the
-    // role-icon gate this plugin actually needs, so drop the tier/count
-    // override entirely rather than risk another mismatch like this one.
-    return Object.assign(Object.create(Object.getPrototypeOf(guild)), guild, {
+    const wrapped = Object.assign(Object.create(Object.getPrototypeOf(guild)), guild, {
         features
     });
+    wrappedGuildCache.set(guild, wrapped);
+    return wrapped;
 }
 
 function wrapRole(role: any) {
@@ -336,7 +345,12 @@ function wrapRole(role: any) {
     const icon = getRoleIcons()[role.id];
     if (!icon) return role;
 
-    return Object.assign(Object.create(Object.getPrototypeOf(role)), role, { icon });
+    const cached = wrappedRoleCache.get(role);
+    if (cached && cached.icon === icon) return cached;
+
+    const wrapped = Object.assign(Object.create(Object.getPrototypeOf(role)), role, { icon });
+    wrappedRoleCache.set(role, wrapped);
+    return wrapped;
 }
 
 export default definePlugin({
