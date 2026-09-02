@@ -1,8 +1,8 @@
 {
-    "version":  "1.3.9",
-    "hash":  "public-20260902013019",
+    "version":  "1.3.10",
+    "hash":  "public-20260902090137",
     "author":  "o2cord",
-    "message":  "NitroServer soundboard crash fix, profile picture flicker fixes, faster profile-open",
+    "message":  "Updater tab now shows the correct o2cord version number",
     "notes":  [
                   "Public o2cord update package",
                   "ussro2 backgrounds are loaded from backgrounds.json beside this manifest",
