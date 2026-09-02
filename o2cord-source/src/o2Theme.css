@@ -107,14 +107,17 @@ html.o2-owner-theme [class*="connection_e131a9"] {
    background / custom-user-profile-theme) renders a real two-tone
    linear-gradient - Discord's own code, not a bug, confirmed live via
    its inline --profile-gradient-primary/secondary-color vars and
-   backgroundImage. Ryder wants this removed entirely, no per-user
-   color at all - but this element is a CHILD of the tile__ element
+   backgroundImage. This element is a CHILD of the tile__ element
    ussro2Public sets its own backgroundImage on (confirmed live via
    .closest()), so painting it a solid color here would sit on top and
    hide ussro2's picture. transparent removes the gradient without
    covering whatever the tile itself is showing (ussro2 image, or
-   Discord's own plain default tile gray if there's nothing custom). */
-html.o2-owner-theme [class*="user-profile-video-tile-background"] {
+   Discord's own plain default tile gray if there's nothing custom).
+   Unlike every other rule in this file, this one is NOT scoped under
+   html.o2-owner-theme - a second user hit the exact same symptom (their
+   own ussro2 picture covered by this native gradient), so this specific
+   fix applies for every o2cord user, not just Ryder. */
+[class*="user-profile-video-tile-background"] {
     background-image: none !important;
     background-color: transparent !important;
 }
