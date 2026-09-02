@@ -28,6 +28,7 @@ try {
     Remove-Item Env:O2CORD_DEBUG -ErrorAction SilentlyContinue
     Remove-Item Env:O2CORD_USSRO2_REGISTRY_URL -ErrorAction SilentlyContinue
     $env:O2CORD_UPDATE_MANIFEST = $ManifestUrl
+    $env:O2CORD_VERSION = $Version
     $env:VENCORD_HASH = $Hash
     $env:VENCORD_REMOTE = "2VTA/o2cord"
 

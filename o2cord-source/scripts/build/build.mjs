@@ -22,7 +22,7 @@
 import { readdir } from "fs/promises";
 import { join, resolve } from "path";
 
-import { BUILD_TIMESTAMP, commonOpts, exists, globPlugins, IS_DEV, IS_REPORTER, IS_ANTI_CRASH_TEST, IS_STANDALONE, IS_UPDATER_DISABLED, O2CORD_DEBUG, O2CORD_UPDATE_MANIFEST, O2CORD_USSRO2_REGISTRY_URL, resolvePluginName, VERSION, commonRendererPlugins, watch, buildOrWatchAll, stringifyValues } from "./common.mjs";
+import { BUILD_TIMESTAMP, commonOpts, exists, globPlugins, IS_DEV, IS_REPORTER, IS_ANTI_CRASH_TEST, IS_STANDALONE, IS_UPDATER_DISABLED, O2CORD_DEBUG, O2CORD_UPDATE_MANIFEST, O2CORD_USSRO2_REGISTRY_URL, O2CORD_VERSION, resolvePluginName, VERSION, commonRendererPlugins, watch, buildOrWatchAll, stringifyValues } from "./common.mjs";
 
 const defines = stringifyValues({
     IS_STANDALONE,
@@ -33,6 +33,7 @@ const defines = stringifyValues({
     O2CORD_DEBUG,
     O2CORD_UPDATE_MANIFEST,
     O2CORD_USSRO2_REGISTRY_URL,
+    O2CORD_VERSION,
     IS_WEB: false,
     IS_EXTENSION: false,
     IS_USERSCRIPT: false,
