@@ -106,7 +106,7 @@ function Updater() {
 
             <Card variant="info">
                 <HeadingSecondary>Installed Build</HeadingSecondary>
-                <Paragraph>Version: {VERSION}</Paragraph>
+                <Paragraph>Version: {O2CORD_VERSION || `${VERSION} (base Vencord, no o2cord update tagged yet)`}</Paragraph>
                 <Paragraph>Build: {gitHash}</Paragraph>
                 <Paragraph>Mode: {O2CORD_DEBUG ? "Private Debug" : "Public Build"}</Paragraph>
                 <Paragraph>Source: {source || "Loading..."}</Paragraph>

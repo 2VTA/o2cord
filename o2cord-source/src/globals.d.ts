@@ -42,6 +42,7 @@ declare global {
     export var IS_ANTI_CRASH_TEST: boolean;
     export var O2CORD_DEBUG: boolean;
     export var O2CORD_UPDATE_MANIFEST: string;
+    export var O2CORD_VERSION: string;
     export var O2CORD_USSRO2_REGISTRY_URL: string;
     export var IS_DISCORD_DESKTOP: boolean;
     export var IS_VESKTOP: boolean;

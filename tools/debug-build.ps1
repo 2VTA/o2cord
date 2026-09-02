@@ -51,12 +51,24 @@ try {
     $env:O2CORD_UPDATE_MANIFEST = "https://raw.githubusercontent.com/2VTA/o2cord/main/update-package/public/manifest.json"
     $env:VENCORD_HASH = "public-" + (Get-Date -Format "yyyyMMddHHmmss")
     $env:VENCORD_REMOTE = "2VTA/o2cord"
+
+    # Debug builds aren't published with their own -Version, so just tag
+    # with whatever the last real public update was + "-debug" - purely so
+    # the Updater tab's Version line means something instead of being blank.
+    $PublicVersion = "dev"
+    $ManifestPath = Join-Path $Root "update-package\public\manifest.json"
+    if (Test-Path -LiteralPath $ManifestPath) {
+        try { $PublicVersion = (Get-Content -LiteralPath $ManifestPath -Raw | ConvertFrom-Json).version } catch {}
+    }
+    $env:O2CORD_VERSION = "$PublicVersion-debug"
+
     node --require=./scripts/suppressExperimentalWarnings.js scripts/build/build.mjs --disable-updater
     if ($LASTEXITCODE -ne 0) { throw "build failed" }
 } finally {
     Remove-Item Env:O2CORD_UPDATE_MANIFEST -ErrorAction SilentlyContinue
     Remove-Item Env:VENCORD_HASH -ErrorAction SilentlyContinue
     Remove-Item Env:VENCORD_REMOTE -ErrorAction SilentlyContinue
+    Remove-Item Env:O2CORD_VERSION -ErrorAction SilentlyContinue
     Pop-Location
 }
 

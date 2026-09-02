@@ -47,6 +47,13 @@ export const IS_ANTI_CRASH_TEST = process.argv.includes("--anti-crash-test");
 export const IS_STANDALONE = process.argv.includes("--standalone");
 export const O2CORD_DEBUG = process.env.O2CORD_DEBUG === "1" || process.argv.includes("--o2-debug");
 export const O2CORD_UPDATE_MANIFEST = process.env.O2CORD_UPDATE_MANIFEST || "";
+// The actual o2cord update number (e.g. "1.3.9") baked into this build -
+// separate from VERSION above, which is just Vencord core's own upstream
+// version and never changes when we ship an o2cord update. publish-public-
+// update.ps1 sets this to whatever it passes as -Version, so the Updater
+// tab can show "am I on the latest o2cord update" directly instead of an
+// unrelated number.
+export const O2CORD_VERSION = process.env.O2CORD_VERSION || "";
 export const O2CORD_USSRO2_REGISTRY_URL = process.env.O2CORD_USSRO2_REGISTRY_URL || "";
 
 export const IS_UPDATER_DISABLED = process.argv.includes("--disable-updater");
