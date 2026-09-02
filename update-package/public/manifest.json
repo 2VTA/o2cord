@@ -1,8 +1,8 @@
 {
-    "version":  "1.3.10",
-    "hash":  "public-20260902090137",
+    "version":  "1.3.11",
+    "hash":  "public-20260902091512",
     "author":  "o2cord",
-    "message":  "Updater tab now shows the correct o2cord version number",
+    "message":  "Remove Discord\u0027s native voice-tile gradient for everyone (was Ryder-only)",
     "notes":  [
                   "Public o2cord update package",
                   "ussro2 backgrounds are loaded from backgrounds.json beside this manifest",
