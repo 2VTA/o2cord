@@ -111,8 +111,19 @@
    card used elsewhere, since this has much less room to work with. */
 .o2-widget-mini-card {
     margin: 8px 12px;
-    min-height: 79px;
+    width: 268px;
+    /* .o2-widget-header-card sets min-height:150px, which overrides a
+       plain height (min-height always wins over height in CSS when they
+       conflict) - has to be overridden here explicitly too, not just
+       height, or this silently stayed at 150px despite "height:79px". */
+    min-height: 78.9844px;
+    height: 79px;
     padding: 10px 12px;
+    /* Fixed size per Ryder's exact measurement - content that doesn't fit
+       (extra subtitle lines) clips instead of growing the box past the
+       real widget's own size. */
+    overflow: hidden;
+    box-sizing: border-box;
 }
 
 .o2-widget-mini-card .o2-widget-title {
