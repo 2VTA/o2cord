@@ -22,11 +22,14 @@
 
 import "./styles.css";
 
+import { addHeaderBarButton, HeaderBarButton, removeHeaderBarButton } from "@api/HeaderBar";
 import { definePluginSettings } from "@api/Settings";
+import { openPluginModal } from "@components/settings/tabs/plugins/PluginModal";
 import { Devs } from "@utils/constants";
 import definePlugin, { OptionType } from "@utils/types";
 import { chooseFile } from "@utils/web";
 import { Button, Forms, React, showToast, TextInput, Toasts, UserStore } from "@webpack/common";
+import Plugins from "~plugins";
 
 const RYDER_USER_ID = "719085334989897750";
 const MAX_LOCAL_IMAGE_BYTES = 8 * 1024 * 1024;
@@ -477,10 +480,32 @@ settingsDefs.manager = { type: OptionType.COMPONENT, description: "", component:
 
 const settings = definePluginSettings(settingsDefs);
 
+function WidgetIcon(props: { width?: number; height?: number; color?: string; }) {
+    return (
+        <svg width={props.width ?? 18} height={props.height ?? 18} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <rect x="3" y="3" width="8" height="8" rx="1.5" stroke={props.color ?? "currentColor"} strokeWidth="2" />
+            <rect x="13" y="3" width="8" height="8" rx="1.5" stroke={props.color ?? "currentColor"} strokeWidth="2" />
+            <rect x="3" y="13" width="8" height="8" rx="1.5" stroke={props.color ?? "currentColor"} strokeWidth="2" />
+            <rect x="13" y="13" width="8" height="8" rx="1.5" stroke={props.color ?? "currentColor"} strokeWidth="2" />
+        </svg>
+    );
+}
+
+function WidgetHeaderButton() {
+    return (
+        <HeaderBarButton
+            icon={WidgetIcon}
+            tooltip="Widget"
+            onClick={() => openPluginModal(Plugins.Widget)}
+        />
+    );
+}
+
 export default definePlugin({
     name: "Widget",
     description: "Adds a cosmetic two-card widget (app header + progress) above the real widgets on your own profile settings.",
     authors: [Devs.Ryder],
+    dependencies: ["HeaderBarAPI"],
     settings,
 
     start() {
@@ -488,6 +513,7 @@ export default definePlugin({
         injectMiniProfile();
         observer = new MutationObserver(queueScan);
         observer.observe(document.body, { childList: true, subtree: true });
+        addHeaderBarButton("o2cord-widget", () => <WidgetHeaderButton />, 900);
     },
 
     stop() {
@@ -498,5 +524,6 @@ export default definePlugin({
             scanTimer = null;
         }
         document.querySelectorAll(`[${WIDGET_CARD_ATTR}], [${MINI_PROFILE_ATTR}]`).forEach(el => el.remove());
+        removeHeaderBarButton("o2cord-widget");
     }
 });
