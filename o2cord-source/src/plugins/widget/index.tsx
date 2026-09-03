@@ -258,7 +258,16 @@ function injectMiniProfile() {
 
         header.setAttribute(MINI_PROFILE_ATTR, "true");
         header.classList.add("o2-widget-mini-card");
-        shell.appendChild(header);
+
+        // Appending directly to the outer shell rendered outside the
+        // popout's own rounded card entirely (confirmed live - Ryder saw it
+        // spill past the bottom edge, background not extending to cover
+        // it). The popout's real content wrapper (its first element child)
+        // is what Discord actually sizes/clips the visible card around, so
+        // append there instead - same reasoning as ProfileTheme's
+        // ensureImageLayer.
+        const contentWrapper = Array.from(shell.children).find(child => child instanceof HTMLElement) as HTMLElement | undefined;
+        (contentWrapper ?? shell).appendChild(header);
     });
 }
 
