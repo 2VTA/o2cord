@@ -106,11 +106,13 @@
     color: var(--text-muted, rgba(255, 255, 255, 0.7));
 }
 
-/* Matches the real widget's own compact size (confirmed live via DevTools:
-   268x79px) - tighter padding and smaller text than the full-size header
-   card used elsewhere, since this has much less room to work with. */
+/* Matches the real widget's own compact size AND position (confirmed live
+   via DevTools on the real Half-life 3 widget: 268x79px, marginLeft/Right:
+   0px, parent padding: 0px - it sits perfectly flush, card width equals
+   parent width exactly). Ours had margin:8px 12px, which is what pushed it
+   right relative to that - zero horizontal margin here to match. */
 .o2-widget-mini-card {
-    margin: 8px 12px;
+    margin: 8px 0;
     width: 268px;
     /* .o2-widget-header-card sets min-height:150px, which overrides a
        plain height (min-height always wins over height in CSS when they
