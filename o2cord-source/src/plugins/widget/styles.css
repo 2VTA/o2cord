@@ -106,9 +106,28 @@
     color: var(--text-muted, rgba(255, 255, 255, 0.7));
 }
 
+/* Matches the real widget's own compact size (confirmed live via DevTools:
+   268x79px) - tighter padding and smaller text than the full-size header
+   card used elsewhere, since this has much less room to work with. */
 .o2-widget-mini-card {
     margin: 8px 12px;
-    min-height: 90px;
+    min-height: 79px;
+    padding: 10px 12px;
+}
+
+.o2-widget-mini-card .o2-widget-title {
+    font-size: 14px;
+    line-height: 17px;
+}
+
+.o2-widget-mini-card .o2-widget-app-row {
+    margin-bottom: 3px;
+}
+
+.o2-widget-mini-card .o2-widget-subtitle {
+    margin-top: 1px;
+    font-size: 11px;
+    line-height: 13px;
 }
 
 .o2-widget-title {
