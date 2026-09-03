@@ -1,0 +1,89 @@
+.o2-widget-settings {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.o2-widget-row {
+    display: grid;
+    grid-template-columns: minmax(220px, 1fr) auto;
+    gap: 10px;
+    align-items: center;
+}
+
+.o2-widget-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 4px;
+}
+
+.o2-widget-card {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 4px;
+    padding: 12px;
+    border-radius: 8px;
+    background: rgba(12, 12, 16, 0.5);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    min-height: 80px;
+}
+
+.o2-widget-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.o2-widget-image {
+    width: 32px;
+    height: 32px;
+    border-radius: 6px;
+    object-fit: cover;
+    flex: 0 0 auto;
+}
+
+.o2-widget-title {
+    color: var(--text-normal, #fff);
+    font-weight: 600;
+}
+
+.o2-widget-subtitle {
+    margin-top: 2px;
+    font-size: 12px;
+    line-height: 15px;
+    color: var(--text-muted, rgba(255, 255, 255, 0.7));
+}
+
+.o2-widget-progress-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 6px;
+}
+
+.o2-widget-progress-label {
+    font-size: 11px;
+    color: rgba(255, 255, 255, 0.7);
+    white-space: nowrap;
+}
+
+.o2-widget-progress-bar {
+    flex: 1 1 auto;
+    height: 4px;
+    border-radius: 2px;
+    background: rgba(255, 255, 255, 0.15);
+    overflow: hidden;
+}
+
+.o2-widget-progress-fill {
+    height: 100%;
+    background: #fff;
+    border-radius: 2px;
+}
+
+.o2-widget-progress-value {
+    font-size: 11px;
+    color: rgba(255, 255, 255, 0.7);
+    white-space: nowrap;
+}
