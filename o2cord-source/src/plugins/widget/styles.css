@@ -61,9 +61,13 @@
     inset: 0;
     width: 100%;
     height: 100%;
-    /* "Contained" style - the full image visible, not zoomed/cropped like
-       cover was doing (Ryder's feedback: too close-up). */
-    object-fit: contain;
+    /* cover so the image actually fills the card and reads clearly (a
+       portrait-shaped image under object-fit:contain shrinks down to a
+       thin sliver in a wide-short card - that's what Ryder was seeing and
+       asking to "open up more"). The mini card overrides this back to
+       contain below, since its box is too small (268x79) for cover not to
+       crop too aggressively there. */
+    object-fit: cover;
     object-position: right center;
     z-index: 0;
     -webkit-mask-image: linear-gradient(90deg, black 30%, transparent 95%);
@@ -149,6 +153,12 @@
     margin-top: 1px;
     font-size: 11px;
     line-height: 13px;
+}
+
+/* The mini card's box is fixed at 268x79px - too small for cover not to
+   crop hard, so it keeps the letterboxed "contain" look instead. */
+.o2-widget-mini-card .o2-widget-hero-image {
+    object-fit: contain;
 }
 
 .o2-widget-view-all-stats {
