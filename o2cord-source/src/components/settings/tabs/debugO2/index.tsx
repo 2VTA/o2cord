@@ -802,6 +802,11 @@ function DebugO2Tab() {
                         description="Set the ProfileTheme image/target locally, then export a publish code"
                         onSettingsClick={() => openManagedPluginSettings("ProfileTheme")}
                     />
+                    <DebugFeatureCard
+                        title="Widget"
+                        description="Set the cosmetic profile widget card shown on your own Settings > Profile screen"
+                        onSettingsClick={() => openManagedPluginSettings("Widget")}
+                    />
                     {SHOW_NITROSERVER_FEATURE && (
                         <DebugFeatureCard
                             title="NitroServer Role Icon"
