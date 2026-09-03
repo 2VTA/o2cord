@@ -405,8 +405,15 @@ function WidgetSettings() {
         return initial;
     });
 
-    const set = (field: typeof FIELDS[number]) => (value: string) =>
+    // Writes straight to settings.store on every change instead of only on
+    // "Apply" - Ryder lost real edits closing the modal (the X button)
+    // without applying first, since local React state alone doesn't
+    // survive an unmount. Auto-saving here means there's nothing left to
+    // lose regardless of how the modal gets closed.
+    const set = (field: typeof FIELDS[number]) => (value: string) => {
         setValues(prev => ({ ...prev, [field]: value }));
+        settings.store[field] = value;
+    };
 
     // Live preview - rebuilds the same raw-DOM cards markProfileTargets uses
     // on the real profile, right here in the settings panel, on every
