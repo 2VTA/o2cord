@@ -400,3 +400,26 @@ html.o2-profile-theme-active [data-o2-profile-theme-widget="true"] {
     line-height: 15px;
     color: rgba(255, 255, 255, 0.7);
 }
+
+/* Cosmetic card injected into the real "Your Widgets" grid on Ryder's own
+   Settings > Profile screen - only he ever sees this page, so this is
+   purely decorative for himself, not a shared feature. */
+.o2-profile-theme-settings-widget-card {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 4px;
+    padding: 12px;
+    border-radius: 8px;
+    background: rgba(12, 12, 16, 0.5);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    min-height: 80px;
+}
+
+.o2-profile-theme-settings-widget-card .o2-profile-theme-widget-title {
+    color: var(--text-normal, #fff);
+}
+
+.o2-profile-theme-settings-widget-card .o2-profile-theme-widget-subtitle {
+    color: var(--text-muted, rgba(255, 255, 255, 0.7));
+}

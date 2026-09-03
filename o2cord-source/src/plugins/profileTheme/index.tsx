@@ -929,7 +929,62 @@ function clearChildFallback(element: Element) {
     }
 }
 
+const SETTINGS_WIDGET_CARD_ATTR = "data-o2-profile-theme-settings-widget";
+
+// Ryder specifically wants his widget card to appear inside the real
+// "Your Widgets" grid in his OWN Settings > Profile screen - understanding
+// that's a purely personal touch, since Settings is never visible to
+// anyone but him regardless of what client mod they run. Separate from the
+// on-profile-card widget above; scoped to [class*="dragAndDropTarget"]
+// (confirmed live to only exist in that settings widgets editor, not the
+// read-only profile view) so this never touches anyone else's screen.
+function injectSettingsWidgetCard() {
+    if (UserStore.getCurrentUser()?.id !== RYDER_USER_ID) return;
+
+    const widget = cleanWidgetData({
+        title: settings.store.widgetTitle,
+        subtitle1: settings.store.widgetSubtitle1,
+        subtitle2: settings.store.widgetSubtitle2,
+        subtitle3: settings.store.widgetSubtitle3
+    });
+
+    document.querySelectorAll<HTMLElement>(`[${SETTINGS_WIDGET_CARD_ATTR}]`).forEach(card => {
+        if (!widget) card.remove();
+    });
+
+    if (!widget) return;
+
+    document
+        .querySelectorAll<HTMLElement>('[class*="dragAndDropTarget"] [class*="grid__"][class*="gameWidgetGrid"]')
+        .forEach(grid => {
+            if (grid.querySelector(`[${SETTINGS_WIDGET_CARD_ATTR}]`)) return;
+
+            const item = document.createElement("li");
+            item.setAttribute(SETTINGS_WIDGET_CARD_ATTR, "true");
+            item.className = "o2-profile-theme-settings-widget-card";
+
+            if (widget.title) {
+                const title = document.createElement("div");
+                title.className = "o2-profile-theme-widget-title";
+                title.textContent = widget.title;
+                item.appendChild(title);
+            }
+
+            for (const subtitle of [widget.subtitle1, widget.subtitle2, widget.subtitle3]) {
+                if (!subtitle) continue;
+                const line = document.createElement("div");
+                line.className = "o2-profile-theme-widget-subtitle";
+                line.textContent = subtitle;
+                item.appendChild(line);
+            }
+
+            grid.appendChild(item);
+        });
+}
+
 function markProfileTargets() {
+    injectSettingsWidgetCard();
+
     if (!hasProfileThemeSource()) return;
     if (applyingTargets) return;
 
