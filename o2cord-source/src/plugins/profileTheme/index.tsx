@@ -26,6 +26,7 @@ const TARGET_CLASS = "o2-profile-theme-target";
 const TARGET_ATTR = "data-o2-profile-theme-target";
 const TARGET_KIND_ATTR = "data-o2-profile-theme-kind";
 const IMAGE_LAYER_ATTR = "data-o2-profile-theme-layer";
+const WIDGET_CARD_ATTR = "data-o2-profile-theme-widget";
 const TRANSPARENT_CHILD_ATTR = "data-o2-profile-theme-transparent";
 const PANEL_CHILD_ATTR = "data-o2-profile-theme-panel";
 const TALL_CARD_ATTR = "data-o2-profile-theme-tall";
@@ -81,10 +82,18 @@ const ACCOUNT_SWITCHER_MARKERS = ["add an existing account", "add another accoun
 
 type ProfileThemeKind = "popout" | "full";
 type ProfileThemes = Record<string, string>;
+type WidgetData = {
+    title?: string;
+    subtitle1?: string;
+    subtitle2?: string;
+    subtitle3?: string;
+};
+
 type ProfileThemeTarget = {
     element: HTMLElement;
     userId: string;
     imageUrl: string;
+    widget: WidgetData | null;
 };
 // Ryder's own personal, local-only reference list of who he's added an
 // image for - lives in this machine's DataStore, never synced anywhere.
@@ -105,6 +114,9 @@ let registryRefreshTimer: number | undefined;
 let lastRegistryRefresh = 0;
 let registryRefreshPromise: Promise<void> | null = null;
 let remoteProfileThemes: ProfileThemes = {};
+let remoteProfileWidgets: Record<string, WidgetData> = {};
+let lastWidgetRegistryRefresh = 0;
+let widgetRegistryRefreshPromise: Promise<void> | null = null;
 let styleElement: HTMLStyleElement | null = null;
 let lifecycleListenersActive = false;
 let applyingTargets = false;
@@ -322,6 +334,78 @@ function getProfileThemeRegistryUrl() {
     }
 }
 
+// Separate file/registry from profile-themes.json on purpose - the image
+// registry already has real published entries from other users, and this
+// avoids touching that working schema at all just to add widget text.
+function getProfileWidgetRegistryUrl() {
+    const updateManifestUrl = cleanImageUrl(typeof O2CORD_UPDATE_MANIFEST === "string" ? O2CORD_UPDATE_MANIFEST : "");
+    if (!updateManifestUrl) return "";
+
+    try {
+        return new URL("profile-widgets.json", updateManifestUrl).href;
+    } catch {
+        return "";
+    }
+}
+
+function cleanWidgetData(raw: unknown): WidgetData | null {
+    if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
+
+    const r = raw as Record<string, unknown>;
+    const widget: WidgetData = {
+        title: typeof r.title === "string" ? r.title.trim() : "",
+        subtitle1: typeof r.subtitle1 === "string" ? r.subtitle1.trim() : "",
+        subtitle2: typeof r.subtitle2 === "string" ? r.subtitle2.trim() : "",
+        subtitle3: typeof r.subtitle3 === "string" ? r.subtitle3.trim() : ""
+    };
+
+    return widget.title || widget.subtitle1 || widget.subtitle2 || widget.subtitle3 ? widget : null;
+}
+
+function cleanProfileWidgets(raw: unknown): Record<string, WidgetData> {
+    if (!raw || typeof raw !== "object" || Array.isArray(raw)) return {};
+
+    const widgets: Record<string, WidgetData> = {};
+    for (const [rawUserId, rawWidget] of Object.entries(raw as Record<string, unknown>)) {
+        const userId = cleanUserId(rawUserId.replace(/\D/g, ""));
+        const widget = cleanWidgetData(rawWidget);
+        if (userId && widget) widgets[userId] = widget;
+    }
+
+    return widgets;
+}
+
+async function refreshProfileWidgetRegistry(force = false) {
+    const registryUrl = getProfileWidgetRegistryUrl();
+    if (!registryUrl) return;
+
+    const now = Date.now();
+    if (!force && now - lastWidgetRegistryRefresh < REGISTRY_REFRESH_MS) return;
+    if (widgetRegistryRefreshPromise) return widgetRegistryRefreshPromise;
+
+    widgetRegistryRefreshPromise = fetchWithGithubFallback(`${registryUrl}${registryUrl.includes("?") ? "&" : "?"}t=${now}`, {
+        cache: "no-store"
+    })
+        .then(async res => {
+            if (!res.ok) throw new Error(`ProfileTheme widget registry returned ${res.status}`);
+
+            // Merge, not replace - same reasoning as refreshProfileThemeRegistry:
+            // a single incomplete/stale fetch from the GitHub-raw CDN shouldn't
+            // wipe out a known-good entry.
+            remoteProfileWidgets = { ...remoteProfileWidgets, ...cleanProfileWidgets(await res.json()) };
+            lastWidgetRegistryRefresh = Date.now();
+            scheduleProfileScans();
+        })
+        .catch(() => {
+            lastWidgetRegistryRefresh = Date.now();
+        })
+        .finally(() => {
+            widgetRegistryRefreshPromise = null;
+        });
+
+    return widgetRegistryRefreshPromise;
+}
+
 function hasLocalProfileThemeEntries() {
     return Object.keys(localProfileThemesById).length > 0;
 }
@@ -441,6 +525,21 @@ function getImageUrlForUser(userId: string) {
         return publicImageUrl || localImageUrl || savedImageUrl || getRemoteProfileThemeUrl(userId);
 
     return savedImageUrl || getRemoteProfileThemeUrl(userId);
+}
+
+function getWidgetForUser(userId: string): WidgetData | null {
+    if (userId === RYDER_USER_ID) {
+        const local = cleanWidgetData({
+            title: settings.store.widgetTitle,
+            subtitle1: settings.store.widgetSubtitle1,
+            subtitle2: settings.store.widgetSubtitle2,
+            subtitle3: settings.store.widgetSubtitle3
+        });
+        if (local) return local;
+    }
+
+    void refreshProfileWidgetRegistry();
+    return remoteProfileWidgets[userId] ?? null;
 }
 
 function getElementReactData(element: Element) {
@@ -608,7 +707,7 @@ function getTargetForShell(shell: HTMLElement): ProfileThemeTarget | null {
 
     if (userId) {
         const imageUrl = getImageUrlForUser(userId);
-        return imageUrl ? { element: shell, userId, imageUrl } : null;
+        return imageUrl ? { element: shell, userId, imageUrl, widget: getWidgetForUser(userId) } : null;
     }
 
     // Only preview on Ryder's own account. Otherwise this would fire for
@@ -616,7 +715,7 @@ function getTargetForShell(shell: HTMLElement): ProfileThemeTarget | null {
     // stamping Ryder's image onto profiles that never asked for it.
     if (isCurrentUserProfileShell(shell) && UserStore.getCurrentUser()?.id === RYDER_USER_ID) {
         const imageUrl = getImageUrlForUser(RYDER_USER_ID) || getAnyConfiguredImageUrl();
-        return imageUrl ? { element: shell, userId: RYDER_USER_ID, imageUrl } : null;
+        return imageUrl ? { element: shell, userId: RYDER_USER_ID, imageUrl, widget: getWidgetForUser(RYDER_USER_ID) } : null;
     }
 
     return null;
@@ -684,6 +783,47 @@ function ensureImageLayer(element: HTMLElement) {
     (contentWrapper ?? element).prepend(layer);
 }
 
+// Small text card (title + up to 3 subtitle lines) rendered near the bottom
+// of the same card ensureImageLayer's picture sits on - a purely cosmetic
+// o2cord-side stand-in for the real Discord "Game Stats Widget" (which
+// turned out to need Discord partner approval Ryder doesn't have). Appended
+// directly to the target root rather than the content wrapper so it sits
+// after (visually on top of, per the z-index rule below) the real profile
+// content instead of getting buried inside it.
+function ensureWidgetCard(element: HTMLElement, widget: WidgetData | null) {
+    const existing = element.querySelector<HTMLElement>(`[${WIDGET_CARD_ATTR}]`);
+
+    if (!widget) {
+        existing?.remove();
+        return;
+    }
+
+    const card = existing ?? document.createElement("div");
+    if (!existing) {
+        card.className = "o2-profile-theme-widget-card";
+        card.setAttribute(WIDGET_CARD_ATTR, "true");
+        card.setAttribute("aria-hidden", "true");
+        element.appendChild(card);
+    }
+
+    card.innerHTML = "";
+
+    if (widget.title) {
+        const title = document.createElement("div");
+        title.className = "o2-profile-theme-widget-title";
+        title.textContent = widget.title;
+        card.appendChild(title);
+    }
+
+    for (const subtitle of [widget.subtitle1, widget.subtitle2, widget.subtitle3]) {
+        if (!subtitle) continue;
+        const line = document.createElement("div");
+        line.className = "o2-profile-theme-widget-subtitle";
+        line.textContent = subtitle;
+        card.appendChild(line);
+    }
+}
+
 function getProfileThemeKind(element: HTMLElement): ProfileThemeKind {
     const width = element.getBoundingClientRect().width;
 
@@ -696,7 +836,7 @@ function getProfileThemeKind(element: HTMLElement): ProfileThemeKind {
     return "popout";
 }
 
-function applyTargetFallback({ element, userId, imageUrl }: ProfileThemeTarget) {
+function applyTargetFallback({ element, userId, imageUrl, widget }: ProfileThemeTarget) {
     const kind = getProfileThemeKind(element);
     const imageValue = `url("${cssString(imageUrl)}")`;
 
@@ -720,6 +860,7 @@ function applyTargetFallback({ element, userId, imageUrl }: ProfileThemeTarget) 
         element.setAttribute(TALL_CARD_ATTR, String(isTall));
 
     ensureImageLayer(element);
+    ensureWidgetCard(element, widget);
     if (element.style.getPropertyValue("background-color") !== "transparent")
         element.style.setProperty("background-color", "transparent", "important");
     applyChildFallbacks(element);
@@ -762,6 +903,10 @@ function clearTargetFallback(element: Element) {
     element
         .querySelectorAll(`[${IMAGE_LAYER_ATTR}]`)
         .forEach(layer => layer.remove());
+
+    element
+        .querySelectorAll(`[${WIDGET_CARD_ATTR}]`)
+        .forEach(card => card.remove());
 
     element
         .querySelectorAll(`[${TRANSPARENT_CHILD_ATTR}], [${PANEL_CHILD_ATTR}]`)
@@ -1123,6 +1268,10 @@ export function DebugProfileThemeSettings() {
     const [publicImageUrl, setPublicImageUrl] = React.useState(settings.store.publicImageUrl);
     const [targetUserId, setTargetUserId] = React.useState(settings.store.targetUserId || RYDER_USER_ID);
     const [brightness, setBrightness] = React.useState(settings.store.brightness ?? 0.6);
+    const [widgetTitle, setWidgetTitle] = React.useState(settings.store.widgetTitle);
+    const [widgetSubtitle1, setWidgetSubtitle1] = React.useState(settings.store.widgetSubtitle1);
+    const [widgetSubtitle2, setWidgetSubtitle2] = React.useState(settings.store.widgetSubtitle2);
+    const [widgetSubtitle3, setWidgetSubtitle3] = React.useState(settings.store.widgetSubtitle3);
     const [savedTargets, setSavedTargets] = React.useState<LocalProfileThemeEntry[]>(localProfileThemeEntries);
 
     React.useEffect(() => {
@@ -1171,6 +1320,28 @@ export function DebugProfileThemeSettings() {
         setPublicImageUrl("");
         clearProfileTheme();
         showToast("ProfileTheme cleared.", Toasts.Type.MESSAGE);
+    };
+
+    const saveWidget = () => {
+        settings.store.widgetTitle = widgetTitle;
+        settings.store.widgetSubtitle1 = widgetSubtitle1;
+        settings.store.widgetSubtitle2 = widgetSubtitle2;
+        settings.store.widgetSubtitle3 = widgetSubtitle3;
+        applyProfileTheme();
+        showToast("Widget card applied.", Toasts.Type.SUCCESS);
+    };
+
+    const clearWidget = () => {
+        setWidgetTitle("");
+        setWidgetSubtitle1("");
+        setWidgetSubtitle2("");
+        setWidgetSubtitle3("");
+        settings.store.widgetTitle = "";
+        settings.store.widgetSubtitle1 = "";
+        settings.store.widgetSubtitle2 = "";
+        settings.store.widgetSubtitle3 = "";
+        applyProfileTheme();
+        showToast("Widget card cleared.", Toasts.Type.MESSAGE);
     };
 
     const downloadPublishCode = (userId: string, imageUrl: string) => {
@@ -1289,6 +1460,43 @@ export function DebugProfileThemeSettings() {
                 </Button>
             </div>
 
+            <Forms.FormTitle tag="h5">Widget Card (cosmetic, o2cord viewers only)</Forms.FormTitle>
+            <Forms.FormText>
+                Small text card shown near the profile image - title plus up to 3 subtitle lines. Only visible to people running o2cord.
+            </Forms.FormText>
+            <div className="o2-profile-theme-row">
+                <TextInput
+                    value={widgetTitle}
+                    onChange={setWidgetTitle}
+                    placeholder="Title"
+                />
+            </div>
+            <div className="o2-profile-theme-row">
+                <TextInput
+                    value={widgetSubtitle1}
+                    onChange={setWidgetSubtitle1}
+                    placeholder="Subtitle 1"
+                />
+            </div>
+            <div className="o2-profile-theme-row">
+                <TextInput
+                    value={widgetSubtitle2}
+                    onChange={setWidgetSubtitle2}
+                    placeholder="Subtitle 2"
+                />
+            </div>
+            <div className="o2-profile-theme-row">
+                <TextInput
+                    value={widgetSubtitle3}
+                    onChange={setWidgetSubtitle3}
+                    placeholder="Subtitle 3"
+                />
+            </div>
+            <div className="o2-profile-theme-actions">
+                <Button onClick={saveWidget}>Apply Widget Card</Button>
+                <Button color={Button.Colors.RED} onClick={clearWidget}>Clear Widget Card</Button>
+            </div>
+
             <Forms.FormTitle tag="h5">Brightness (your own preview)</Forms.FormTitle>
             <Slider
                 initialValue={brightness}
@@ -1381,6 +1589,34 @@ const settings = definePluginSettings({
         stickToMarkers: false,
         hidden: true,
         onChange: refreshProfileTheme
+    },
+    widgetTitle: {
+        type: OptionType.STRING,
+        description: "Cosmetic widget card title shown near the profile image",
+        default: "",
+        hidden: true,
+        onChange: applyProfileTheme
+    },
+    widgetSubtitle1: {
+        type: OptionType.STRING,
+        description: "Cosmetic widget card subtitle line 1",
+        default: "",
+        hidden: true,
+        onChange: applyProfileTheme
+    },
+    widgetSubtitle2: {
+        type: OptionType.STRING,
+        description: "Cosmetic widget card subtitle line 2",
+        default: "",
+        hidden: true,
+        onChange: applyProfileTheme
+    },
+    widgetSubtitle3: {
+        type: OptionType.STRING,
+        description: "Cosmetic widget card subtitle line 3",
+        default: "",
+        hidden: true,
+        onChange: applyProfileTheme
     },
     manager: {
         type: OptionType.COMPONENT,
