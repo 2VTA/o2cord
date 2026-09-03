@@ -263,11 +263,19 @@ function injectMiniProfile() {
         // popout's own rounded card entirely (confirmed live - Ryder saw it
         // spill past the bottom edge, background not extending to cover
         // it). The popout's real content wrapper (its first element child)
-        // is what Discord actually sizes/clips the visible card around, so
-        // append there instead - same reasoning as ProfileTheme's
-        // ensureImageLayer.
+        // is what Discord actually sizes/clips the visible card around.
         const contentWrapper = Array.from(shell.children).find(child => child instanceof HTMLElement) as HTMLElement | undefined;
-        (contentWrapper ?? shell).appendChild(header);
+
+        // Ryder specifically wants this right after the bio ("View Full
+        // Bio"), before "Game Collection"/"In a call" - insert as a sibling
+        // right after that bio section when found, otherwise fall back to
+        // just appending at the end of the content wrapper.
+        const bioSection = shell.querySelector<HTMLElement>('[class*="section_bf424d"]');
+        if (bioSection) {
+            bioSection.insertAdjacentElement("afterend", header);
+        } else {
+            (contentWrapper ?? shell).appendChild(header);
+        }
     });
 }
 
