@@ -4,16 +4,20 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  *
  * Cosmetic stand-in for a real Discord "Game Stats Widget" - that system
- * turned out to need Discord partner approval (confirmed via docs.discord.com:
- * the "Account Linking on Web" flow is "only available to select partners"),
- * so this is a client-side-only replica instead: two stacked cards matching
- * a real widget's layout (app icon + name, big title, detail lines, hero
- * image on top; icon + progress bar + description below), added as a
- * standalone section above every real widget on Ryder's own Settings >
- * Profile screen. That page is private to whoever's looking at their own
- * settings regardless of what client mod they run, so this is purely a
- * personal cosmetic touch - not something published or visible to anyone
- * else.
+ * turned out to be locked behind a claimed-game requirement (confirmed live:
+ * attempting to claim a fake game returns "No results found" against
+ * Discord's real game catalog, and support-dev.discord.com documents access
+ * as claimed-games-only, managed through Developer Solutions), so this is a
+ * client-side-only replica instead: two stacked cards matching a real
+ * widget's layout - header card (app icon + name, activity accessory, big
+ * title, detail lines, image in either "Hero" bleed-across-the-card or
+ * "Contained" own-square style) and a stats card below it (up to 4 icon +
+ * name + value entries, matching the real widget's 2x2 stat grid, not a
+ * progress bar). Added as a standalone section above every real widget on
+ * Ryder's own Settings > Profile screen. That page is private to whoever's
+ * looking at their own settings regardless of what client mod they run, so
+ * this is purely a personal cosmetic touch - not something published or
+ * visible to anyone else.
  */
 
 import "./styles.css";
@@ -37,18 +41,24 @@ type WidgetData = {
     subtitle2?: string;
     subtitle3?: string;
     image?: string;
-    progressIcon?: string;
-    progressLabel?: string;
-    progressValue?: string;
-    progressDescription?: string;
+    imageLayout?: string;
     activityAccessory?: string;
+    stat1Icon?: string; stat1Name?: string; stat1Value?: string;
+    stat2Icon?: string; stat2Name?: string; stat2Value?: string;
+    stat3Icon?: string; stat3Name?: string; stat3Value?: string;
+    stat4Icon?: string; stat4Name?: string; stat4Value?: string;
 };
 
 const FIELDS = [
     "appIcon", "appName", "title", "subtitle1", "subtitle2", "subtitle3",
-    "image", "progressIcon", "progressLabel", "progressValue", "progressDescription",
-    "activityAccessory"
+    "image", "imageLayout", "activityAccessory",
+    "stat1Icon", "stat1Name", "stat1Value",
+    "stat2Icon", "stat2Name", "stat2Value",
+    "stat3Icon", "stat3Name", "stat3Value",
+    "stat4Icon", "stat4Name", "stat4Value"
 ] as const;
+
+const STAT_SLOTS = [1, 2, 3, 4] as const;
 
 function cleanWidgetData(raw: Partial<Record<typeof FIELDS[number], string>>): WidgetData | null {
     const widget: WidgetData = {};
@@ -71,10 +81,16 @@ function buildHeaderCard(widget: WidgetData): HTMLElement | null {
     if (!widget.appName && !widget.title && !widget.subtitle1 && !widget.subtitle2 && !widget.subtitle3 && !widget.image)
         return null;
 
-    const card = document.createElement("div");
-    card.className = "o2-widget-card o2-widget-header-card";
+    const isContained = widget.imageLayout === "contained";
 
-    if (widget.image) {
+    const card = document.createElement("div");
+    card.className = "o2-widget-card o2-widget-header-card" + (isContained ? " o2-widget-layout-contained" : " o2-widget-layout-hero");
+
+    // "Hero" bleeds the image across the whole card behind the text; "Contained"
+    // puts it in its own separate square to the side instead - two real
+    // Discord widget layout options, confirmed side by side from Ryder's own
+    // reference screenshots.
+    if (widget.image && !isContained) {
         const img = document.createElement("img");
         img.className = "o2-widget-hero-image";
         img.src = widget.image;
@@ -128,58 +144,71 @@ function buildHeaderCard(widget: WidgetData): HTMLElement | null {
     }
 
     card.appendChild(content);
+
+    if (widget.image && isContained) {
+        const box = document.createElement("div");
+        box.className = "o2-widget-contained-image-box";
+        const img = document.createElement("img");
+        img.className = "o2-widget-contained-image";
+        img.src = widget.image;
+        img.alt = "";
+        box.appendChild(img);
+        card.appendChild(box);
+    }
+
     return card;
 }
 
-function buildProgressCard(widget: WidgetData): HTMLElement | null {
-    if (!widget.progressLabel && !widget.progressValue && !widget.progressDescription) return null;
+// "Widget Bottom" in the real widget is a 2x2 grid of small stat entries
+// (icon + name + value each), not a single progress bar - confirmed from
+// Ryder's own reference screenshot of the real TroubleChute widget example.
+function buildStatsCard(widget: WidgetData): HTMLElement | null {
+    const slots = STAT_SLOTS
+        .map(n => ({
+            icon: widget[`stat${n}Icon` as const],
+            name: widget[`stat${n}Name` as const],
+            value: widget[`stat${n}Value` as const]
+        }))
+        .filter(slot => slot.name || slot.value);
+
+    if (!slots.length) return null;
 
     const card = document.createElement("div");
-    card.className = "o2-widget-card o2-widget-progress-card";
+    card.className = "o2-widget-card o2-widget-stats-card";
 
-    if (widget.progressIcon) {
-        const icon = document.createElement("img");
-        icon.className = "o2-widget-progress-icon";
-        icon.src = widget.progressIcon;
-        icon.alt = "";
-        card.appendChild(icon);
+    for (const slot of slots) {
+        const item = document.createElement("div");
+        item.className = "o2-widget-stat-item";
+
+        if (slot.icon) {
+            const icon = document.createElement("img");
+            icon.className = "o2-widget-stat-icon";
+            icon.src = slot.icon;
+            icon.alt = "";
+            item.appendChild(icon);
+        }
+
+        const text = document.createElement("div");
+        text.className = "o2-widget-stat-text";
+
+        if (slot.name) {
+            const name = document.createElement("div");
+            name.className = "o2-widget-stat-name";
+            name.textContent = slot.name;
+            text.appendChild(name);
+        }
+
+        if (slot.value) {
+            const value = document.createElement("div");
+            value.className = "o2-widget-stat-value";
+            value.textContent = slot.value;
+            text.appendChild(value);
+        }
+
+        item.appendChild(text);
+        card.appendChild(item);
     }
 
-    const content = document.createElement("div");
-    content.className = "o2-widget-progress-content";
-
-    const progress = Math.min(100, Math.max(0, Number(widget.progressValue) || 0));
-    const row = document.createElement("div");
-    row.className = "o2-widget-progress-row";
-
-    const label = document.createElement("span");
-    label.className = "o2-widget-progress-label";
-    label.textContent = widget.progressLabel ?? "";
-    row.appendChild(label);
-
-    const bar = document.createElement("div");
-    bar.className = "o2-widget-progress-bar";
-    const fill = document.createElement("div");
-    fill.className = "o2-widget-progress-fill";
-    fill.style.width = `${progress}%`;
-    bar.appendChild(fill);
-    row.appendChild(bar);
-
-    const value = document.createElement("span");
-    value.className = "o2-widget-progress-value";
-    value.textContent = `${progress}/100`;
-    row.appendChild(value);
-
-    content.appendChild(row);
-
-    if (widget.progressDescription) {
-        const desc = document.createElement("div");
-        desc.className = "o2-widget-progress-description";
-        desc.textContent = widget.progressDescription;
-        content.appendChild(desc);
-    }
-
-    card.appendChild(content);
     return card;
 }
 
@@ -190,6 +219,8 @@ function buildProgressCard(widget: WidgetData): HTMLElement | null {
 // the right screen - injecting INTO it mixed our card in with his actual
 // Fallout games, which he didn't want, so this adds a standalone section of
 // its own at the very top of the panel instead, above every real section.
+let lastCardWidgetJson = "";
+
 function injectCard() {
     if (UserStore.getCurrentUser()?.id !== RYDER_USER_ID) return;
 
@@ -201,13 +232,27 @@ function injectCard() {
 
     if (!widget) return;
 
+    const widgetJson = JSON.stringify(widget);
+
     document
         .querySelectorAll<HTMLElement>('[class*="dragAndDropTarget"] [class*="grid__"][class*="gameWidgetGrid"]')
         .forEach(grid => {
             const gamesSection = grid.closest("section");
             const panel = gamesSection?.parentElement;
             if (!gamesSection || !panel) return;
-            if (panel.querySelector(`[${WIDGET_CARD_ATTR}]`)) return;
+
+            const existing = panel.querySelector(`[${WIDGET_CARD_ATTR}]`);
+            // Rebuild only when the content actually changed, not on every
+            // scan - it used to skip rebuilding entirely once a card
+            // existed, leaving it stuck showing whatever settings were
+            // active at creation time (confirmed live: switching image
+            // layout silently did nothing until the section was manually
+            // removed). Comparing against the last-rendered JSON avoids
+            // both that staleness and needless DOM churn on every
+            // unrelated mutation the observer sees.
+            if (existing && widgetJson === lastCardWidgetJson) return;
+            existing?.remove();
+            lastCardWidgetJson = widgetJson;
 
             const section = document.createElement("section");
             section.setAttribute(WIDGET_CARD_ATTR, "true");
@@ -216,8 +261,8 @@ function injectCard() {
             const header = buildHeaderCard(widget);
             if (header) section.appendChild(header);
 
-            const progressCard = buildProgressCard(widget);
-            if (progressCard) section.appendChild(progressCard);
+            const statsCard = buildStatsCard(widget);
+            if (statsCard) section.appendChild(statsCard);
 
             panel.prepend(section);
         });
@@ -238,6 +283,8 @@ function isOwnProfilePopout(shell: HTMLElement) {
 // "Mini Profile" - the small popout card Discord shows when you click a
 // user's avatar/name before opening their full profile. Compact version of
 // the header card only (no room for the progress card in this small space).
+let lastMiniWidgetJson = "";
+
 function injectMiniProfile() {
     if (UserStore.getCurrentUser()?.id !== RYDER_USER_ID) return;
 
@@ -249,15 +296,32 @@ function injectMiniProfile() {
 
     if (!widget) return;
 
+    const widgetJson = JSON.stringify(widget);
+
     document.querySelectorAll<HTMLElement>(MINI_PROFILE_SELECTOR).forEach(shell => {
         if (!isOwnProfilePopout(shell)) return;
-        if (shell.querySelector(`[${MINI_PROFILE_ATTR}]`)) return;
+
+        const existing = shell.querySelector(`[${MINI_PROFILE_ATTR}]`);
+        if (existing && widgetJson === lastMiniWidgetJson) return;
+        existing?.remove();
+        lastMiniWidgetJson = widgetJson;
 
         const header = buildHeaderCard(widget);
         if (!header) return;
 
         header.setAttribute(MINI_PROFILE_ATTR, "true");
         header.classList.add("o2-widget-mini-card");
+
+        // The real Mini Profile always has a static "View All Stats" line
+        // under the text (confirmed from Ryder's reference guide) - not
+        // configurable content, just part of the fixed layout.
+        const content = header.querySelector<HTMLElement>(".o2-widget-header-content");
+        if (content) {
+            const footer = document.createElement("div");
+            footer.className = "o2-widget-view-all-stats";
+            footer.textContent = "View All Stats";
+            content.appendChild(footer);
+        }
 
         // Appending directly to the outer shell rendered outside the
         // popout's own rounded card entirely (confirmed live - Ryder saw it
@@ -372,15 +436,30 @@ function WidgetSettings() {
             <TextInput value={values.subtitle1} onChange={set("subtitle1")} placeholder="Detail line 1" />
             <TextInput value={values.subtitle2} onChange={set("subtitle2")} placeholder="Detail line 2" />
             <TextInput value={values.subtitle3} onChange={set("subtitle3")} placeholder="Detail line 3" />
-            {ImagePickerRow({ value: values.image, onChange: set("image"), placeholder: "Hero image URL (right side)" })}
-
-            <Forms.FormTitle tag="h5" className="o2-widget-section-title">Progress Card (separate box below)</Forms.FormTitle>
-            {ImagePickerRow({ value: values.progressIcon, onChange: set("progressIcon"), placeholder: "Progress icon URL" })}
-            <div className="o2-widget-row">
-                <TextInput value={values.progressLabel} onChange={set("progressLabel")} placeholder="Label" />
-                <TextInput value={values.progressValue} onChange={set("progressValue")} placeholder="0-100" />
+            {ImagePickerRow({ value: values.image, onChange: set("image"), placeholder: "Image URL" })}
+            <div className="o2-widget-actions">
+                <Button
+                    color={values.imageLayout === "contained" ? Button.Colors.TRANSPARENT : Button.Colors.PRIMARY}
+                    onClick={() => set("imageLayout")("hero")}
+                >
+                    Hero (bleeds across the card)
+                </Button>
+                <Button
+                    color={values.imageLayout === "contained" ? Button.Colors.PRIMARY : Button.Colors.TRANSPARENT}
+                    onClick={() => set("imageLayout")("contained")}
+                >
+                    Contained (own square, side by side)
+                </Button>
             </div>
-            <TextInput value={values.progressDescription} onChange={set("progressDescription")} placeholder="Description line under the bar" />
+
+            <Forms.FormTitle tag="h5" className="o2-widget-section-title">Stats Card (separate box below, up to 4)</Forms.FormTitle>
+            {STAT_SLOTS.map(n => (
+                <div className="o2-widget-row" key={n}>
+                    <TextInput value={values[`stat${n}Icon`]} onChange={set(`stat${n}Icon`)} placeholder={`Stat ${n} icon URL`} />
+                    <TextInput value={values[`stat${n}Name`]} onChange={set(`stat${n}Name`)} placeholder={`Stat ${n} name`} />
+                    <TextInput value={values[`stat${n}Value`]} onChange={set(`stat${n}Value`)} placeholder={`Stat ${n} value`} />
+                </div>
+            ))}
 
             <div className="o2-widget-actions">
                 <Button onClick={apply}>Apply</Button>

@@ -143,6 +143,13 @@
     line-height: 13px;
 }
 
+.o2-widget-view-all-stats {
+    margin-top: 4px;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-muted, rgba(255, 255, 255, 0.7));
+}
+
 .o2-widget-title {
     color: var(--text-normal, #fff);
     font-weight: 700;
@@ -157,18 +164,60 @@
     color: var(--text-muted, rgba(255, 255, 255, 0.7));
 }
 
-/* Progress card: a separate box below the header card, icon on the left. */
-.o2-widget-progress-card {
+/* "Contained" layout - image sits in its own square to the side instead of
+   bleeding across the card; text stays fully on the dark background, no
+   fade mask or overlay gradient needed since nothing sits on top of it. */
+.o2-widget-layout-contained {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.o2-widget-layout-contained::before {
+    content: none;
+}
+
+.o2-widget-layout-contained .o2-widget-header-content {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.o2-widget-contained-image-box {
+    flex: 0 0 auto;
+    width: 64px;
+    height: 64px;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.o2-widget-contained-image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+/* Stats card: a separate box below the header card, 2x2 grid of small
+   icon+name+value entries - matches the real widget's own "Widget Bottom"
+   layout (confirmed from Ryder's reference screenshot), not a progress bar. */
+.o2-widget-stats-card {
     padding: 12px 14px;
     border-top: none;
     border-top-left-radius: 0;
     border-top-right-radius: 0;
-    display: flex;
-    align-items: flex-start;
-    gap: 10px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px 14px;
 }
 
-.o2-widget-progress-icon {
+.o2-widget-stat-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+}
+
+.o2-widget-stat-icon {
     width: 32px;
     height: 32px;
     border-radius: 6px;
@@ -176,46 +225,24 @@
     flex: 0 0 auto;
 }
 
-.o2-widget-progress-content {
-    flex: 1 1 auto;
+.o2-widget-stat-text {
     min-width: 0;
 }
 
-.o2-widget-progress-row {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-
-.o2-widget-progress-label {
-    font-size: 12px;
+.o2-widget-stat-name {
+    font-size: 13px;
+    font-weight: 600;
     color: var(--text-normal, #fff);
     white-space: nowrap;
-}
-
-.o2-widget-progress-bar {
-    flex: 1 1 auto;
-    height: 4px;
-    border-radius: 2px;
-    background: rgba(255, 255, 255, 0.15);
     overflow: hidden;
+    text-overflow: ellipsis;
 }
 
-.o2-widget-progress-fill {
-    height: 100%;
-    background: #fff;
-    border-radius: 2px;
-}
-
-.o2-widget-progress-value {
+.o2-widget-stat-value {
+    margin-top: 1px;
     font-size: 11px;
-    color: rgba(255, 255, 255, 0.7);
-    white-space: nowrap;
-}
-
-.o2-widget-progress-description {
-    margin-top: 4px;
-    font-size: 12px;
-    line-height: 15px;
     color: var(--text-muted, rgba(255, 255, 255, 0.7));
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
