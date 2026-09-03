@@ -8,6 +8,14 @@
     margin-top: 8px;
 }
 
+.o2-widget-preview {
+    max-width: 320px;
+}
+
+.o2-widget-preview .o2-widget-section {
+    margin-bottom: 0;
+}
+
 .o2-widget-row {
     display: grid;
     grid-template-columns: minmax(220px, 1fr) auto;

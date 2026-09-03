@@ -408,6 +408,31 @@ function WidgetSettings() {
     const set = (field: typeof FIELDS[number]) => (value: string) =>
         setValues(prev => ({ ...prev, [field]: value }));
 
+    // Live preview - rebuilds the same raw-DOM cards markProfileTargets uses
+    // on the real profile, right here in the settings panel, on every
+    // keystroke. Saves a rebuild+screenshot round trip just to see whether
+    // a field change actually looks right.
+    const previewRef = React.useRef<HTMLDivElement>(null);
+    React.useEffect(() => {
+        const container = previewRef.current;
+        if (!container) return;
+
+        container.innerHTML = "";
+        const widget = cleanWidgetData(values);
+        if (!widget) return;
+
+        const section = document.createElement("div");
+        section.className = "o2-widget-section";
+
+        const header = buildHeaderCard(widget);
+        if (header) section.appendChild(header);
+
+        const statsCard = buildStatsCard(widget);
+        if (statsCard) section.appendChild(statsCard);
+
+        container.appendChild(section);
+    }, [values]);
+
     const apply = () => {
         for (const field of FIELDS) settings.store[field] = values[field];
         injectCard();
@@ -468,6 +493,9 @@ function WidgetSettings() {
                 <Button onClick={apply}>Apply</Button>
                 <Button color={Button.Colors.RED} onClick={clear}>Clear</Button>
             </div>
+
+            <Forms.FormTitle tag="h5" className="o2-widget-section-title">Preview</Forms.FormTitle>
+            <div className="o2-widget-preview" ref={previewRef} />
         </Forms.FormSection>
     );
 }
