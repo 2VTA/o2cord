@@ -29,13 +29,32 @@ import { definePluginSettings } from "@api/Settings";
 import { openPluginModal } from "@components/settings/tabs/plugins/PluginModal";
 import { Devs } from "@utils/constants";
 import definePlugin, { OptionType } from "@utils/types";
-import { chooseFile } from "@utils/web";
-import { Button, Forms, React, showToast, TextInput, Toasts } from "@webpack/common";
+import { fetchWithGithubFallback } from "@utils/githubFallbackFetch";
+import { chooseFile, saveFile } from "@utils/web";
+import { Button, Forms, React, showToast, TextInput, Toasts, UserStore } from "@webpack/common";
 import Plugins from "~plugins";
 
 const MAX_LOCAL_IMAGE_BYTES = 8 * 1024 * 1024;
 const WIDGET_CARD_ATTR = "data-o2-widget-card";
 const SCAN_THROTTLE_MS = 500;
+const PUBLISH_CODE_PREFIX = "O2WIDGET_PUBLISH:";
+const DISCORD_ID_RE = /^\d{17,20}$/;
+const REACT_SCAN_LIMIT = 220;
+const REACT_SCAN_DEPTH = 5;
+const MIN_PRIMARY_AVATAR_SIZE = 48;
+const AVATAR_ID_RE = /\/(?:avatars\/|users\/)(\d{17,20})(?:\/avatars)?\//;
+const REGISTRY_REFRESH_MS = 30_000;
+
+// Same shell selectors ProfileTheme uses to find a profile card/popout
+// anywhere on the page (full profile, popout, both).
+const PROFILE_SHELL_SELECTOR = [
+    "[class*='outer_c0bea0']",
+    "[class*='userProfileOuter']",
+    "[class*='userPopoutOuter']",
+    "[class*='themeContainer_ce8328']",
+    "[class*='custom-user-profile-theme']",
+    "[class*='user-profile-popout']"
+].join(",");
 
 type WidgetData = {
     appIcon?: string;
@@ -79,6 +98,216 @@ function getWidget(): WidgetData | null {
     const raw: Partial<Record<typeof FIELDS[number], string>> = {};
     for (const field of FIELDS) raw[field] = settings.store[field];
     return cleanWidgetData(raw);
+}
+
+function cleanUserId(value?: string | null) {
+    const userId = (value ?? "").trim();
+    return DISCORD_ID_RE.test(userId) ? userId : "";
+}
+
+// Registry so other o2cord users can see a published widget on someone
+// ELSE's real profile - separate file from ProfileTheme's own registries,
+// keyed by userId, same merge-not-replace pattern already proven there
+// (a single incomplete fetch from the GitHub-raw CDN shouldn't wipe a
+// known-good entry).
+let remoteWidgets: Record<string, WidgetData> = {};
+let lastRegistryRefresh = 0;
+let registryRefreshPromise: Promise<void> | null = null;
+
+function getWidgetRegistryUrl() {
+    const updateManifestUrl = (typeof O2CORD_UPDATE_MANIFEST === "string" ? O2CORD_UPDATE_MANIFEST : "").trim();
+    if (!updateManifestUrl) return "";
+
+    try {
+        return new URL("widgets.json", updateManifestUrl).href;
+    } catch {
+        return "";
+    }
+}
+
+function cleanRemoteWidgets(raw: unknown): Record<string, WidgetData> {
+    if (!raw || typeof raw !== "object" || Array.isArray(raw)) return {};
+
+    const widgets: Record<string, WidgetData> = {};
+    for (const [rawUserId, rawWidget] of Object.entries(raw as Record<string, unknown>)) {
+        const userId = cleanUserId(rawUserId.replace(/\D/g, ""));
+        if (!userId || !rawWidget || typeof rawWidget !== "object") continue;
+
+        const widget = cleanWidgetData(rawWidget as Partial<Record<typeof FIELDS[number], string>>);
+        if (widget) widgets[userId] = widget;
+    }
+
+    return widgets;
+}
+
+async function refreshWidgetRegistry(force = false) {
+    const registryUrl = getWidgetRegistryUrl();
+    if (!registryUrl) return;
+
+    const now = Date.now();
+    if (!force && now - lastRegistryRefresh < REGISTRY_REFRESH_MS) return;
+    if (registryRefreshPromise) return registryRefreshPromise;
+
+    registryRefreshPromise = fetchWithGithubFallback(`${registryUrl}${registryUrl.includes("?") ? "&" : "?"}t=${now}`, {
+        cache: "no-store"
+    })
+        .then(async res => {
+            if (!res.ok) throw new Error(`Widget registry returned ${res.status}`);
+
+            remoteWidgets = { ...remoteWidgets, ...cleanRemoteWidgets(await res.json()) };
+            lastRegistryRefresh = Date.now();
+        })
+        .catch(() => {
+            lastRegistryRefresh = Date.now();
+        })
+        .finally(() => {
+            registryRefreshPromise = null;
+        });
+
+    return registryRefreshPromise;
+}
+
+function getWidgetForUser(userId: string): WidgetData | null {
+    if (userId === UserStore.getCurrentUser()?.id) return getWidget();
+
+    void refreshWidgetRegistry();
+    return remoteWidgets[userId] ?? null;
+}
+
+// --- Profile userId resolution (adapted from ProfileTheme's proven
+// implementation - React-fiber walking to find whose profile a given
+// shell element actually belongs to). ---
+
+function getElementReactData(element: Element) {
+    const record = element as any;
+    const values: any[] = [];
+
+    for (const key in record) {
+        if (key.startsWith("__reactProps$") || key.startsWith("__reactFiber$")) {
+            const value = record[key];
+            if (value) values.push(value);
+        }
+    }
+
+    return values;
+}
+
+function pickDirectUserId(value: any) {
+    if (!value || typeof value !== "object") return "";
+
+    const candidates = [
+        value.userId,
+        value.profileUserId,
+        value.displayProfile?.userId,
+        value.user?.id,
+        value.profileUser?.id,
+        value.displayProfile?.user?.id,
+        value.profile?.userId,
+        value.profile?.user?.id
+    ];
+
+    for (const candidate of candidates) {
+        if (typeof candidate === "string" && DISCORD_ID_RE.test(candidate))
+            return candidate;
+    }
+
+    if (
+        typeof value.id === "string"
+        && DISCORD_ID_RE.test(value.id)
+        && (typeof value.username === "string" || typeof value.globalName === "string" || typeof value.avatar === "string")
+    )
+        return value.id;
+
+    return "";
+}
+
+function findProfileUserId(value: any, seen = new WeakSet<object>(), depth = 0): string {
+    if (!value || depth > REACT_SCAN_DEPTH) return "";
+    if (typeof value !== "object" && typeof value !== "function") return "";
+    if (seen.has(value)) return "";
+    seen.add(value);
+
+    const direct = pickDirectUserId(value);
+    if (direct) return direct;
+
+    const nestedKeys = ["props", "memoizedProps", "pendingProps", "user", "profileUser", "displayProfile", "profile", "userProfile", "displayProfileData", "children"];
+
+    for (const key of nestedKeys) {
+        let nested: any;
+        try {
+            nested = value[key];
+        } catch {
+            continue;
+        }
+
+        if (!nested) continue;
+
+        if (Array.isArray(nested)) {
+            for (const item of nested) {
+                const found = findProfileUserId(item, seen, depth + 1);
+                if (found) return found;
+            }
+            continue;
+        }
+
+        const found = findProfileUserId(nested, seen, depth + 1);
+        if (found) return found;
+    }
+
+    return "";
+}
+
+function getKnownWidgetUserIds() {
+    const ids = new Set<string>(Object.keys(remoteWidgets));
+    const me = UserStore.getCurrentUser()?.id;
+    if (me) ids.add(me);
+    return ids;
+}
+
+function getMainAvatarUserId(shell: HTMLElement) {
+    for (const img of Array.from(shell.querySelectorAll<HTMLImageElement>("img"))) {
+        const src = img.currentSrc || img.src || "";
+        const match = AVATAR_ID_RE.exec(src);
+        if (!match) continue;
+
+        const rect = img.getBoundingClientRect();
+        if (Math.max(rect.width, rect.height) < MIN_PRIMARY_AVATAR_SIZE) continue;
+
+        return match[1];
+    }
+
+    return "";
+}
+
+function getProfileUserIdFromAvatar(shell: HTMLElement) {
+    const userId = getMainAvatarUserId(shell);
+    return userId && getKnownWidgetUserIds().has(userId) ? userId : "";
+}
+
+function getProfileUserId(shell: HTMLElement) {
+    const avatarUserId = getProfileUserIdFromAvatar(shell);
+    if (avatarUserId) return avatarUserId;
+
+    for (let node: Element | null = shell, depth = 0; node && depth < 4; node = node.parentElement, depth++) {
+        if (node === document.body || node === document.documentElement) break;
+
+        for (const reactData of getElementReactData(node)) {
+            const userId = findProfileUserId(reactData);
+            if (userId) return userId;
+        }
+    }
+
+    let scanned = 0;
+    for (const child of Array.from(shell.querySelectorAll("*"))) {
+        if (++scanned > REACT_SCAN_LIMIT) break;
+
+        for (const reactData of getElementReactData(child)) {
+            const userId = findProfileUserId(reactData);
+            if (userId) return userId;
+        }
+    }
+
+    return "";
 }
 
 function buildHeaderCard(widget: WidgetData): HTMLElement | null {
@@ -271,40 +500,39 @@ function injectCard() {
 }
 
 const MINI_PROFILE_ATTR = "data-o2-widget-mini";
-const MINI_PROFILE_SELECTOR = '[class*="outer_c0bea0"], [class*="userPopoutOuter"]';
 
 function isOwnProfilePopout(shell: HTMLElement) {
     // Same heuristic ProfileTheme used: the real "Edit Profile" control only
-    // ever shows on your OWN popout, never on someone else's - checking for
-    // it is enough to gate this to Ryder's own screen without needing the
-    // heavier per-target userId resolution ProfileTheme has.
+    // ever shows on your OWN popout, never on someone else's.
     return shell.textContent?.includes("Edit Profile")
         || Boolean(shell.querySelector('[aria-label*="Edit Profile"]'));
 }
 
 // "Mini Profile" - the small popout card Discord shows when you click a
-// user's avatar/name before opening their full profile. Compact version of
-// the header card only (no room for the progress card in this small space).
-let lastMiniWidgetJson = "";
+// user's avatar/name before opening their full profile (also covers the
+// equivalent spot on a full profile view). Own account: your local
+// settings. Anyone else: their published widget from the registry, if
+// they have one - same shell-scanning approach ProfileTheme uses to
+// figure out whose profile a given popout actually belongs to.
+const lastShellWidgetJson = new WeakMap<HTMLElement, string>();
 
-function injectMiniProfile() {
-    const widget = getWidget();
+function injectOnProfiles() {
+    document.querySelectorAll<HTMLElement>(PROFILE_SHELL_SELECTOR).forEach(shell => {
+        const isOwn = isOwnProfilePopout(shell);
+        const userId = isOwn ? UserStore.getCurrentUser()?.id : getProfileUserId(shell);
+        const widget = userId ? getWidgetForUser(userId) : null;
 
-    document.querySelectorAll<HTMLElement>(`[${MINI_PROFILE_ATTR}]`).forEach(el => {
-        if (!widget) el.remove();
-    });
+        const existing = shell.querySelector<HTMLElement>(`[${MINI_PROFILE_ATTR}]`);
+        if (!widget) {
+            existing?.remove();
+            lastShellWidgetJson.delete(shell);
+            return;
+        }
 
-    if (!widget) return;
-
-    const widgetJson = JSON.stringify(widget);
-
-    document.querySelectorAll<HTMLElement>(MINI_PROFILE_SELECTOR).forEach(shell => {
-        if (!isOwnProfilePopout(shell)) return;
-
-        const existing = shell.querySelector(`[${MINI_PROFILE_ATTR}]`);
-        if (existing && widgetJson === lastMiniWidgetJson) return;
+        const widgetJson = JSON.stringify(widget);
+        if (existing && lastShellWidgetJson.get(shell) === widgetJson) return;
         existing?.remove();
-        lastMiniWidgetJson = widgetJson;
+        lastShellWidgetJson.set(shell, widgetJson);
 
         const header = buildHeaderCard(widget);
         if (!header) return;
@@ -345,13 +573,14 @@ function injectMiniProfile() {
 
 let observer: MutationObserver | null = null;
 let scanTimer: ReturnType<typeof setTimeout> | null = null;
+let registryRefreshTimer: number | undefined;
 
 function queueScan() {
     if (scanTimer != null) return;
     scanTimer = setTimeout(() => {
         scanTimer = null;
         injectCard();
-        injectMiniProfile();
+        injectOnProfiles();
     }, SCAN_THROTTLE_MS);
 }
 
@@ -454,10 +683,26 @@ function WidgetSettings() {
         showToast("Widget card cleared.", Toasts.Type.MESSAGE);
     };
 
+    // Same "download a code, attach it to Claude" flow ProfileTheme uses to
+    // get an entry into the shared registry, since a plain client mod can't
+    // commit to GitHub itself.
+    const copyPublishCode = () => {
+        const userId = UserStore.getCurrentUser()?.id;
+        const widget = cleanWidgetData(values);
+        if (!userId || !widget) {
+            showToast("Set at least one field first.", Toasts.Type.FAILURE);
+            return;
+        }
+
+        const code = `${PUBLISH_CODE_PREFIX}${JSON.stringify({ userId, widget })}`;
+        saveFile(new File([code], `o2cord-widget-${userId}.txt`, { type: "text/plain" }));
+        showToast("Publish code saved to your Downloads folder. Attach that file to Claude.", Toasts.Type.SUCCESS);
+    };
+
     return (
         <Forms.FormSection className="o2-widget-settings">
             <Forms.FormText>
-                Adds a cosmetic two-card widget above your real widgets on Settings &gt; Profile - only you ever see that page.
+                Adds a cosmetic two-card widget above your real widgets on Settings &gt; Profile, and on your Mini Profile. Only you see it until you publish it - after that, other o2cord users see it on your real profile too.
             </Forms.FormText>
 
             <Forms.FormTitle tag="h5">Header Card</Forms.FormTitle>
@@ -495,6 +740,7 @@ function WidgetSettings() {
 
             <div className="o2-widget-actions">
                 <Button onClick={apply}>Apply</Button>
+                <Button onClick={copyPublishCode}>Copy Publish Code</Button>
                 <Button color={Button.Colors.RED} onClick={clear}>Clear</Button>
             </div>
 
@@ -541,8 +787,10 @@ export default definePlugin({
     settings,
 
     start() {
+        void refreshWidgetRegistry(true);
+        registryRefreshTimer = window.setInterval(() => void refreshWidgetRegistry(true), REGISTRY_REFRESH_MS);
         injectCard();
-        injectMiniProfile();
+        injectOnProfiles();
         observer = new MutationObserver(queueScan);
         observer.observe(document.body, { childList: true, subtree: true });
         addHeaderBarButton("o2cord-widget", () => <WidgetHeaderButton />, 900);
@@ -554,6 +802,10 @@ export default definePlugin({
         if (scanTimer != null) {
             clearTimeout(scanTimer);
             scanTimer = null;
+        }
+        if (registryRefreshTimer != null) {
+            window.clearInterval(registryRefreshTimer);
+            registryRefreshTimer = undefined;
         }
         document.querySelectorAll(`[${WIDGET_CARD_ATTR}], [${MINI_PROFILE_ATTR}]`).forEach(el => el.remove());
         removeHeaderBarButton("o2cord-widget");
