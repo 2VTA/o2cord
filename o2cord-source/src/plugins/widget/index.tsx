@@ -518,6 +518,13 @@ const lastShellWidgetJson = new WeakMap<HTMLElement, string>();
 
 function injectOnProfiles() {
     document.querySelectorAll<HTMLElement>(PROFILE_SHELL_SELECTOR).forEach(shell => {
+        // Discord's own native voice-call tile background reuses the exact
+        // same "custom-user-profile-theme" class real profile shells use
+        // (confirmed live, the same collision ProfileTheme hit and fixed
+        // earlier this session) - without this check the card landed
+        // nested inside a voice tile instead of an actual profile popout.
+        if (shell.closest('[class*="user-profile-video-tile-background"]')) return;
+
         const isOwn = isOwnProfilePopout(shell);
         const userId = isOwn ? UserStore.getCurrentUser()?.id : getProfileUserId(shell);
         const widget = userId ? getWidgetForUser(userId) : null;
