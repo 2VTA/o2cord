@@ -14,10 +14,12 @@
  * "Contained" own-square style) and a stats card below it (up to 4 icon +
  * name + value entries, matching the real widget's 2x2 stat grid, not a
  * progress bar). Added as a standalone section above every real widget on
- * Ryder's own Settings > Profile screen. That page is private to whoever's
- * looking at their own settings regardless of what client mod they run, so
- * this is purely a personal cosmetic touch - not something published or
- * visible to anyone else.
+ * your own Settings > Profile screen, and a compact version on your own
+ * Mini Profile popout. Available to every o2cord user (not gated to
+ * Ryder) - each person's Settings/Mini Profile is only ever visible on
+ * their own screen regardless of what client mod they run, so this is
+ * still purely a personal cosmetic touch per user, not something published
+ * or visible to anyone else.
  */
 
 import "./styles.css";
@@ -28,10 +30,9 @@ import { openPluginModal } from "@components/settings/tabs/plugins/PluginModal";
 import { Devs } from "@utils/constants";
 import definePlugin, { OptionType } from "@utils/types";
 import { chooseFile } from "@utils/web";
-import { Button, Forms, React, showToast, TextInput, Toasts, UserStore } from "@webpack/common";
+import { Button, Forms, React, showToast, TextInput, Toasts } from "@webpack/common";
 import Plugins from "~plugins";
 
-const RYDER_USER_ID = "719085334989897750";
 const MAX_LOCAL_IMAGE_BYTES = 8 * 1024 * 1024;
 const WIDGET_CARD_ATTR = "data-o2-widget-card";
 const SCAN_THROTTLE_MS = 500;
@@ -225,8 +226,6 @@ function buildStatsCard(widget: WidgetData): HTMLElement | null {
 let lastCardWidgetJson = "";
 
 function injectCard() {
-    if (UserStore.getCurrentUser()?.id !== RYDER_USER_ID) return;
-
     const widget = getWidget();
 
     document.querySelectorAll<HTMLElement>(`[${WIDGET_CARD_ATTR}]`).forEach(el => {
@@ -289,8 +288,6 @@ function isOwnProfilePopout(shell: HTMLElement) {
 let lastMiniWidgetJson = "";
 
 function injectMiniProfile() {
-    if (UserStore.getCurrentUser()?.id !== RYDER_USER_ID) return;
-
     const widget = getWidget();
 
     document.querySelectorAll<HTMLElement>(`[${MINI_PROFILE_ATTR}]`).forEach(el => {
