@@ -214,6 +214,51 @@ function fileToDataUrl(file: File) {
     });
 }
 
+// Discord's real nameplate slot renders with object-fit:contain, right-aligned,
+// inside a box that's ~5.33:1 wide (measured live off the actual rendered
+// element: 224x42 / 309x58 boxes, both ~320:60). A portrait/square source
+// photo contains down to a narrow sliver at the box's right edge - exactly
+// where the nameplate's own built-in left-fade mask sits, so it reads as
+// half-faded and "not open" instead of filling the banner like a real
+// nameplate asset does. Center-cropping to that aspect first (like a cover
+// photo) makes it fill the box the same way a real nameplate does.
+const NAMEPLATE_ASPECT = 320 / 60;
+const NAMEPLATE_MAX_WIDTH = 960;
+
+function loadImageElement(dataUrl: string) {
+    return new Promise<HTMLImageElement>((resolve, reject) => {
+        const img = new Image();
+        img.onload = () => resolve(img);
+        img.onerror = () => reject(new Error("Could not read that image."));
+        img.src = dataUrl;
+    });
+}
+
+async function cropImageToNameplateAspect(dataUrl: string): Promise<string> {
+    const img = await loadImageElement(dataUrl);
+
+    let cropW = img.width, cropH = img.height, cropX = 0, cropY = 0;
+    if (img.width / img.height > NAMEPLATE_ASPECT) {
+        cropW = Math.round(img.height * NAMEPLATE_ASPECT);
+        cropX = Math.round((img.width - cropW) / 2);
+    } else {
+        cropH = Math.round(img.width / NAMEPLATE_ASPECT);
+        cropY = Math.round((img.height - cropH) / 2);
+    }
+
+    const outW = Math.min(NAMEPLATE_MAX_WIDTH, cropW);
+    const outH = Math.round(outW / NAMEPLATE_ASPECT);
+
+    const canvas = document.createElement("canvas");
+    canvas.width = outW;
+    canvas.height = outH;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return dataUrl;
+
+    ctx.drawImage(img, cropX, cropY, cropW, cropH, 0, 0, outW, outH);
+    return canvas.toDataURL("image/png");
+}
+
 function DebugFeatureCard({
     title,
     description,
@@ -498,10 +543,23 @@ function DebugO2Tab() {
         const file = await chooseFile("video/webm,video/mp4,image/png,image/jpeg,image/webp,image/gif");
         if (!file) return;
 
-        const dataUrl = await fileToDataUrl(file);
+        let dataUrl = await fileToDataUrl(file);
+        let status = "Selected. Press Save to preview it, or download it to publish for everyone.";
+
+        // Only static (non-animated) images go through the crop - videos
+        // render through our own fixed-aspect CSS overlay instead, and GIF
+        // frames can't be canvas-cropped without losing the animation.
+        if (file.type === "image/png" || file.type === "image/jpeg" || file.type === "image/webp") {
+            try {
+                dataUrl = await cropImageToNameplateAspect(dataUrl);
+            } catch {
+                status = "Selected, but couldn't auto-crop it to the nameplate shape - it may look small or off-center.";
+            }
+        }
+
         setNameplateVideo(dataUrl);
         if (!nameplateUserId.trim()) setNameplateUserId(UserStore.getCurrentUser()?.id ?? "");
-        setNameplateStatus("Selected. Press Save to preview it, or download it to publish for everyone.");
+        setNameplateStatus(status);
     }
 
     function downloadNameplateVideoFile() {
