@@ -28,16 +28,20 @@ const NameplateImgCacheModule = mapMangledModuleLazy("toolsCache:{}", {
     useImgCacheApi: filters.byCode("setImgCache:")
 });
 
-const primedImgCacheKeys = new Set<string>();
+// Keyed by the last URL actually primed under that key, not just whether it
+// was primed at all - a plain Set here meant picking a *different* image for
+// the same user silently never showed up (DataStore had the new url, but the
+// getter skipped re-priming it) until a full app restart cleared this map.
+const primedImgCacheUrls = new Map<string, string>();
 
 function primeImgCache(key: string, url: string) {
-    if (primedImgCacheKeys.has(key)) return;
+    if (primedImgCacheUrls.get(key) === url) return;
 
     try {
         const { setImgCache } = NameplateImgCacheModule.useImgCacheApi();
         const animatedUrl = isGifSource(url) ? url : undefined;
         setImgCache(key, animatedUrl, url);
-        primedImgCacheKeys.add(key);
+        primedImgCacheUrls.set(key, url);
     } catch { }
 }
 
