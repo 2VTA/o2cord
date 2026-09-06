@@ -256,6 +256,24 @@ async function cropImageToNameplateAspect(dataUrl: string): Promise<string> {
     if (!ctx) return dataUrl;
 
     ctx.drawImage(img, cropX, cropY, cropW, cropH, 0, 0, outW, outH);
+
+    // The account panel's nameplate slot reserves a fixed gap on the left for
+    // the avatar circle to sit in, but (unlike the member list, which gets
+    // Discord's own left-fade mask automatically) doesn't fade the image into
+    // that gap itself - a busy photo starting at full opacity right at the
+    // gap's edge reads as an abrupt seam instead of flowing out from behind
+    // the avatar. Baking the same kind of fade into our own image (alpha,
+    // not color, so it blends into any theme) fixes every surface at once,
+    // native mask or not.
+    const fade = ctx.createLinearGradient(0, 0, outW, 0);
+    fade.addColorStop(0, "rgba(0,0,0,0)");
+    fade.addColorStop(0.35, "rgba(0,0,0,1)");
+    fade.addColorStop(1, "rgba(0,0,0,1)");
+    ctx.globalCompositeOperation = "destination-in";
+    ctx.fillStyle = fade;
+    ctx.fillRect(0, 0, outW, outH);
+    ctx.globalCompositeOperation = "source-over";
+
     return canvas.toDataURL("image/png");
 }
 
