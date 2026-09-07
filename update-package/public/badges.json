@@ -101,6 +101,14 @@
             "image": "https://raw.githubusercontent.com/2VTA/o2cord/main/update-package/public/assets/badges/badge-mtro5ork.png",
             "size": 25,
             "enabled": true
+        },
+        {
+            "id": "badge-mtrolu47",
+            "userId": "1228145726240854067",
+            "name": "CYN",
+            "image": "https://raw.githubusercontent.com/2VTA/o2cord/main/update-package/public/assets/badges/badge-mtrolu47.gif",
+            "size": 26,
+            "enabled": true
         }
     ]
 }
