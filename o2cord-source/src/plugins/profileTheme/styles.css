@@ -67,11 +67,16 @@
         var(--background-secondary-alt);
 }
 
-.o2-profile-theme-preview::before {
+.o2-profile-theme-preview-image {
     position: absolute;
     inset: 0;
-    content: "";
-    background-image: var(--o2-profile-theme-settings-preview-image);
+    /*
+     * background-image is set directly on this element in JS, not through a
+     * CSS custom property - see IMAGE_SCRIM_GRADIENT's comment in
+     * profileTheme/index.tsx for why (a sizeable local image/GIF silently
+     * never applies through a --custom-property, no such limit on a plain
+     * longhand property).
+     */
     background-position: center;
     background-repeat: no-repeat;
     background-size: cover;

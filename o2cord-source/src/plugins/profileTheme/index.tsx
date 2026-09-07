@@ -19,6 +19,21 @@ import { chooseFile, saveFile } from "@utils/web";
 import { Button, Forms, React, Slider, showToast, TextInput, Toasts, UserStore } from "@webpack/common";
 
 const PUBLISH_CODE_PREFIX = "O2PROFILE_PUBLISH:";
+
+// Blink silently refuses to store a CSS custom property value longer than
+// ~2MB (confirmed live: setProperty on a --var just no-ops past that, no
+// error, no console warning) - a plain longhand property like
+// background-image has no such limit. A local/uploaded GIF easily blows
+// past 2MB once base64-encoded, so --o2-profile-theme-image (read by
+// styles.css's [data-o2-profile-theme-layer] rule) silently never gets
+// set for those, and the picture just never shows. Real published themes
+// are unaffected (the registry only ever stores short https:// URLs - the
+// bot uploads the actual bytes to GitHub separately), but any local
+// preview of a sizeable image/GIF hit this. Mirroring the same gradient
+// scrim here and setting it directly on the layer element's real
+// background-image sidesteps the custom-property size cap entirely.
+const IMAGE_SCRIM_GRADIENT = "linear-gradient(180deg, rgba(0, 0, 0, 0.5) 0%, rgba(0, 0, 0, 0.15) 28%, rgba(0, 0, 0, 0.15) 62%, rgba(0, 0, 0, 0.45) 100%)";
+
 const LOCAL_PROFILE_THEMES_KEY = "o2cord.debug.localProfileThemes";
 const LOCAL_PROFILE_THEMES_UPDATED_EVENT = "o2cord:debug-local-profile-themes-updated";
 const STYLE_ID = "o2-profile-theme-vars";
@@ -720,6 +735,20 @@ function applyTargetFallback({ element, userId, imageUrl }: ProfileThemeTarget) 
         element.setAttribute(TALL_CARD_ATTR, String(isTall));
 
     ensureImageLayer(element);
+
+    // Set directly on the layer's own background-image (a real longhand
+    // property, no size cap) instead of relying solely on the
+    // --o2-profile-theme-image custom property styles.css reads - see
+    // IMAGE_SCRIM_GRADIENT above for why. The custom property is left set
+    // too since it's harmless for the common short-URL case and nothing
+    // else currently depends on removing it.
+    const layer = element.querySelector<HTMLElement>(`[${IMAGE_LAYER_ATTR}]`);
+    if (layer) {
+        const combinedImage = `${IMAGE_SCRIM_GRADIENT}, ${imageValue}`;
+        if (layer.style.getPropertyValue("background-image") !== combinedImage)
+            layer.style.setProperty("background-image", combinedImage, "important");
+    }
+
     if (element.style.getPropertyValue("background-color") !== "transparent")
         element.style.setProperty("background-color", "transparent", "important");
     applyChildFallbacks(element);
@@ -1124,6 +1153,16 @@ export function DebugProfileThemeSettings() {
     const [targetUserId, setTargetUserId] = React.useState(settings.store.targetUserId || RYDER_USER_ID);
     const [brightness, setBrightness] = React.useState(settings.store.brightness ?? 0.6);
     const [savedTargets, setSavedTargets] = React.useState<LocalProfileThemeEntry[]>(localProfileThemeEntries);
+    const previewImageRef = React.useRef<HTMLDivElement | null>(null);
+
+    // Set directly rather than through the --o2-profile-theme-settings-preview-image
+    // custom property styles.css's ::before rule reads - see IMAGE_SCRIM_GRADIENT's
+    // comment above for why a sizeable local image/GIF silently never applies
+    // through a CSS custom property.
+    React.useEffect(() => {
+        if (previewImageRef.current)
+            previewImageRef.current.style.backgroundImage = imageUrl ? `url("${cssString(imageUrl)}")` : "none";
+    }, [imageUrl]);
 
     React.useEffect(() => {
         let cancelled = false;
@@ -1233,7 +1272,6 @@ export function DebugProfileThemeSettings() {
     };
 
     const previewVars = {
-        "--o2-profile-theme-settings-preview-image": imageUrl ? `url("${cssString(imageUrl)}")` : "none",
         "--o2-profile-theme-settings-preview-opacity": brightness
     } as React.CSSProperties;
 
@@ -1313,6 +1351,7 @@ export function DebugProfileThemeSettings() {
 
             <Forms.FormTitle tag="h5" className={Margins.top8}>Preview 300x466</Forms.FormTitle>
             <div className="o2-profile-theme-preview" style={previewVars}>
+                <div className="o2-profile-theme-preview-image" ref={previewImageRef} />
                 {!imageUrl && <div className="o2-profile-theme-preview-empty">No image selected</div>}
                 <div className="o2-profile-theme-preview-card">
                     <div className="o2-profile-theme-preview-name">o2 Profile</div>
