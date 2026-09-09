@@ -129,6 +129,7 @@ interface CustomProfileData {
     pronouns?: string;
     badgeFlags?: number;
     createdAt?: string;
+    guildJoinedAt?: string;
     nitro?: boolean;
     nitroLevel?: number;
     boostMonths?: number;
@@ -1571,6 +1572,7 @@ function CustomProfileModal({ rootProps }: { rootProps: any; }) {
                     </div>
                 </div>
                 <Field label={t("Account creation date")} value={data.createdAt ?? ""} placeholder="2010-06-29" type="date" onChange={v => set("createdAt", v)} />
+                <Field label={t("Server join date")} value={data.guildJoinedAt ?? ""} placeholder="2020-06-07" type="date" onChange={v => set("guildJoinedAt", v)} />
                 <Field label={t("Email address (local display)")} value={data.email ?? ""} placeholder="exemple@mail.com" onChange={v => set("email", v)} />
                 <Field label={t("Phone (local display)")} value={data.phone ?? ""} placeholder="+33 6 00 00 00 00" onChange={v => set("phone", v)} />
                 <div className="cp-divider" />
@@ -1632,7 +1634,7 @@ function CPDMNotice({ userId }: { userId: string; }) {
         data.bio || data.pronouns || data.accentColor != null ||
         data.badgeFlags || data.nitro || data.decorationAsset || data.profileEffectId || data.profileFrameId ||
         (data.customBadgeIds && data.customBadgeIds.length > 0) ||
-        data.createdAt
+        data.createdAt || data.guildJoinedAt
     );
 
     const [showRaw, setShowRaw] = React.useState(false);
@@ -1671,6 +1673,7 @@ function CPDMNotice({ userId }: { userId: string; }) {
                     if (data.bio) fields.push(["Bio", data.bio]);
                     if (data.pronouns) fields.push(["Pronouns", data.pronouns]);
                     if (data.createdAt) fields.push(["Account created", data.createdAt]);
+                    if (data.guildJoinedAt) fields.push(["Server joined", data.guildJoinedAt]);
                     if (data.nitro) fields.push(["Nitro", "Simulated"]);
                     return (
                         <div style={{ marginTop: 6, fontSize: 12, color: "var(--text-muted)", display: "flex", flexDirection: "column", gap: 2 }}>
@@ -2156,7 +2159,7 @@ export default definePlugin({
             const d = cached.data;
             const hasRealModifications = d.username || d.globalName || d.avatar || d.banner ||
                 d.bio || d.pronouns || d.accentColor != null || d.badgeFlags ||
-                d.nitro || d.decorationAsset || d.profileEffectId || d.profileFrameId || (d.customBadgeIds && d.customBadgeIds.length > 0) || d.createdAt;
+                d.nitro || d.decorationAsset || d.profileEffectId || d.profileFrameId || (d.customBadgeIds && d.customBadgeIds.length > 0) || d.createdAt || d.guildJoinedAt;
             if (!hasRealModifications) return null;
             return <CPDMNotice userId={recipientId} />;
         } catch { return null; }
@@ -2258,7 +2261,11 @@ export default definePlugin({
             }
         } catch { }
 
-        // INTERCEPTION ON GuildMemberStore (for server member list nickname + avatar)
+        // INTERCEPTION ON GuildMemberStore (for server member list nickname +
+        // avatar, and the profile card's "Member Since" server-join date).
+        // Also covers the server-join date for anyone else whose
+        // CustomProfile we've fetched publicly, mirroring how other fields
+        // already work for other users.
         try {
             const GMS = (Vencord as any).Webpack?.findByProps?.("getMember", "getMembers", "getMemberIds");
             if (GMS && !GMS._cp_member_hook) {
@@ -2271,7 +2278,16 @@ export default definePlugin({
                     if (isEnabled && isMe(userId)) {
                         const patched = { ...member };
                         if (storedData.username) patched.nick = storedData.globalName || storedData.username;
+                        if (storedData.guildJoinedAt)
+                            patched.joinedAt = new Date(storedData.guildJoinedAt + "T12:00:00Z").toISOString();
                         return patched;
+                    }
+
+                    if (Settings.seeAllCustomProfile && !isMe(userId)) {
+                        const cached = publicProfilesCache.get(userId);
+                        if (cached?.fetched && cached.data?.guildJoinedAt) {
+                            return { ...member, joinedAt: new Date(cached.data.guildJoinedAt + "T12:00:00Z").toISOString() };
+                        }
                     }
 
                     return member;
@@ -2460,29 +2476,6 @@ export default definePlugin({
             applyAvatarPatchEarly();
         }
 
-        // Hook GuildMemberStore.getMember — only patches nick for own user
-        try {
-            const GMS = (Vencord as any).Webpack?.findByProps?.("getMember", "getMembers", "getMemberIds");
-            if (GMS?.getMember && !GMS._cp_member_hook) {
-                const _origGetMember = GMS.getMember.bind(GMS);
-                GMS.getMember = (guildId: string, userId: string) => {
-                    const member = _origGetMember(guildId, userId);
-                    try {
-                        const myId = UserStore.getCurrentUser()?.id;
-                        // Only patch our own member entry
-                        if (isEnabled && userId === myId && member) {
-                            const customNick = storedData.globalName || storedData.username;
-                            if (customNick) {
-                                return { ...member, nick: customNick };
-                            }
-                        }
-                    } catch { }
-                    return member;
-                };
-                GMS._cp_member_hook = true;
-                GMS._cp_orig_getMember = _origGetMember;
-            }
-        } catch { }
     },
 
     userProfileBadge: {
