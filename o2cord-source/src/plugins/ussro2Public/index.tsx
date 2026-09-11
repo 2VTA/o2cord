@@ -20,6 +20,26 @@ let registryRefreshPromise: Promise<void> | null = null;
 let registryRefreshTimer: number | undefined;
 const bundledBackgrounds = cleanBackgrounds(PUBLIC_BACKGROUNDS);
 
+// A voice tile is a real DOM node that gets destroyed and recreated a lot
+// (participant reorder, screen share toggling, grid layout changes, etc.),
+// and each fresh one starts with no background until its <div> actually
+// paints - if the browser hasn't got the image decoded and cached yet, that
+// paint has to wait on a real network fetch first, showing up as the
+// picture flashing out and back in. Warming every known url into the
+// browser's own image cache as soon as we learn about it (registry refresh,
+// not tile mount) means by the time any tile actually needs it, it's
+// already local - keyed by url so this only ever fires once per image.
+const preloadedUrls = new Set<string>();
+function preloadBackgrounds(backgrounds: Backgrounds) {
+    for (const url of Object.values(backgrounds)) {
+        if (preloadedUrls.has(url)) continue;
+        preloadedUrls.add(url);
+        const img = new Image();
+        img.src = url;
+    }
+}
+preloadBackgrounds(bundledBackgrounds);
+
 const settings = definePluginSettings({
     nitroFirst: {
         description: "Banner to use if both Discord and ussro2 public backgrounds are present",
@@ -91,7 +111,9 @@ async function refreshRegistry(force = false) {
             // corrected it - visible as someone's voice tile picture flickering
             // out and back in on that exact cadence. Unlike getBackgroundUrl's
             // per-render behavior, this only ever adds/updates entries.
-            remoteBackgrounds = { ...remoteBackgrounds, ...cleanBackgrounds(await res.json()) };
+            const fresh = cleanBackgrounds(await res.json());
+            remoteBackgrounds = { ...remoteBackgrounds, ...fresh };
+            preloadBackgrounds(fresh);
             lastRegistryRefresh = Date.now();
         })
         .catch(() => {
