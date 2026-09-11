@@ -1,8 +1,8 @@
 {
-    "version":  "1.3.12",
-    "hash":  "public-20260907122643",
+    "version":  "1.3.13",
+    "hash":  "public-20260911140304",
     "author":  "o2cord",
-    "message":  "Nameplate: fix custom images cropping/fading oddly and not updating when changed",
+    "message":  "CustomProfile: fake server join date; misc fixes",
     "notes":  [
                   "Public o2cord update package",
                   "ussro2 backgrounds are loaded from backgrounds.json beside this manifest",
