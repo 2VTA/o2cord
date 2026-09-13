@@ -29,7 +29,7 @@ import { Devs } from "@utils/constants";
 import definePlugin, { OptionType } from "@utils/types";
 import { ActivityType } from "@vencord/discord-types/enums";
 import { findStoreLazy } from "@webpack";
-import { Clickable, FluxDispatcher, Popout, useRef, useState, useStateFromStores } from "@webpack/common";
+import { Clickable, FluxDispatcher, Popout, TextInput, useRef, useState, useStateFromStores } from "@webpack/common";
 
 interface SeenGame {
     id: string;
@@ -57,10 +57,13 @@ const settings = definePluginSettings({
 function applyActivity() {
     const { selectedGameId, selectedGameName } = settings.store;
 
+    // A typed custom name has no real application_id - "0" is the same
+    // placeholder CustomRPC already uses for that case, and Discord still
+    // broadcasts and shows the activity fine without a real game icon.
     FluxDispatcher.dispatch({
         type: "LOCAL_ACTIVITY_UPDATE",
-        activity: selectedGameId ? {
-            application_id: selectedGameId,
+        activity: selectedGameName ? {
+            application_id: selectedGameId || "0",
             name: selectedGameName,
             type: ActivityType.PLAYING,
             flags: 1 << 0
@@ -72,6 +75,12 @@ function applyActivity() {
 function playGame(game: SeenGame) {
     settings.store.selectedGameId = game.id;
     settings.store.selectedGameName = game.name;
+    applyActivity();
+}
+
+function playCustomName(name: string) {
+    settings.store.selectedGameId = "";
+    settings.store.selectedGameName = name;
     applyActivity();
 }
 
@@ -100,7 +109,10 @@ function FakePlayingPopout({ onClose, onChange }: { onClose: () => void; onChang
         RunningGameStore.isGamesSeenLoaded() ? RunningGameStore.getGamesSeen() : []
     );
     const [, forceUpdate] = useState(0);
+    const [customName, setCustomName] = useState("");
     const currentId = settings.store.selectedGameId;
+    const currentName = settings.store.selectedGameName;
+    const isCustomActive = Boolean(currentName) && !currentId;
 
     function handlePlay(game: SeenGame) {
         playGame(game);
@@ -108,8 +120,17 @@ function FakePlayingPopout({ onClose, onChange }: { onClose: () => void; onChang
         onChange();
     }
 
+    function handlePlayCustom() {
+        const name = customName.trim();
+        if (!name) return;
+        playCustomName(name);
+        forceUpdate(n => n + 1);
+        onChange();
+    }
+
     function handleStop() {
         stopPlaying();
+        setCustomName("");
         forceUpdate(n => n + 1);
         onChange();
     }
@@ -122,29 +143,53 @@ function FakePlayingPopout({ onClose, onChange }: { onClose: () => void; onChang
             </div>
 
             <div className="o2-fake-playing-explainer">
-                Shows "Playing X" on your profile using a real registered game's own id/icon - nothing is actually launched.
+                Shows "Playing X" on your profile - nothing is actually launched.
             </div>
 
-            {seenGames.length === 0 && (
-                <div className="o2-fake-playing-empty">
-                    No registered games found yet. Add one from Discord's own Settings &gt; Registered Games first.
+            {isCustomActive ? (
+                <div className="o2-fake-playing-row">
+                    <span className="o2-fake-playing-name">Playing "{currentName}"</span>
+                    <Clickable className="o2-fake-playing-btn o2-fake-playing-btn-stop" onClick={handleStop}>
+                        Stop
+                    </Clickable>
+                </div>
+            ) : (
+                <div className="o2-fake-playing-custom-row">
+                    <TextInput
+                        className="o2-fake-playing-custom-input"
+                        value={customName}
+                        onChange={setCustomName}
+                        placeholder="Type anything..."
+                        onKeyDown={(e: { key: string; }) => {
+                            if (e.key === "Enter") handlePlayCustom();
+                        }}
+                    />
+                    <Clickable className="o2-fake-playing-btn" onClick={handlePlayCustom}>
+                        Play
+                    </Clickable>
                 </div>
             )}
 
-            {seenGames.map(game => (
-                <div key={game.id} className="o2-fake-playing-row">
-                    <span className="o2-fake-playing-name">{game.name}</span>
-                    {currentId === game.id ? (
-                        <Clickable className="o2-fake-playing-btn o2-fake-playing-btn-stop" onClick={handleStop}>
-                            Stop
-                        </Clickable>
-                    ) : (
-                        <Clickable className="o2-fake-playing-btn" onClick={() => handlePlay(game)}>
-                            Play
-                        </Clickable>
-                    )}
-                </div>
-            ))}
+            {seenGames.length > 0 && (
+                <>
+                    <div className="o2-fake-playing-divider">or pick a registered game</div>
+
+                    {seenGames.map(game => (
+                        <div key={game.id} className="o2-fake-playing-row">
+                            <span className="o2-fake-playing-name">{game.name}</span>
+                            {currentId === game.id ? (
+                                <Clickable className="o2-fake-playing-btn o2-fake-playing-btn-stop" onClick={handleStop}>
+                                    Stop
+                                </Clickable>
+                            ) : (
+                                <Clickable className="o2-fake-playing-btn" onClick={() => handlePlay(game)}>
+                                    Play
+                                </Clickable>
+                            )}
+                        </div>
+                    ))}
+                </>
+            )}
         </div>
     );
 }
@@ -153,7 +198,7 @@ function FakePlayingHeaderButton() {
     const [isOpen, setIsOpen] = useState(false);
     const [, forceUpdate] = useState(0);
     const popoutRef = useRef<HTMLDivElement>(null);
-    const isActive = Boolean(settings.store.selectedGameId);
+    const isActive = Boolean(settings.store.selectedGameName);
 
     return (
         <Popout
@@ -181,7 +226,7 @@ function FakePlayingHeaderButton() {
 
 export default definePlugin({
     name: "FakePlaying",
-    description: "Shows \"Playing X\" on your profile using one of your registered games - nothing actually runs.",
+    description: "Shows \"Playing X\" on your profile - type anything, or pick a registered game. Nothing actually runs.",
     tags: ["Activity", "Customisation"],
     authors: [Devs.Ryder],
     dependencies: ["HeaderBarAPI"],
@@ -189,7 +234,7 @@ export default definePlugin({
     settings,
     start() {
         addHeaderBarButton("o2cord-fake-playing", () => <FakePlayingHeaderButton />, 900);
-        if (settings.store.selectedGameId) applyActivity();
+        if (settings.store.selectedGameName) applyActivity();
     },
     stop() {
         removeHeaderBarButton("o2cord-fake-playing");

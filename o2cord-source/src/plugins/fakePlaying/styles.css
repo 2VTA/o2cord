@@ -85,3 +85,37 @@
 .o2-fake-playing-btn-stop:hover {
     background: var(--button-danger-background-hover, #a12828);
 }
+
+.o2-fake-playing-custom-row {
+    display: flex;
+    gap: 6px;
+}
+
+.o2-fake-playing-custom-input {
+    flex: 1;
+    min-width: 0;
+}
+
+.o2-fake-playing-custom-row .o2-fake-playing-btn {
+    align-self: center;
+}
+
+.o2-fake-playing-divider {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 2px 0;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+    color: var(--text-muted, #949ba4);
+}
+
+.o2-fake-playing-divider::before,
+.o2-fake-playing-divider::after {
+    content: "";
+    flex: 1;
+    height: 1px;
+    background: var(--background-modifier-accent, rgba(255, 255, 255, 0.06));
+}
