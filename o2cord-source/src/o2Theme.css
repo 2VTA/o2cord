@@ -10,16 +10,29 @@
  */
 
 /* One shared box for the whole widget (Screen 1 card + Voice Connected +
-   account row) instead of three separate pieces - square corners, not a
-   pill. The individual pieces below go transparent so they read as one
-   piece; overflow:hidden clips them to this box's corners. */
+   account row) instead of three separate pieces - rounded "liquid glass"
+   card, not a flat fill: a frosted backdrop-blur, a faint top-to-bottom
+   light gradient standing in for glass depth, a soft translucent-white
+   border for the edge highlight, and a drop shadow + inset top highlight
+   so it reads as a lifted glass pane rather than a flat dark box (Ryder's
+   "liquid glass" ask, referencing the LiquidGlass Windhawk Start Menu
+   theme he sent as a look reference - translated to CSS backdrop-filter
+   since that's an XAML/Windhawk theme, not something usable here as-is).
+   The individual pieces below go transparent so they read as one piece;
+   overflow:hidden clips them to this box's corners. */
 html.o2-owner-theme [class*="panels_"] {
-    background-color: rgba(0, 0, 0, 0.7);
-    border-radius: 12px;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.08) 0%, rgba(18, 18, 20, 0.6) 100%);
+    backdrop-filter: blur(24px) saturate(160%);
+    -webkit-backdrop-filter: blur(24px) saturate(160%);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 20px;
     overflow: hidden;
     padding: 8px;
     box-sizing: border-box;
     border-top: none !important;
+    box-shadow:
+        0 8px 24px rgba(0, 0, 0, 0.35),
+        inset 0 1px 0 rgba(255, 255, 255, 0.1);
 }
 
 html.o2-owner-theme [class*="panels_"] > [class*="container__"] {
@@ -75,7 +88,13 @@ html.o2-owner-theme [class*="actionButtons_"] {
     z-index: 10;
     display: flex;
     gap: 4px;
-    background: transparent;
+    /* A frosted glass pill backing the whole floating row, not just its
+       buttons - matches the card above so it reads as one material rather
+       than icons floating on nothing. */
+    background: rgba(20, 20, 20, 0.35);
+    backdrop-filter: blur(16px) saturate(160%);
+    -webkit-backdrop-filter: blur(16px) saturate(160%);
+    border: 1px solid rgba(255, 255, 255, 0.1);
     border-radius: 500px;
     width: fit-content;
     box-sizing: border-box;
@@ -84,6 +103,7 @@ html.o2-owner-theme [class*="actionButtons_"] {
     transform: translateY(-4px) scale(0.96);
     transform-origin: top left;
     pointer-events: none;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
     transition: opacity 0.2s cubic-bezier(0.4, 0, 0.2, 1), transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 html.o2-owner-theme [class*="wrapper_e131a9"]:hover [class*="actionButtons_"] {
@@ -93,7 +113,12 @@ html.o2-owner-theme [class*="wrapper_e131a9"]:hover [class*="actionButtons_"] {
 }
 html.o2-owner-theme [class*="actionButtons_"] > * {
     border-radius: 500px !important;
-    background: rgba(255, 255, 255, 0.06) !important;
+    background: rgba(255, 255, 255, 0.08) !important;
+    transition: background-color 0.15s ease, transform 0.15s ease;
+}
+html.o2-owner-theme [class*="actionButtons_"] > *:hover {
+    background: rgba(255, 255, 255, 0.16) !important;
+    transform: scale(1.06);
 }
 
 /* The floating actionButtons_ row overlaps the "Voice Connected" pill above
