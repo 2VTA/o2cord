@@ -4,10 +4,22 @@
  * init()) when the current user is Ryder. Nobody else's client matches any
  * of this.
  *
- * Kept simple at Ryder's request - just colors on the account-row/call-
- * controls pill, nothing structural, no hover reveals, no new selectors
- * elsewhere.
+ * Started as just the account-row/call-controls pill; now covers the whole
+ * app (server rail, channel sidebar, chat area, message box, member list,
+ * modals) in the same "liquid glass" look, at Ryder's request - reference
+ * was the LiquidGlass Windhawk Start Menu theme (an XAML/Windhawk theme,
+ * not usable here as-is; translated its blur/gradient/border language into
+ * CSS backdrop-filter instead). Shared look lives in the --o2-glass-*
+ * custom properties below so every section stays visually consistent
+ * without repeating the same five declarations six times.
  */
+
+html.o2-owner-theme {
+    --o2-glass-bg: linear-gradient(180deg, rgba(255, 255, 255, 0.07) 0%, rgba(18, 18, 20, 0.58) 100%);
+    --o2-glass-border: 1px solid rgba(255, 255, 255, 0.1);
+    --o2-glass-blur: blur(20px) saturate(160%);
+    --o2-glass-shadow: 0 8px 24px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
 
 /* One shared box for the whole widget (Screen 1 card + Voice Connected +
    account row) instead of three separate pieces - rounded "liquid glass"
@@ -21,18 +33,16 @@
    The individual pieces below go transparent so they read as one piece;
    overflow:hidden clips them to this box's corners. */
 html.o2-owner-theme [class*="panels_"] {
-    background: linear-gradient(180deg, rgba(255, 255, 255, 0.08) 0%, rgba(18, 18, 20, 0.6) 100%);
-    backdrop-filter: blur(24px) saturate(160%);
-    -webkit-backdrop-filter: blur(24px) saturate(160%);
-    border: 1px solid rgba(255, 255, 255, 0.12);
+    background: var(--o2-glass-bg);
+    backdrop-filter: var(--o2-glass-blur);
+    -webkit-backdrop-filter: var(--o2-glass-blur);
+    border: var(--o2-glass-border);
     border-radius: 20px;
     overflow: hidden;
     padding: 8px;
     box-sizing: border-box;
     border-top: none !important;
-    box-shadow:
-        0 8px 24px rgba(0, 0, 0, 0.35),
-        inset 0 1px 0 rgba(255, 255, 255, 0.1);
+    box-shadow: var(--o2-glass-shadow);
 }
 
 html.o2-owner-theme [class*="panels_"] > [class*="container__"] {
@@ -90,11 +100,13 @@ html.o2-owner-theme [class*="actionButtons_"] {
     gap: 4px;
     /* A frosted glass pill backing the whole floating row, not just its
        buttons - matches the card above so it reads as one material rather
-       than icons floating on nothing. */
+       than icons floating on nothing. Slightly lighter blur than the main
+       card (16px vs the shared 20px) since this pill is small enough that
+       the full blur reads as murky rather than frosted. */
     background: rgba(20, 20, 20, 0.35);
     backdrop-filter: blur(16px) saturate(160%);
     -webkit-backdrop-filter: blur(16px) saturate(160%);
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    border: var(--o2-glass-border);
     border-radius: 500px;
     width: fit-content;
     box-sizing: border-box;
@@ -126,6 +138,70 @@ html.o2-owner-theme [class*="actionButtons_"] > *:hover {
 html.o2-owner-theme [class*="connection_e131a9"] {
     position: relative;
     z-index: 20;
+}
+
+/* ---- App-wide liquid glass (server rail, sidebar, chat, member list,
+   modals) - selectors confirmed live against the real DOM, not guessed;
+   class*= throughout since Discord rotates the hash suffix on every
+   deploy. ---- */
+
+/* Server icon rail. */
+html.o2-owner-theme [class*="guilds__"] {
+    background: var(--o2-glass-bg);
+    backdrop-filter: var(--o2-glass-blur);
+    -webkit-backdrop-filter: var(--o2-glass-blur);
+    border-right: var(--o2-glass-border);
+}
+
+/* Channel list sidebar. */
+html.o2-owner-theme [class*="sidebar__"] {
+    background: var(--o2-glass-bg);
+    backdrop-filter: var(--o2-glass-blur);
+    -webkit-backdrop-filter: var(--o2-glass-blur);
+}
+
+/* Main chat area - deliberately NOT blurred (unlike every other section
+   here): blurring a tall scrolling column of text messages behind it would
+   hurt readability and cost real scroll-repaint performance for no visual
+   payoff, so this is just a faint tint for tonal consistency with the rest
+   of the glass surfaces, not the full glass treatment. */
+html.o2-owner-theme [class*="chatContent_"] {
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.03) 0%, rgba(10, 10, 12, 0.25) 100%);
+}
+
+/* Message compose box. */
+html.o2-owner-theme [class*="channelTextArea_"] {
+    background: var(--o2-glass-bg) !important;
+    backdrop-filter: var(--o2-glass-blur);
+    -webkit-backdrop-filter: var(--o2-glass-blur);
+    border: var(--o2-glass-border) !important;
+    border-radius: 16px !important;
+    box-shadow: var(--o2-glass-shadow);
+}
+
+/* Member list sidebar. */
+html.o2-owner-theme [class*="membersWrap_"] {
+    background: var(--o2-glass-bg);
+    backdrop-filter: var(--o2-glass-blur);
+    -webkit-backdrop-filter: var(--o2-glass-blur);
+    border-left: var(--o2-glass-border);
+}
+
+/* Modal/popup dialogs (settings, confirmations, the profile editor, etc.) -
+   root__49fc1 is the actual modal card; layer__960e4 is the shared full-
+   screen overlay wrapper every modal and the User Settings view both mount
+   into, so it only gets a much lighter tint (it's most of the viewport,
+   not a "card") rather than the full glass treatment. */
+html.o2-owner-theme [class*="layer__"] {
+    background: rgba(0, 0, 0, 0.15);
+}
+html.o2-owner-theme [class*="root__49fc1"] {
+    background: var(--o2-glass-bg) !important;
+    backdrop-filter: var(--o2-glass-blur);
+    -webkit-backdrop-filter: var(--o2-glass-blur);
+    border: var(--o2-glass-border) !important;
+    border-radius: 24px !important;
+    box-shadow: var(--o2-glass-shadow);
 }
 
 /* Discord's own native voice-tile background (user-profile-video-tile-
