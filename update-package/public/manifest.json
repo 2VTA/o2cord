@@ -1,8 +1,8 @@
 {
-    "version":  "1.3.20",
-    "hash":  "public-20260920124027",
+    "version":  "1.3.21",
+    "hash":  "public-20260920164723",
     "author":  "o2cord",
-    "message":  "Theme: glass server header + boost box",
+    "message":  "Theme: glass title strip",
     "notes":  [
                   "Public o2cord update package",
                   "ussro2 backgrounds are loaded from backgrounds.json beside this manifest",
