@@ -1,8 +1,8 @@
 {
-    "version":  "1.3.19",
-    "hash":  "public-20260920123813",
+    "version":  "1.3.20",
+    "hash":  "public-20260920124027",
     "author":  "o2cord",
-    "message":  "Theme: darker tint, no more gray wash",
+    "message":  "Theme: glass server header + boost box",
     "notes":  [
                   "Public o2cord update package",
                   "ussro2 backgrounds are loaded from backgrounds.json beside this manifest",
