@@ -15,7 +15,7 @@
  */
 
 html.o2-owner-theme {
-    --o2-glass-bg: linear-gradient(180deg, rgba(255, 255, 255, 0.07) 0%, rgba(18, 18, 20, 0.58) 100%);
+    --o2-glass-bg: linear-gradient(180deg, rgba(255, 255, 255, 0.08) 0%, rgba(18, 18, 24, 0.34) 100%);
     --o2-glass-border: 1px solid rgba(255, 255, 255, 0.1);
     --o2-glass-blur: blur(20px) saturate(160%);
     --o2-glass-shadow: 0 8px 24px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.08);
@@ -166,7 +166,7 @@ html.o2-owner-theme [class*="sidebar__"] {
    payoff, so this is just a faint tint for tonal consistency with the rest
    of the glass surfaces, not the full glass treatment. */
 html.o2-owner-theme [class*="chatContent_"] {
-    background: linear-gradient(180deg, rgba(255, 255, 255, 0.03) 0%, rgba(10, 10, 12, 0.25) 100%);
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.02) 0%, rgba(10, 10, 14, 0.14) 100%);
 }
 
 /* Message compose box. */
@@ -276,12 +276,11 @@ html.o2-owner-theme {
 }
 html.o2-owner-theme body,
 html.o2-owner-theme #app-mount {
-    background:
-        radial-gradient(900px 600px at 8% 12%, rgba(120, 70, 255, 0.28), transparent 60%),
-        radial-gradient(800px 600px at 92% 18%, rgba(255, 70, 140, 0.20), transparent 60%),
-        radial-gradient(1000px 700px at 55% 105%, rgba(40, 140, 255, 0.22), transparent 60%),
-        #07070a !important;
-    background-attachment: fixed !important;
+    /* Transparent on purpose: with windowsMaterial=acrylic the OS blurs the
+       real desktop/windows behind Discord, and this lets that show through
+       the glass panels (the earlier painted mesh only faked it). A faint
+       tint keeps text contrast if the desktop behind is bright. */
+    background: rgba(8, 8, 12, 0.22) !important;
 }
 
 /* The actual thing hiding the mesh: Discord paints a full-viewport opaque
