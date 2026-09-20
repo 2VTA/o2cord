@@ -145,12 +145,19 @@ html.o2-owner-theme [class*="connection_e131a9"] {
    class*= throughout since Discord rotates the hash suffix on every
    deploy. ---- */
 
-/* Server icon rail. */
+/* Server icon rail - a floating rounded glass card like the header and boost
+   pills, not a flat full-height strip (it was the one square-cornered piece
+   left next to all the rounded ones). Margin, not padding, so the icons
+   inside keep their exact spacing. */
 html.o2-owner-theme [class*="guilds__"] {
     background: var(--o2-glass-bg);
     backdrop-filter: var(--o2-glass-blur);
     -webkit-backdrop-filter: var(--o2-glass-blur);
-    border-right: var(--o2-glass-border);
+    margin: 6px 0 6px 6px !important;
+    border: var(--o2-glass-border) !important;
+    border-radius: 22px !important;
+    box-shadow: var(--o2-glass-shadow);
+    overflow: hidden;
 }
 
 /* Channel list sidebar. */
