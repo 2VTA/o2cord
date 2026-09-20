@@ -1,8 +1,8 @@
 {
-    "version":  "1.3.18",
-    "hash":  "public-20260920123258",
+    "version":  "1.3.19",
+    "hash":  "public-20260920123813",
     "author":  "o2cord",
-    "message":  "Theme: reflect desktop colors via acrylic",
+    "message":  "Theme: darker tint, no more gray wash",
     "notes":  [
                   "Public o2cord update package",
                   "ussro2 backgrounds are loaded from backgrounds.json beside this manifest",
