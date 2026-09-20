@@ -344,6 +344,17 @@ html.o2-owner-theme [class*="notice_"] {
     border-bottom: var(--o2-glass-border) !important;
 }
 
+/* Window title strip (back/forward arrows + window title). It was left fully
+   transparent, so it showed only the bare base tint while every panel under
+   it has the glass gradient - a visibly lighter, different-looking band
+   across the top. Same glass as the rest. */
+html.o2-owner-theme [class*="base__"] > [class*="bar_"] {
+    background: var(--o2-glass-bg) !important;
+    backdrop-filter: var(--o2-glass-blur);
+    -webkit-backdrop-filter: var(--o2-glass-blur);
+    border-bottom: var(--o2-glass-border);
+}
+
 /* Discord's own native voice-tile background (user-profile-video-tile-
    background / custom-user-profile-theme) renders a real two-tone
    linear-gradient - Discord's own code, not a bug, confirmed live via
