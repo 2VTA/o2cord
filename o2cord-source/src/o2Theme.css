@@ -267,7 +267,9 @@ html.o2-owner-theme [class*="buttons_"] [class*="container_"][class*="isHeader"]
 
 /* Right-click menus. */
 html.o2-owner-theme [class*="menu_"][class*="flexible_"] {
-    background: var(--o2-glass-bg) !important;
+    /* Much denser than the panel glass: a menu floats over live text (member
+       list, chat), and at panel opacity that text bleeds through the labels. */
+    background: linear-gradient(180deg, rgba(60, 60, 72, 0.92) 0%, rgba(20, 20, 28, 0.94) 100%) !important;
     backdrop-filter: var(--o2-glass-blur);
     -webkit-backdrop-filter: var(--o2-glass-blur);
     border: var(--o2-glass-border) !important;
@@ -297,13 +299,19 @@ html.o2-owner-theme {
     --background-surface-high: rgba(255, 255, 255, 0.05);
 }
 html.o2-owner-theme body {
-    /* Transparent-ish on purpose: with windowsMaterial=acrylic the OS blurs
-       whatever is behind Discord and this lets it show through the glass.
-       The tint has to be dark and a bit saturated though - a bright window
-       behind (a white web page) otherwise washes the whole app a flat gray,
-       which is what it looked like. Only body carries it (not #app-mount
-       too), so the two don't stack. */
-    background: rgba(6, 6, 12, 0.5) !important;
+    /* Windows drops acrylic to a flat solid gray the moment the window loses
+       focus, so a plain translucent tint went from "reflecting the desktop"
+       to one dead gray slab when Ryder switched tabs. A painted gradient
+       under the tint keeps color in both states: acrylic active = gradient +
+       blurred desktop, acrylic flattened = gradient over gray. The dark tint
+       is the last layer so it still stops a bright window behind from
+       washing everything out. */
+    background:
+        radial-gradient(1100px 700px at 6% 10%, rgba(130, 80, 255, 0.34), transparent 62%),
+        radial-gradient(900px 650px at 94% 14%, rgba(255, 80, 150, 0.26), transparent 62%),
+        radial-gradient(1200px 800px at 55% 108%, rgba(50, 150, 255, 0.30), transparent 62%),
+        rgba(6, 6, 12, 0.5) !important;
+    background-attachment: fixed !important;
 }
 html.o2-owner-theme #app-mount {
     background: transparent !important;
