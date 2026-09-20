@@ -1,8 +1,8 @@
 {
-    "version":  "1.3.22",
-    "hash":  "public-20260920165203",
+    "version":  "1.3.23",
+    "hash":  "public-20260920172429",
     "author":  "o2cord",
-    "message":  "Theme: gradient base, denser menus",
+    "message":  "Theme: rail as floating glass card",
     "notes":  [
                   "Public o2cord update package",
                   "ussro2 backgrounds are loaded from backgrounds.json beside this manifest",
