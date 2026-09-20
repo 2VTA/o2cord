@@ -226,11 +226,33 @@ html.o2-owner-theme [class*="searchBar_"] {
     -webkit-backdrop-filter: blur(12px);
 }
 
-/* Server name / boost header at the top of the channel list. */
-html.o2-owner-theme [class*="header_f37cb1"],
-html.o2-owner-theme nav [class*="headerContent_"] {
+/* The channel-list column itself (container__ directly under sidebarList_)
+   paints solid black over the sidebar glass - found by walking the ancestor
+   chain from the server header. Transparent so the glass and the backdrop
+   show, and the header / boost box below become their own glass pills. */
+html.o2-owner-theme [class*="sidebarList_"] > [class*="container__"] {
     background: transparent !important;
-    border-bottom: var(--o2-glass-border) !important;
+}
+
+/* Server name header. */
+html.o2-owner-theme [class*="sidebarList_"] [class*="header_f37cb1"] {
+    background: var(--o2-glass-bg) !important;
+    backdrop-filter: var(--o2-glass-blur);
+    -webkit-backdrop-filter: var(--o2-glass-blur);
+    border: var(--o2-glass-border) !important;
+    border-radius: 14px !important;
+    margin: 8px 8px 4px !important;
+    box-shadow: var(--o2-glass-shadow);
+}
+
+/* Boost goal / server counters box. */
+html.o2-owner-theme [class*="sidebarList_"] [class*="containerWithMargin_"] {
+    background: var(--o2-glass-bg) !important;
+    backdrop-filter: var(--o2-glass-blur);
+    -webkit-backdrop-filter: var(--o2-glass-blur);
+    border: var(--o2-glass-border) !important;
+    border-radius: 14px !important;
+    box-shadow: var(--o2-glass-shadow);
 }
 
 /* Hover toolbar on messages (react/reply/more). */
