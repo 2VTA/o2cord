@@ -204,6 +204,121 @@ html.o2-owner-theme [class*="root__49fc1"] {
     box-shadow: var(--o2-glass-shadow);
 }
 
+/* ---- Second pass: the pieces that were still flat after the first one.
+   Selectors confirmed live (channel header title_, searchBar_, the message
+   hover toolbar's container__/isHeader, guild header_, context menu menu_). ---- */
+
+/* Channel header strip (# name + toolbar icons). */
+html.o2-owner-theme [class*="title_"][class*="container__"] {
+    background: var(--o2-glass-bg) !important;
+    backdrop-filter: var(--o2-glass-blur);
+    -webkit-backdrop-filter: var(--o2-glass-blur);
+    border-bottom: var(--o2-glass-border) !important;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+}
+
+/* Header search box - pill. */
+html.o2-owner-theme [class*="searchBar_"] {
+    background: rgba(255, 255, 255, 0.06) !important;
+    border: var(--o2-glass-border);
+    border-radius: 500px !important;
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+}
+
+/* Server name / boost header at the top of the channel list. */
+html.o2-owner-theme [class*="header_f37cb1"],
+html.o2-owner-theme nav [class*="headerContent_"] {
+    background: transparent !important;
+    border-bottom: var(--o2-glass-border) !important;
+}
+
+/* Hover toolbar on messages (react/reply/more). */
+html.o2-owner-theme [class*="buttons_"] [class*="container_"][class*="isHeader"] {
+    background: var(--o2-glass-bg) !important;
+    backdrop-filter: var(--o2-glass-blur);
+    -webkit-backdrop-filter: var(--o2-glass-blur);
+    border: var(--o2-glass-border) !important;
+    border-radius: 14px !important;
+    box-shadow: var(--o2-glass-shadow);
+}
+
+/* Right-click menus. */
+html.o2-owner-theme [class*="menu_"][class*="flexible_"] {
+    background: var(--o2-glass-bg) !important;
+    backdrop-filter: var(--o2-glass-blur);
+    -webkit-backdrop-filter: var(--o2-glass-blur);
+    border: var(--o2-glass-border) !important;
+    border-radius: 16px !important;
+    box-shadow: var(--o2-glass-shadow);
+}
+
+/* Selected/hovered channel row + DM/member rows - soft glass pill instead
+   of Discord's flat gray. */
+html.o2-owner-theme [class*="containerDefault_"] [class*="interactive_"][class*="selected"],
+html.o2-owner-theme [class*="containerDefault_"] [class*="interactive_"]:hover {
+    background: rgba(255, 255, 255, 0.09) !important;
+    border-radius: 12px !important;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+/* ---- Third pass: give the glass something to be glass OVER. Everything
+   above blurs whatever is behind it, but Discord's app background is flat
+   black, so the frosted look read as plain dark. An ambient dark-mesh
+   gradient on the app root, with Discord's own base-layer background
+   variables made transparent so it shows through the blurred panels. ---- */
+html.o2-owner-theme {
+    --background-base-low: transparent;
+    --background-base-lower: transparent;
+    --background-base-lowest: transparent;
+    --chat-background-default: transparent;
+    --background-surface-high: rgba(255, 255, 255, 0.05);
+}
+html.o2-owner-theme body,
+html.o2-owner-theme #app-mount {
+    background:
+        radial-gradient(900px 600px at 8% 12%, rgba(120, 70, 255, 0.28), transparent 60%),
+        radial-gradient(800px 600px at 92% 18%, rgba(255, 70, 140, 0.20), transparent 60%),
+        radial-gradient(1000px 700px at 55% 105%, rgba(40, 140, 255, 0.22), transparent 60%),
+        #07070a !important;
+    background-attachment: fixed !important;
+}
+
+/* The actual thing hiding the mesh: Discord paints a full-viewport opaque
+   black div (bg__, first child of layers__) above #app-mount - found by
+   scanning every large element for a background, since it's pointer-events
+   none and doesn't show up in elementsFromPoint. */
+html.o2-owner-theme [class*="app__"] > [class*="bg__"] {
+    background: transparent !important;
+}
+html.o2-owner-theme [class*="layer__"] {
+    background: rgba(0, 0, 0, 0.05);
+}
+
+/* Embeds + reaction chips + tooltips + expression picker + autocomplete. */
+html.o2-owner-theme [class*="embedWrapper_"],
+html.o2-owner-theme [class*="reaction_"],
+html.o2-owner-theme [class*="tooltip_"],
+html.o2-owner-theme [class*="contentWrapper_"][class*="expression"],
+html.o2-owner-theme [class*="autocomplete_"] {
+    background: var(--o2-glass-bg) !important;
+    backdrop-filter: blur(14px) saturate(150%);
+    -webkit-backdrop-filter: blur(14px) saturate(150%);
+    border: var(--o2-glass-border) !important;
+    border-radius: 14px !important;
+}
+html.o2-owner-theme [class*="reaction_"] {
+    border-radius: 500px !important;
+}
+
+/* Voice-reconnect notice strip under the window title. */
+html.o2-owner-theme [class*="notice_"] {
+    background: rgba(20, 60, 40, 0.35) !important;
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    border-bottom: var(--o2-glass-border) !important;
+}
+
 /* Discord's own native voice-tile background (user-profile-video-tile-
    background / custom-user-profile-theme) renders a real two-tone
    linear-gradient - Discord's own code, not a bug, confirmed live via
