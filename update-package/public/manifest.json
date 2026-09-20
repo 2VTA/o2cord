@@ -1,8 +1,8 @@
 {
-    "version":  "1.3.16",
-    "hash":  "public-20260917171255",
+    "version":  "1.3.17",
+    "hash":  "public-20260920122441",
     "author":  "o2cord",
-    "message":  "FakePlaying: type any custom name; liquid glass theme for Ryder\u0027s account",
+    "message":  "Theme: ambient backdrop + full glass coverage",
     "notes":  [
                   "Public o2cord update package",
                   "ussro2 backgrounds are loaded from backgrounds.json beside this manifest",
