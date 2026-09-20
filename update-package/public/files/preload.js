@@ -1,4 +1,4 @@
-// Vencord public-20260920164723
+// Vencord public-20260920165203
 // Standalone: false
 // Platform: win32
 // Updater Disabled: false
