@@ -274,13 +274,17 @@ html.o2-owner-theme {
     --chat-background-default: transparent;
     --background-surface-high: rgba(255, 255, 255, 0.05);
 }
-html.o2-owner-theme body,
+html.o2-owner-theme body {
+    /* Transparent-ish on purpose: with windowsMaterial=acrylic the OS blurs
+       whatever is behind Discord and this lets it show through the glass.
+       The tint has to be dark and a bit saturated though - a bright window
+       behind (a white web page) otherwise washes the whole app a flat gray,
+       which is what it looked like. Only body carries it (not #app-mount
+       too), so the two don't stack. */
+    background: rgba(6, 6, 12, 0.5) !important;
+}
 html.o2-owner-theme #app-mount {
-    /* Transparent on purpose: with windowsMaterial=acrylic the OS blurs the
-       real desktop/windows behind Discord, and this lets that show through
-       the glass panels (the earlier painted mesh only faked it). A faint
-       tint keeps text contrast if the desktop behind is bright. */
-    background: rgba(8, 8, 12, 0.22) !important;
+    background: transparent !important;
 }
 
 /* The actual thing hiding the mesh: Discord paints a full-viewport opaque
