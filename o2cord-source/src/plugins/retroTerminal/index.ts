@@ -25,11 +25,15 @@
  * again on stop - nothing is left behind.
  */
 
+import * as DataStore from "@api/DataStore";
 import { definePluginSettings, SettingsStore } from "@api/Settings";
 import { Devs } from "@utils/constants";
 import { syncOwnerThemeClass } from "@utils/o2OwnerTheme";
-import definePlugin, { makeRange, OptionType } from "@utils/types";
+import definePlugin, { makeRange, OptionType, StartAt } from "@utils/types";
+import { onceReady } from "@webpack";
 import { FluxDispatcher, UserStore } from "@webpack/common";
+
+import { BOOT_ART, O2_LOGO } from "./bootArt";
 
 // Private for now, at Ryder's request: only these accounts can see or use
 // the theme. Everyone else gets nothing - the plugin is hidden from the
@@ -267,6 +271,339 @@ function buildVarsCss() {
     return `:root, :root [class*="theme-"] {\n${lines.join("\n")}\n}`;
 }
 
+/*
+ * Discord's loading screen (spinning logo + "Did you know") becomes a
+ * terminal boot, like cool-retro-term's: lines type out top-left one by one,
+ * then a blinking block cursor after the prompt. Only the logo and the tip
+ * are hidden - Discord's own "having trouble connecting?" links below stay.
+ */
+const LOADER = "[class*=\"container_\"][class*=\"fixClipping_\"]:has(video[class*=\"spinner_\"])";
+
+// Seconds the boot text takes to type out, set by loaderCss(). The boot
+// screen stays up at least that long plus BOOT_HOLD, so it can be seen even
+// on a quick reload (Discord's own loading screen is gone after 1-3s).
+let bootTypeSeconds = 3;
+const BOOT_HOLD = 1.6;
+const BOOT_MAX_MS = 15_000;
+
+function loaderCss(profile: Profile, font: typeof FONTS[string], mode: ColorMode) {
+    const version = typeof O2CORD_VERSION === "string" && O2CORD_VERSION ? " " + O2CORD_VERSION.replace(/-debug$/, "") : "";
+    // Text lines type at 0.16s each; the rows of Ryder's picture (between the
+    // connect line and the prompt) scroll in at 0.05s each.
+    const text = (s: string) => ({ s, t: 0.16 });
+    const lines = [
+        text(`O2CORD BIOS${version}`),
+        text("(C) o2cord. All rights reserved."),
+        text(""),
+        text("Memory test ........... 640K OK"),
+        text("Loading DISCORD.EXE ...... OK"),
+        text("Connecting to gateway ..."),
+        text(""),
+        ...BOOT_ART.map(s => ({ s, t: 0.05 })),
+        text(""),
+        text("C:\\\\>") // CSS "\\" = one backslash on screen
+    ];
+    const n = lines.length;
+    const fg = hexToRgb(profile.fg);
+    const family = font.family ? `${font.family}, Consolas, monospace` : "Consolas, monospace";
+
+    // One keyframe per line, held with steps(1) between them, so each line
+    // appears at its own pace.
+    let elapsed = 0;
+    const stops = lines.map(({ t }, i) => {
+        elapsed += t;
+        return { at: elapsed, height: `calc(${i + 1} * 1.35em)` };
+    });
+    bootTypeSeconds = elapsed;
+    const typeTime = elapsed.toFixed(2);
+    const keyframes = stops.map(k => `    ${(k.at / elapsed * 100).toFixed(3)}% { height: ${k.height}; }`).join("\n");
+
+    // ~40 lines: shrink the font on short screens so the prompt stays in view.
+    const fontSize = `min(24px, calc((100vh - 96px) / ${(n * 1.35).toFixed(2)}))`;
+    // Under the CRT effect layers normally; in "everything" mode above the
+    // tint layers too, or the already-coloured text would be tinted twice.
+    const z = mode === "all" ? 2147483647 : 2147483600;
+
+    return `
+/* Discord's own loading screen: logo + tip hidden, same background, in case
+   it outlives the boot screen on a slow connection. */
+${LOADER} {
+    background:
+        radial-gradient(ellipse at 50% 45%, rgba(${fg}, 0.10) 0%, rgba(${fg}, 0.03) 45%, rgba(0, 0, 0, 0) 75%),
+        ${profile.bg} !important;
+}
+
+${LOADER} > [class*="content_"] {
+    opacity: 0 !important;
+}
+
+#o2-retro-boot {
+    position: fixed;
+    inset: 0;
+    z-index: ${z};
+    pointer-events: none;
+    background:
+        radial-gradient(ellipse at 50% 45%, rgba(${fg}, 0.10) 0%, rgba(${fg}, 0.03) 45%, rgba(0, 0, 0, 0) 75%),
+        ${profile.bg};
+    transition: opacity 0.45s ease;
+}
+
+#o2-retro-boot.o2-retro-boot-out {
+    opacity: 0;
+}
+
+#o2-retro-boot::before,
+#o2-retro-boot::after {
+    position: absolute;
+    font-family: ${family};
+    font-size: ${fontSize};
+    line-height: 1.35;
+    color: ${profile.fg};
+    text-shadow: 0 0 2px rgba(${fg}, 0.9), 0 0 10px rgba(${fg}, 0.55);
+}
+
+/* The boot text, revealed one line at a time. */
+#o2-retro-boot::before {
+    content: "${lines.map(l => l.s).join("\\A ")}";
+    white-space: pre;
+    top: 48px;
+    left: 56px;
+    overflow: hidden;
+    height: 0;
+    animation: o2-retro-boot ${typeTime}s steps(1, end) 0.1s forwards;
+}
+
+@keyframes o2-retro-boot {
+    0% { height: 0; }
+${keyframes}
+}
+
+/* Block cursor right after the "C:\\>" prompt on the last line. */
+#o2-retro-boot::after {
+    content: "";
+    top: calc(48px + ${n - 1} * 1.35em + 0.15em);
+    left: calc(56px + 4ch + 0.15ch);
+    width: 0.62ch;
+    height: 1.05em;
+    background: ${profile.fg};
+    box-shadow: 0 0 10px rgba(${fg}, 0.6);
+    opacity: 0;
+    animation: o2-retro-cursor 1.06s steps(1) ${(+typeTime + 0.1).toFixed(2)}s infinite;
+}
+
+@keyframes o2-retro-cursor {
+    0%, 49% { opacity: 1; }
+    50%, 100% { opacity: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    #o2-retro-boot::before { animation: none; height: calc(${n} * 1.35em); }
+    #o2-retro-boot::after { animation: none; opacity: 1; }
+}`;
+}
+
+/*
+ * Discord's small updater window (300x350, logo + "Checking for updates…")
+ * opens before this renderer exists, so it's styled from the main process
+ * (native.ts) using a stylesheet this side leaves in a file. DOM of that
+ * window, read live: #splash > .splash-inner > img + .splash-text >
+ * .splash-status, and while downloading .progress > .progress-bar > .complete.
+ */
+function splashCss(profile: Profile, font: typeof FONTS[string]) {
+    const fg = hexToRgb(profile.fg);
+    const family = font.family ? `${font.family}, Consolas, monospace` : "Consolas, monospace";
+    const version = typeof O2CORD_VERSION === "string" && O2CORD_VERSION ? " " + O2CORD_VERSION.replace(/-debug$/, "") : "";
+    const glow = `0 0 2px rgba(${fg}, 0.9), 0 0 8px rgba(${fg}, 0.5)`;
+
+    return `${font.import ? `@import url("https://fonts.googleapis.com/css2?family=${font.import}&display=swap");\n` : ""}
+/* Ryder's reference: a curved CRT screen set into a darker bezel, prompt in
+   the top-left corner, faintly lit phosphor glass. The window itself is the
+   bezel; #splash becomes the screen inside it. */
+html, body { background: #0a0806 !important; }
+
+#splash {
+    position: fixed !important;
+    inset: 10px !important;
+    border-radius: 18px;
+    overflow: hidden;
+    background:
+        radial-gradient(ellipse at 50% 45%, rgba(${fg}, 0.13) 0%, rgba(${fg}, 0.05) 50%, rgba(${fg}, 0.02) 80%),
+        ${profile.bg} !important;
+    box-shadow:
+        inset 0 0 28px rgba(0, 0, 0, 0.85),
+        inset 0 0 2px rgba(${fg}, 0.25),
+        0 0 0 1px rgba(255, 255, 255, 0.04);
+    font-family: ${family} !important;
+}
+
+/* Scanlines, darker curved edges and a faint glass reflection. */
+#splash::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: 5;
+    pointer-events: none;
+    border-radius: inherit;
+    background:
+        linear-gradient(135deg, rgba(255, 255, 255, 0.06) 0%, rgba(255, 255, 255, 0) 38%),
+        repeating-linear-gradient(to bottom, rgba(0, 0, 0, 0) 0px, rgba(0, 0, 0, 0) 1px, rgba(0, 0, 0, 0.3) 2px, rgba(0, 0, 0, 0) 3px),
+        radial-gradient(ellipse at center, rgba(0, 0, 0, 0) 55%, rgba(0, 0, 0, 0.55) 100%);
+}
+
+#splash::before {
+    content: "O2CORD${version}";
+    position: absolute;
+    right: 16px;
+    bottom: 12px;
+    font-size: 11px;
+    color: ${profile.fg};
+    opacity: 0.45;
+    text-shadow: ${glow};
+}
+
+/* The "o2" block logo instead of the Discord logo, scanning in top to
+   bottom. Its backslashes are doubled for the CSS string. */
+.splash-inner img { display: none !important; }
+
+.splash-inner::before {
+    content: "${O2_LOGO.map(l => l.replaceAll("\\", "\\\\")).join("\\A ")}";
+    display: block;
+    white-space: pre;
+    font-size: 7.4px;
+    line-height: 1.15;
+    color: ${profile.fg};
+    text-shadow: 0 0 2px rgba(${fg}, 0.9), 0 0 7px rgba(${fg}, 0.5);
+    margin: 0 auto 22px;
+    animation: o2-splash-art 0.9s steps(${O2_LOGO.length}, end) both;
+}
+
+@keyframes o2-splash-art {
+    from { clip-path: inset(0 0 100% 0); }
+    to { clip-path: inset(0 0 0 0); }
+}
+
+/* Discord's live status text as a "> " prompt in the top-left corner, with a
+   big glowing block cursor like the reference. */
+.splash-status {
+    /* fixed, not absolute: .splash-text is itself positioned, so absolute
+       landed under the logo instead of in the screen's corner. */
+    position: fixed !important;
+    top: 30px;
+    left: 32px;
+    max-width: calc(100vw - 64px);
+    text-align: left !important;
+    font-family: ${family} !important;
+    font-size: 14px !important;
+    line-height: 1.3 !important;
+    color: ${profile.fg} !important;
+    text-shadow: ${glow};
+}
+
+.splash-status::before { content: "> "; opacity: 0.9; }
+
+.splash-status::after {
+    content: "";
+    display: inline-block;
+    width: 0.62em;
+    height: 1.15em;
+    margin-left: 0.25em;
+    vertical-align: -0.22em;
+    border-radius: 2px;
+    background: ${profile.fg};
+    box-shadow: 0 0 8px rgba(${fg}, 0.85), 0 0 18px rgba(${fg}, 0.45);
+    animation: o2-splash-cursor 1.06s steps(1) infinite;
+}
+
+@keyframes o2-splash-cursor {
+    0%, 49% { opacity: 1; }
+    50%, 100% { opacity: 0; }
+}
+
+/* Download bar as a row of phosphor blocks. */
+.progress {
+    background: transparent !important;
+    border: 1px solid rgba(${fg}, 0.7) !important;
+    border-radius: 0 !important;
+    box-shadow: 0 0 6px rgba(${fg}, 0.35);
+}
+
+.progress .progress-bar {
+    background: transparent !important;
+    border-radius: 0 !important;
+}
+
+.progress .complete {
+    background: repeating-linear-gradient(90deg, ${profile.fg} 0px, ${profile.fg} 6px, rgba(0, 0, 0, 0) 6px, rgba(0, 0, 0, 0) 8px) !important;
+    border-radius: 0 !important;
+    box-shadow: 0 0 8px rgba(${fg}, 0.6);
+}
+
+.splash-build-override {
+    font-family: ${family} !important;
+    color: ${profile.fg} !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .splash-inner::before, .splash-status::after { animation: none; }
+}
+`;
+}
+
+// Written on every settings change while active, so debounce slider drags.
+let splashTimer: ReturnType<typeof setTimeout> | undefined;
+
+function pushSplashCss() {
+    clearTimeout(splashTimer);
+    splashTimer = setTimeout(() => {
+        const s = settings.store;
+        const css = splashCss(PROFILES[s.profile] ?? PROFILES.amber, FONTS[s.font] ?? FONTS.vt323);
+        void VencordNative.pluginHelpers.RetroTerminal?.setSplashCss(css).catch(() => { });
+    }, 400);
+}
+
+function clearSplashCss() {
+    clearTimeout(splashTimer);
+    void VencordNative.pluginHelpers.RetroTerminal?.setSplashCss(null).catch(() => { });
+}
+
+// Boot screen: shown once per launch, only while Discord is still loading
+// (turning the theme on later from the panel doesn't replay it). Leaves once
+// it has typed out and held for BOOT_HOLD *and* Discord has finished loading
+// - or after BOOT_MAX_MS, so Discord's "trouble connecting?" help can show.
+let bootEl: HTMLElement | null = null;
+let bootShown = false;
+let bootTimer: ReturnType<typeof setInterval> | undefined;
+
+function showBoot() {
+    if (bootShown) return;
+    bootShown = true;
+    const stillLoading = !!document.querySelector(LOADER) || !UserStore?.getCurrentUser?.();
+    if (!stillLoading) return;
+
+    bootEl = document.createElement("div");
+    bootEl.id = "o2-retro-boot";
+    bootEl.setAttribute("aria-hidden", "true");
+    document.body.appendChild(bootEl);
+
+    const started = performance.now();
+    const minMs = (bootTypeSeconds + 0.1 + BOOT_HOLD) * 1000;
+    bootTimer = setInterval(() => {
+        const t = performance.now() - started;
+        const loaded = !document.querySelector(LOADER) && !!UserStore?.getCurrentUser?.();
+        if ((t >= minMs && loaded) || t > BOOT_MAX_MS) hideBoot(false);
+    }, 150);
+}
+
+function hideBoot(instant: boolean) {
+    clearInterval(bootTimer);
+    const el = bootEl;
+    bootEl = null;
+    if (!el) return;
+    if (instant) return el.remove();
+    el.classList.add("o2-retro-boot-out");
+    setTimeout(() => el.remove(), 500);
+}
+
 function buildCss() {
     const s = settings.store;
     const profile = PROFILES[s.profile] ?? PROFILES.amber;
@@ -325,6 +662,8 @@ ${mode !== "off" ? `
     filter: brightness(0.45);
 }
 ` : ""}
+${loaderCss(profile, font, mode)}
+
 #o2-retro-fx, #o2-retro-tint, #o2-retro-lift {
     position: fixed;
     inset: 0;
@@ -471,6 +810,7 @@ function update() {
     if (!style || !varsStyle) return;
     style.textContent = buildCss();
     varsStyle.textContent = buildVarsCss();
+    pushSplashCss();
 }
 
 let reharvestTimer: ReturnType<typeof setTimeout> | undefined;
@@ -492,6 +832,7 @@ function activate() {
     harvested = [];
     update();
     addLayers();
+    showBoot();
     SettingsStore.addPrefixChangeListener(SETTINGS_PREFIX, update);
     // Discord loads some stylesheets a little after startup - read the
     // colours once more then so late-defined variables get recoloured too.
@@ -514,15 +855,53 @@ function deactivate() {
     varsStyle?.remove();
     style = varsStyle = null;
     harvested = [];
+    hideBoot(true);
+    // Next launch's updater window goes back to Discord's own look.
+    clearSplashCss();
     removeLayers();
     setTimeout(syncOwnerThemeClass, 0);
 }
 
 // Re-checked on every login too, so switching to an account that isn't
 // allowed drops the theme straight away.
+// The loading screen shows before Discord knows who's logged in, so the
+// account check alone would leave it untouched. Remember the last allowed
+// account on this device and switch on straight away for it; CONNECTION_OPEN
+// then confirms (or drops it if a different account logged in).
+const LAST_USER_KEY = "o2cord.retro.lastAllowedUser";
+
 function syncAccess() {
-    if (canUseRetro()) activate();
-    else deactivate();
+    const id = UserStore?.getCurrentUser?.()?.id;
+    if (!id) return;
+    if (RETRO_USER_IDS.includes(id)) {
+        activate();
+        void DataStore.set(LAST_USER_KEY, id);
+    } else {
+        deactivate();
+        void DataStore.del(LAST_USER_KEY);
+    }
+}
+
+let pluginRunning = false;
+let subscribed = false;
+
+function onConnectionOpen() {
+    syncAccess();
+    // Activated during the loading screen, some of Discord's stylesheets
+    // weren't in yet - read the colours again now that the app is up.
+    if (active && getColorMode() === "ui") {
+        harvestColorVars();
+        update();
+    }
+}
+
+async function activateEarly() {
+    if (UserStore?.getCurrentUser?.()) return syncAccess();
+    const last = await DataStore.get<string>(LAST_USER_KEY).catch(() => undefined);
+    // Still logged-out at this point -> trust the remembered account for the
+    // loading screen; the real check follows on CONNECTION_OPEN.
+    if (UserStore?.getCurrentUser?.()) return syncAccess();
+    if (last && RETRO_USER_IDS.includes(last)) activate();
 }
 
 export default definePlugin({
@@ -538,13 +917,27 @@ export default definePlugin({
 
     syncAccess,
 
+    // Before Discord's webpack is ready, so the theme (and the terminal boot
+    // screen) are up while the loading screen shows - at WebpackReady that
+    // screen was already on for ~3s before anything changed. Only the DOM is
+    // touched here; Flux and the account check wait for onceReady.
+    startAt: StartAt.DOMContentLoaded,
+
     start() {
-        FluxDispatcher.subscribe("CONNECTION_OPEN", syncAccess);
-        syncAccess();
+        pluginRunning = true;
+        void activateEarly();
+        void onceReady.then(() => {
+            if (!pluginRunning || subscribed) return;
+            subscribed = true;
+            FluxDispatcher.subscribe("CONNECTION_OPEN", onConnectionOpen);
+            syncAccess();
+        });
     },
 
     stop() {
-        FluxDispatcher.unsubscribe("CONNECTION_OPEN", syncAccess);
+        pluginRunning = false;
+        if (subscribed) FluxDispatcher.unsubscribe("CONNECTION_OPEN", onConnectionOpen);
+        subscribed = false;
         deactivate();
         setTimeout(syncOwnerThemeClass, 0);
     }
