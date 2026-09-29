@@ -307,17 +307,13 @@ html.o2-owner-theme {
 }
 html.o2-owner-theme body {
     /* Windows drops acrylic to a flat solid gray the moment the window loses
-       focus, so a plain translucent tint went from "reflecting the desktop"
-       to one dead gray slab when Ryder switched tabs. A painted gradient
-       under the tint keeps color in both states: acrylic active = gradient +
-       blurred desktop, acrylic flattened = gradient over gray. The dark tint
-       is the last layer so it still stops a bright window behind from
-       washing everything out. */
+       focus. A dark neutral tint here keeps that state dark instead of a
+       light gray slab. It used to also carry purple/pink/blue radial glows;
+       Ryder asked for those colours gone, so it's neutral only now - a faint
+       top-light / bottom-shade gradient for depth, no hue. */
     background:
-        radial-gradient(1100px 700px at 6% 10%, rgba(130, 80, 255, 0.34), transparent 62%),
-        radial-gradient(900px 650px at 94% 14%, rgba(255, 80, 150, 0.26), transparent 62%),
-        radial-gradient(1200px 800px at 55% 108%, rgba(50, 150, 255, 0.30), transparent 62%),
-        rgba(6, 6, 12, 0.5) !important;
+        linear-gradient(180deg, rgba(255, 255, 255, 0.03) 0%, rgba(0, 0, 0, 0.12) 100%),
+        rgba(8, 8, 12, 0.6) !important;
     background-attachment: fixed !important;
 }
 html.o2-owner-theme #app-mount {
@@ -351,12 +347,30 @@ html.o2-owner-theme [class*="reaction_"] {
     border-radius: 500px !important;
 }
 
-/* Voice-reconnect notice strip under the window title. */
+/* Voice-reconnect notice ("You were in a voice channel...") - was a flat
+   dark-green full-width strip, the one square-edged piece left. Now a
+   floating rounded glass pill like the rest, with the green kept only as a
+   thin accent edge so it still reads as a voice notice. */
 html.o2-owner-theme [class*="notice_"] {
-    background: rgba(20, 60, 40, 0.35) !important;
-    backdrop-filter: blur(14px);
-    -webkit-backdrop-filter: blur(14px);
-    border-bottom: var(--o2-glass-border) !important;
+    background: var(--o2-glass-bg) !important;
+    backdrop-filter: var(--o2-glass-blur);
+    -webkit-backdrop-filter: var(--o2-glass-blur);
+    border: var(--o2-glass-border) !important;
+    border-left: 3px solid rgba(35, 165, 90, 0.9) !important;
+    border-radius: 14px !important;
+    box-shadow: var(--o2-glass-shadow);
+    margin: 6px 6px 0 !important;
+    color: rgba(255, 255, 255, 0.9) !important;
+}
+html.o2-owner-theme [class*="notice_"] button {
+    background: rgba(255, 255, 255, 0.1) !important;
+    border: var(--o2-glass-border) !important;
+    border-radius: 500px !important;
+    color: #fff !important;
+    transition: background 0.15s ease;
+}
+html.o2-owner-theme [class*="notice_"] button:hover {
+    background: rgba(255, 255, 255, 0.2) !important;
 }
 
 /* Window title strip (back/forward arrows + window title). It was left fully
@@ -387,4 +401,54 @@ html.o2-owner-theme [class*="base__"] > [class*="bar_"] {
 [class*="user-profile-video-tile-background"] {
     background-image: none !important;
     background-color: transparent !important;
+}
+
+/* ---- تصحيح وتنسيق الإمبيدات (Embeds Fix) - Ryder's pasted test ---- */
+html.o2-owner-theme [class*="embedFull_"],
+html.o2-owner-theme [class*="embedWrapper_"] {
+    background: rgba(255, 255, 255, 0.05) !important;
+    backdrop-filter: blur(16px) saturate(150%) !important;
+    -webkit-backdrop-filter: blur(16px) saturate(150%) !important;
+    border: var(--o2-glass-border) !important;
+    border-radius: 16px !important;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25) !important;
+    overflow: hidden !important;
+}
+
+/* إلغاء الخلفيات السوداء البيضاوية المشوهة داخل حقول الإمبيد */
+html.o2-owner-theme [class*="embedField_"],
+html.o2-owner-theme [class*="embedFields_"] > div,
+html.o2-owner-theme [class*="embedFull_"] [class*="grid_"] > div,
+html.o2-owner-theme [class*="embedTitle_"],
+html.o2-owner-theme [class*="embedDescription_"] {
+    background: transparent !important;
+    border-radius: 0 !important;
+    padding: initial !important;
+}
+
+/* بطاقات حقول الإمبيد: جعلها زجاجية خفيفة بدون قص النصوص */
+html.o2-owner-theme [class*="embedField_"] {
+    background: rgba(255, 255, 255, 0.04) !important;
+    border: 1px solid rgba(255, 255, 255, 0.08) !important;
+    border-radius: 10px !important;
+    padding: 6px 10px !important;
+    margin-top: 4px !important;
+}
+
+/* تصحيح خطوط العناوين داخل الحقول لكي لا تنقص */
+html.o2-owner-theme [class*="embedFieldName_"] {
+    color: var(--header-secondary) !important;
+    font-size: 12px !important;
+    font-weight: 700 !important;
+    margin-bottom: 2px !important;
+}
+
+html.o2-owner-theme [class*="embedFieldValue_"] {
+    color: var(--text-normal) !important;
+}
+
+/* تدوير صورة المصغّر (Thumbnail) في الإمبيد */
+html.o2-owner-theme [class*="embedThumbnail_"] img {
+    border-radius: 12px !important;
+    border: var(--o2-glass-border) !important;
 }
