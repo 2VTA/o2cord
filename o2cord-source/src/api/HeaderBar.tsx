@@ -4,6 +4,8 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
+import "./HeaderBar.css";
+
 import ErrorBoundary from "@components/ErrorBoundary";
 import { Logger } from "@utils/Logger";
 import { classes } from "@utils/misc";
@@ -108,7 +110,13 @@ export function HeaderBarButton(props: HeaderBarButtonProps & { ref?: React.RefO
                         display: "flex",
                         alignItems: "center",
                         justifyContent: "center",
-                        color: selected ? "var(--interactive-active, #ffffff)" : "var(--interactive-normal, #b5bac1)",
+                        // Discord renamed interactive-normal/-active to
+                        // interactive-icon-*; with only the old names these
+                        // buttons fell back to a fixed gray and ignored themes.
+                        color: selected
+                            ? "var(--interactive-icon-active, var(--interactive-active, #ffffff))"
+                            // Same token Discord's own header icons (Inbox, Help) rest on.
+                            : "var(--icon-muted, var(--interactive-icon-default, #b5bac1))",
                         margin: "0 4px",
                         cursor: "pointer",
                         opacity: selected ? 1 : 0.85,

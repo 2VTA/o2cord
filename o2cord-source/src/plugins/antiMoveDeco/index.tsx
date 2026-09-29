@@ -79,23 +79,29 @@ function onVoiceStateUpdate({ voiceStates }: { voiceStates: any[]; }) {
     }, 500);
 }
 
-function AntiMoveDecoIcon({ enabled }: { enabled: boolean; }) {
+// Line icon in currentColor like Discord's own header icons (it used to be a
+// red 🚫 emoji that ignored the theme). Off: shield outline. On (protecting
+// the channel): filled shield with a check - the button's "selected" state
+// also brightens it, same as Discord's toggles.
+function AntiMoveDecoIcon({ enabled, width = 20, height = 20 }: { enabled: boolean; width?: number; height?: number; }) {
+    const shield = "M12 2.5 4.5 5.3v5.9c0 4.9 3.2 9.2 7.5 10.3 4.3-1.1 7.5-5.4 7.5-10.3V5.3L12 2.5Z";
     return (
-        <span
-            aria-hidden="true"
-            style={{
-                color: enabled ? "#ff4f64" : "currentColor",
-                display: "inline-flex",
-                alignItems: "center",
-                justifyContent: "center",
-                fontSize: 18,
-                lineHeight: 1,
-                width: 20,
-                height: 20
-            }}
-        >
-            🚫
-        </span>
+        <svg aria-hidden="true" width={width} height={height} viewBox="0 0 24 24" fill="none">
+            {enabled ? (
+                <>
+                    <path d={shield} fill="currentColor" />
+                    <path
+                        d="m8.5 12.2 2.4 2.4 4.6-4.9"
+                        stroke="var(--background-base-lowest, #000)"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                    />
+                </>
+            ) : (
+                <path d={shield} stroke="currentColor" strokeWidth="2" strokeLinejoin="round" />
+            )}
+        </svg>
     );
 }
 
@@ -122,7 +128,7 @@ function AntiMoveDecoButton() {
                         ? "Protect current voice channel"
                         : "Join a voice channel first"
             }
-            icon={() => <AntiMoveDecoIcon enabled={enabled} />}
+            icon={(p: { width?: number; height?: number; }) => <AntiMoveDecoIcon enabled={enabled} width={p.width} height={p.height} />}
             aria-label="AntiMoveDeco"
             selected={enabled}
         />

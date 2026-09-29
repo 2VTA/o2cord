@@ -1,0 +1,10 @@
+/* Hover like Discord's own header icons. The resting colour is set inline in
+   HeaderBar.tsx, so these need !important to win on hover. */
+.vc-header-bar-button:hover {
+    color: var(--interactive-icon-hover, var(--interactive-hover, #dbdee1)) !important;
+    opacity: 1 !important;
+}
+
+.vc-header-bar-button-selected:hover {
+    color: var(--interactive-icon-active, var(--interactive-active, #ffffff)) !important;
+}
