@@ -27,3 +27,6 @@ package-lock.json
 yarn.lock
 bun.lock
 
+
+# AccountSwitcher is private (Ryder-only) - never upload it
+o2cord-source/src/plugins/accountSwitcher.desktop/
