@@ -1,8 +1,8 @@
 {
-    "version":  "1.3.26",
-    "hash":  "public-20260929183522",
+    "version":  "1.3.27",
+    "hash":  "public-20260930023519",
     "author":  "o2cord",
-    "message":  "Themes section in o2cord Settings, Schedule a Message window, colour fixes after Discord\u0027s update",
+    "message":  "Header buttons follow the theme, new AntiMoveDeco icon, retro startup screens",
     "notes":  [
                   "Public o2cord update package",
                   "ussro2 backgrounds are loaded from backgrounds.json beside this manifest",
