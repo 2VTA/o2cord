@@ -1,8 +1,8 @@
 {
-    "version":  "1.3.24",
-    "hash":  "public-20260929164316",
+    "version":  "1.3.25",
+    "hash":  "public-20260929171253",
     "author":  "o2cord",
-    "message":  "Fix plugin settings windows after Discord update",
+    "message":  "FakePlaying window + game icons, window button images from your device, What\u0027s New window",
     "notes":  [
                   "Public o2cord update package",
                   "ussro2 backgrounds are loaded from backgrounds.json beside this manifest",
