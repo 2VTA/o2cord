@@ -1,0 +1,71 @@
+.o2-whats-new-title {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.o2-whats-new-version {
+    padding: 2px 8px;
+    border-radius: 500px;
+    font-size: 12px;
+    font-weight: 700;
+    color: #fff;
+    background: var(--brand-500, #5865f2);
+}
+
+.o2-whats-new-content {
+    padding-bottom: 16px;
+}
+
+.o2-whats-new-feature-head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.o2-whats-new-badge {
+    padding: 1px 6px;
+    border-radius: 4px;
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    color: #fff;
+    background: var(--status-positive, #23a55a);
+}
+
+.o2-whats-new-plugin {
+    margin-left: auto;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-muted, #949ba4);
+}
+
+/* Cropped feature picture - rounded card with a hairline edge so a dark
+   screenshot doesn't melt into the dark modal. */
+.o2-whats-new-image {
+    display: block;
+    width: 100%;
+    height: auto;
+    border-radius: 10px;
+    border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.08));
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+}
+
+.o2-whats-new-fixes {
+    margin: 0;
+    padding-left: 20px;
+    list-style: disc;
+    color: var(--text-default, #dbdee1);
+    font-size: 14px;
+    line-height: 1.6;
+}
+
+.o2-whats-new-fixes li::marker {
+    color: var(--text-muted, #949ba4);
+}
+
+.o2-whats-new-footer {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 20px;
+}

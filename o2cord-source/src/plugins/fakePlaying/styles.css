@@ -1,94 +1,99 @@
-.o2-fake-playing-popout {
-    width: 300px;
-    background: var(--background-base-low, #2b2d31);
-    border-radius: 8px;
-    padding: 12px;
-    box-shadow: var(--elevation-high);
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-}
-
-.o2-fake-playing-titlebar {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-}
-
-.o2-fake-playing-header {
-    font-size: 16px;
-    font-weight: 700;
-    color: #fff;
-}
-
-.o2-fake-playing-close {
-    font-size: 18px;
-    line-height: 1;
-    color: var(--interactive-normal, #b5bac1);
-    cursor: pointer;
-}
-
-.o2-fake-playing-close:hover {
-    color: var(--interactive-active, #fff);
-}
-
-.o2-fake-playing-explainer {
-    font-size: 12px;
-    line-height: 1.5;
-    color: var(--text-muted, #949ba4);
-}
-
-.o2-fake-playing-empty {
-    padding: 4px;
-    font-size: 12px;
-    color: var(--text-muted, #949ba4);
-    line-height: 1.5;
+/* FakePlaying window - laid out like PluginModal (the plugin settings
+   window): the Modal itself gives the title bar and background, this only
+   styles the rows inside it. */
+.o2-fake-playing-content {
+    padding-bottom: 16px;
 }
 
 .o2-fake-playing-row {
     display: flex;
     align-items: center;
-    gap: 8px;
-    padding: 6px 4px;
-    border-radius: 4px;
-    background: rgba(255, 255, 255, 0.04);
+    gap: 12px;
+    padding: 8px 12px 8px 8px;
+    border-radius: 10px;
+    border: 1px solid transparent;
+    background: var(--background-mod-subtle, rgba(255, 255, 255, 0.04));
+    color: var(--text-default, #dbdee1);
+    transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.o2-fake-playing-row:hover {
+    background: var(--background-mod-normal, rgba(255, 255, 255, 0.07));
+}
+
+.o2-fake-playing-row-active {
+    border-color: var(--status-positive, #23a55a);
+    background: rgba(35, 165, 90, 0.1);
+}
+
+/* Now Playing card - the game's icon big, "PLAYING" label over the name. */
+.o2-fake-playing-now {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 12px 14px 12px 12px;
+    border-radius: 12px;
+    border: 1px solid var(--status-positive, #23a55a);
+    background: linear-gradient(135deg, rgba(35, 165, 90, 0.18), rgba(35, 165, 90, 0.04));
+    color: var(--text-default, #dbdee1);
+}
+
+.o2-fake-playing-icon {
+    flex-shrink: 0;
+    border-radius: 8px;
+    object-fit: cover;
+    box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.06);
+}
+
+/* Fallback for a typed name / a game with no icon: its first letter. */
+.o2-fake-playing-icon-letter {
+    display: grid;
+    place-items: center;
+    font-weight: 700;
+    color: #fff;
+    background: linear-gradient(135deg, #5865f2, #3c45a5);
+}
+
+.o2-fake-playing-meta {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.o2-fake-playing-label {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--status-positive, #23a55a);
 }
 
 .o2-fake-playing-name {
-    flex: 1;
-    min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    color: var(--interactive-normal, #dbdee1);
-    font-size: 13px;
+    font-size: 14px;
+    font-weight: 600;
 }
 
-.o2-fake-playing-btn {
-    flex-shrink: 0;
-    font-size: 11px;
-    padding: 4px 10px;
-    border-radius: 4px;
-    background: var(--button-positive-background, #248046);
-    color: #fff;
-    cursor: pointer;
+.o2-fake-playing-name-lg {
+    font-size: 16px;
 }
 
-.o2-fake-playing-btn:hover {
-    background: var(--button-positive-background-hover, #1a6334);
-}
-
-.o2-fake-playing-btn-stop {
-    background: var(--button-danger-background, #da373c);
-}
-
-.o2-fake-playing-btn-stop:hover {
-    background: var(--button-danger-background-hover, #a12828);
+.o2-fake-playing-sub {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 12px;
+    color: var(--text-muted, #949ba4);
 }
 
 .o2-fake-playing-custom-row {
     display: flex;
-    gap: 6px;
+    align-items: center;
+    gap: 8px;
 }
 
 .o2-fake-playing-custom-input {
@@ -96,26 +101,36 @@
     min-width: 0;
 }
 
-.o2-fake-playing-custom-row .o2-fake-playing-btn {
-    align-self: center;
+/* Discord's TextInput came out as a bare white browser input inside the
+   modal - give it the same dark field look as PluginModal's text settings. */
+.o2-fake-playing-custom-row input {
+    width: 100%;
+    box-sizing: border-box;
+    height: 36px;
+    padding: 0 10px;
+    border-radius: 8px;
+    border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.08));
+    background: var(--input-background, rgba(0, 0, 0, 0.3));
+    color: var(--text-default, #dbdee1);
+    font-size: 14px;
+    outline: none;
 }
 
-.o2-fake-playing-divider {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    margin: 2px 0;
-    font-size: 10px;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.02em;
+.o2-fake-playing-custom-row input:focus {
+    border-color: var(--text-link, #5865f2);
+}
+
+.o2-fake-playing-custom-row input::placeholder {
     color: var(--text-muted, #949ba4);
 }
 
-.o2-fake-playing-divider::before,
-.o2-fake-playing-divider::after {
-    content: "";
-    flex: 1;
-    height: 1px;
-    background: var(--background-modifier-accent, rgba(255, 255, 255, 0.06));
+.o2-fake-playing-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    max-height: 320px;
+    overflow-y: auto;
+    padding-right: 4px;
+    scrollbar-width: thin;
+    scrollbar-color: var(--scrollbar-thin-thumb, rgba(255, 255, 255, 0.2)) transparent;
 }
