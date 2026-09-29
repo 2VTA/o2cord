@@ -30,7 +30,7 @@
     font-weight: 800;
     letter-spacing: 0.04em;
     color: #fff;
-    background: var(--status-positive, #23a55a);
+    background: var(--text-feedback-positive, #23a55a);
 }
 
 .o2-whats-new-plugin {
