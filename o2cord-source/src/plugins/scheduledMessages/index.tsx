@@ -6,6 +6,7 @@
 
 import "./styles.css";
 
+import { addHeaderBarButton, HeaderBarButton, removeHeaderBarButton } from "@api/HeaderBar";
 import { MessageObject, MessageOptions } from "@api/MessageEvents";
 import { definePluginSettings } from "@api/Settings";
 import { Devs } from "@utils/constants";
@@ -14,6 +15,7 @@ import definePlugin, { OptionType } from "@utils/types";
 import { isScheduleModeEnabled, ScheduledMessagesButton, setScheduleModeEnabled } from "./components/ChatBarButton";
 import { CalendarIcon } from "./components/Icons";
 import { MessageAccessory } from "./components/MessageAccessory";
+import { openPlannerModal } from "./components/PlannerModal";
 import { openScheduleTimeModal } from "./components/ScheduleTimeModal";
 import { openViewScheduledModal } from "./components/ViewScheduledModal";
 import { FluxReactionEvent, ScheduledAttachment } from "./types";
@@ -87,7 +89,7 @@ export default definePlugin({
     name: "ScheduledMessages",
     description: "Schedule messages to be sent at a specific time or after a delay.",
     tags: ["Chat", "Utility"],
-    dependencies: ["ChatInputButtonAPI", "MessageAccessoriesAPI", "MessageEventsAPI"],
+    dependencies: ["ChatInputButtonAPI", "MessageAccessoriesAPI", "MessageEventsAPI", "HeaderBarAPI"],
     authors: [Devs.mmeta, Devs.prism],
     settings,
 
@@ -102,6 +104,7 @@ export default definePlugin({
     },
 
     toolboxActions: {
+        "Schedule a Message": openPlannerModal,
         "View Scheduled Messages": openViewScheduledModal
     },
 
@@ -160,12 +163,19 @@ export default definePlugin({
     },
 
     async start() {
+        // o2cord: header-bar entry to the "Schedule a Message" window (pick
+        // server + channel + time without opening that channel first).
+        addHeaderBarButton("o2cord-schedule-message", () => (
+            <HeaderBarButton icon={CalendarIcon} tooltip="Schedule a Message" onClick={openPlannerModal} />
+        ), 890);
+
         await loadScheduledMessages();
         startScheduler();
         recreatePhantomMessages();
     },
 
     stop() {
+        removeHeaderBarButton("o2cord-schedule-message");
         stopScheduler();
         cleanupAllPhantomMessages();
     }

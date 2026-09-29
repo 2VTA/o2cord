@@ -4,6 +4,9 @@
     border-radius: 8px;
     padding: 8px 4px;
     box-shadow: var(--elevation-high);
+    /* Hairline edge so the card still reads as a card on an all-black
+       background (midnight theme, RetroTerminal). */
+    border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.08));
 }
 
 .o2-settings-popout-header {
@@ -27,4 +30,125 @@
    flatter look from the mockup instead of Discord's default switch. */
 .o2-settings-popout .vc-switch-slider > svg {
     display: none;
+}
+
+/* ---- Themes section: one choice at a time (None / Liquid Glass / Retro) ---- */
+.o2-settings-themes {
+    margin-top: 4px;
+    padding: 4px 8px 4px;
+    border-top: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.08));
+}
+
+.o2-settings-popout-section {
+    padding: 8px 4px 6px;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--text-muted, #949ba4);
+}
+
+.o2-settings-theme {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 7px 8px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background 0.15s ease;
+}
+
+.o2-settings-theme:hover {
+    background: var(--background-mod-subtle, rgba(255, 255, 255, 0.05));
+}
+
+/* Radio dot. */
+.o2-settings-theme-dot {
+    width: 16px;
+    height: 16px;
+    flex-shrink: 0;
+    border-radius: 50%;
+    box-sizing: border-box;
+    border: 2px solid var(--interactive-icon-default, #b5bac1);
+    transition: border 0.15s ease;
+}
+
+.o2-settings-theme-on .o2-settings-theme-dot {
+    border: 5px solid var(--brand-500, #5865f2);
+}
+
+.o2-settings-theme-text {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.o2-settings-theme-title {
+    font-size: 15px;
+    font-weight: 500;
+    color: var(--text-default, #dbdee1);
+}
+
+.o2-settings-theme-sub {
+    font-size: 12px;
+    color: var(--text-muted, #949ba4);
+}
+
+.o2-settings-retro {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 6px 8px 8px 34px;
+}
+
+.o2-settings-swatches {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+/* Named chips, not bare dots: in RetroTerminal monochrome every colour dot
+   looks the same, so the name and the filled "on" state carry the choice. */
+.o2-settings-swatch {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    padding: 3px 8px 3px 6px;
+    border-radius: 500px;
+    border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.12));
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-muted, #949ba4);
+    cursor: pointer;
+    transition: background 0.12s ease, color 0.12s ease;
+}
+
+.o2-settings-swatch:hover {
+    color: var(--text-default, #dbdee1);
+}
+
+.o2-settings-swatch-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+}
+
+/* Inverted, like a terminal cursor - reads as "selected" by brightness
+   alone, so it still works when RetroTerminal paints everything one colour. */
+.o2-settings-swatch-on {
+    background: var(--text-default, #dbdee1);
+    border-color: transparent;
+    color: var(--background-base-lowest, #000);
+}
+
+.o2-settings-more {
+    width: fit-content;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-link, #00a8fc);
+    cursor: pointer;
+}
+
+.o2-settings-more:hover {
+    text-decoration: underline;
 }

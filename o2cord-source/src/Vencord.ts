@@ -36,6 +36,7 @@ import { openSettingsTabModal, UpdaterTab } from "@components/settings";
 import { Devs, IS_WINDOWS } from "@utils/constants";
 import { createAndAppendStyle } from "@utils/css";
 import { relaunch } from "@utils/native";
+import { syncOwnerThemeClass } from "@utils/o2OwnerTheme";
 import { StartAt } from "@utils/types";
 import { React, UserStore } from "@webpack/common";
 
@@ -54,13 +55,9 @@ if (IS_REPORTER) {
 // Toggled live from the o2cord Settings popout (o2Settings' "Enable Custom
 // Theme" switch calls this directly on change, in addition to the
 // MutationObserver in init() re-syncing it whenever Discord rewrites
-// <html>'s class attribute wholesale).
-export function syncOwnerThemeClass() {
-    const enabled = Settings.plugins.o2Settings?.enableTheme !== false;
-    const has = document.documentElement.classList.contains("o2-owner-theme");
-    if (enabled && !has) document.documentElement.classList.add("o2-owner-theme");
-    if (!enabled && has) document.documentElement.classList.remove("o2-owner-theme");
-}
+// <html>'s class attribute wholesale). One shared copy in utils so the owner
+// check and the RetroTerminal exception can't drift between two versions.
+export { syncOwnerThemeClass };
 
 async function syncSettings() {
     SettingsStore.addGlobalChangeListener(() => {

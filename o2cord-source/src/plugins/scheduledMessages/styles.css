@@ -274,3 +274,126 @@
     pointer-events: none;
     width: fit-content;
 }
+/* ---- o2cord "Schedule a Message" window (PlannerModal) ---- */
+.o2-planner {
+    padding-bottom: 16px;
+}
+
+.o2-planner-time {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.o2-planner-num {
+    width: 64px;
+}
+
+.o2-planner-num input {
+    text-align: center;
+    font-size: 18px;
+    font-weight: 600;
+}
+
+.o2-planner-colon {
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--text-muted, #949ba4);
+}
+
+.o2-planner-switch {
+    display: flex;
+    margin-left: 6px;
+    padding: 3px;
+    gap: 2px;
+    border-radius: 8px;
+    background: rgba(0, 0, 0, 0.25);
+}
+
+.o2-planner-switch-btn {
+    padding: 6px 14px;
+    border: none;
+    border-radius: 6px;
+    background: transparent;
+    color: var(--text-muted, #949ba4);
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background 0.15s ease, color 0.15s ease;
+}
+
+.o2-planner-switch-btn:hover {
+    color: var(--text-default, #dbdee1);
+}
+
+.o2-planner-switch-on {
+    background: var(--brand-500, #5865f2);
+    color: #fff !important;
+}
+
+.o2-planner-when {
+    margin-top: 8px;
+    color: var(--text-feedback-positive, #23a55a) !important;
+    font-weight: 600;
+}
+
+.o2-planner-error {
+    color: var(--text-feedback-critical, #f23f43) !important;
+}
+
+.o2-planner-actions {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 16px;
+}
+
+.o2-planner-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.o2-planner-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 12px 8px 8px;
+    border-radius: 10px;
+    background: var(--background-mod-subtle, rgba(255, 255, 255, 0.04));
+}
+
+.o2-planner-item-icon {
+    width: 36px;
+    height: 36px;
+    flex-shrink: 0;
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.06);
+    object-fit: cover;
+}
+
+.o2-planner-item-meta {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+}
+
+.o2-planner-item-where {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-muted, #949ba4);
+}
+
+.o2-planner-item-text {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 14px;
+    color: var(--text-default, #dbdee1);
+}
+
+.o2-planner-item-time {
+    font-size: 12px;
+    color: var(--text-feedback-positive, #23a55a);
+}
