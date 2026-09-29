@@ -4,37 +4,73 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
+import * as DataStore from "@api/DataStore";
 import { definePluginSettings } from "@api/Settings";
 import { managedStyleRootNode } from "@api/Styles";
 import { Devs } from "@utils/constants";
 import { createAndAppendStyle } from "@utils/css";
 import definePlugin, { makeRange, OptionType } from "@utils/types";
 
+import { ImagePickers } from "./ImagePickers";
+
 let style: HTMLStyleElement | null = null;
 let observer: MutationObserver | null = null;
 
-const settings = definePluginSettings({
+export type ControlKind = "minimize" | "maximize" | "close";
+export type ImageSource = "url" | "file";
+
+// Images picked from the device live in DataStore (IndexedDB), not in the
+// settings file - a base64 image in settings.json would bloat every settings
+// save. Kept in memory once loaded so updateStyle stays synchronous.
+const LOCAL_KEY = (kind: ControlKind) => `o2cord.windowControls.image.${kind}`;
+export const localImages: Record<ControlKind, string> = { minimize: "", maximize: "", close: "" };
+
+export async function setLocalImage(kind: ControlKind, dataUrl: string) {
+    localImages[kind] = dataUrl;
+    if (dataUrl) await DataStore.set(LOCAL_KEY(kind), dataUrl);
+    else await DataStore.del(LOCAL_KEY(kind));
+    updateStyle();
+}
+
+async function loadLocalImages() {
+    for (const kind of ["minimize", "maximize", "close"] as const) {
+        localImages[kind] = (await DataStore.get<string>(LOCAL_KEY(kind)).catch(() => "")) ?? "";
+    }
+    updateStyle();
+}
+
+export const settings = definePluginSettings({
+    images: {
+        type: OptionType.COMPONENT,
+        description: "",
+        component: ImagePickers
+    },
+    // The three URL + source settings are edited through ImagePickers above
+    // (Link / From device per button); hidden so they don't show twice.
     minimizeImage: {
         type: OptionType.STRING,
         description: "Image URL for the minimize button. Leave empty to keep the default icon.",
-        placeholder: "https://example.com/minimize.png",
         default: "",
+        hidden: true,
         onChange: updateStyle
     },
     maximizeImage: {
         type: OptionType.STRING,
         description: "Image URL for the maximize / restore button. Leave empty to keep the default icon.",
-        placeholder: "https://example.com/maximize.png",
         default: "",
+        hidden: true,
         onChange: updateStyle
     },
     closeImage: {
         type: OptionType.STRING,
         description: "Image URL for the close button. Leave empty to keep the default icon.",
-        placeholder: "https://example.com/close.png",
         default: "",
+        hidden: true,
         onChange: updateStyle
     },
+    minimizeSource: { type: OptionType.STRING, description: "", default: "url", hidden: true },
+    maximizeSource: { type: OptionType.STRING, description: "", default: "url", hidden: true },
+    closeSource: { type: OptionType.STRING, description: "", default: "url", hidden: true },
     iconSize: {
         type: OptionType.SLIDER,
         description: "Custom image size.",
@@ -104,12 +140,20 @@ function imageRule(selector: string, url: string | null) {
     `;
 }
 
-function updateStyle() {
+export function getSource(kind: ControlKind): ImageSource {
+    return settings.store[`${kind}Source`] === "file" ? "file" : "url";
+}
+
+export function getImageFor(kind: ControlKind) {
+    return getSource(kind) === "file" ? localImages[kind] : settings.store[`${kind}Image`];
+}
+
+export function updateStyle() {
     if (!style) return;
 
-    const minimize = asCssUrl(settings.store.minimizeImage);
-    const maximize = asCssUrl(settings.store.maximizeImage);
-    const close = asCssUrl(settings.store.closeImage);
+    const minimize = asCssUrl(getImageFor("minimize"));
+    const maximize = asCssUrl(getImageFor("maximize"));
+    const close = asCssUrl(getImageFor("close"));
     const size = Math.max(8, Math.min(58, Number(settings.store.iconSize) || 16));
     const hoverScale = Math.max(1, Math.min(1.7, Number(settings.store.hoverScale) / 100 || 1.18));
     const hoverSize = Math.round(size * hoverScale);
@@ -175,6 +219,7 @@ export default definePlugin({
     start() {
         style = createAndAppendStyle("o2-window-controls", managedStyleRootNode);
         updateStyle();
+        void loadLocalImages();
         tagWindowButtons();
 
         observer = new MutationObserver(tagWindowButtons);
