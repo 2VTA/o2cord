@@ -1,8 +1,8 @@
 {
-    "version":  "1.3.28",
-    "hash":  "public-20260930130031",
+    "version":  "1.3.29",
+    "hash":  "public-20261001015157",
     "author":  "o2cord",
-    "message":  "RetroTerminal for one more account, O2 logos on the startup screens",
+    "message":  "New plugin: StreamingCodecDisabler",
     "notes":  [
                   "Public o2cord update package",
                   "ussro2 backgrounds are loaded from backgrounds.json beside this manifest",
