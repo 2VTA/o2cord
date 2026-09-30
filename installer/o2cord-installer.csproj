@@ -17,6 +17,12 @@
     <ApplicationIcon>assets\o2-logo.ico</ApplicationIcon>
   </PropertyGroup>
 
+  <!-- tools/build-debug-installer.ps1 passes -p:O2Debug=true: "DEBUG BUILD"
+       badge/title and the green phosphor palette (public stays amber). -->
+  <PropertyGroup Condition="'$(O2Debug)' == 'true'">
+    <DefineConstants>$(DefineConstants);INSTALLER_DEBUG</DefineConstants>
+  </PropertyGroup>
+
   <ItemGroup>
     <EmbeddedResource Include="payload\dist.zip" LogicalName="dist.zip" />
     <EmbeddedResource Include="assets\o2-logo.png" LogicalName="o2-logo.png" />
