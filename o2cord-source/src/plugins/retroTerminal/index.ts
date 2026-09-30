@@ -33,7 +33,7 @@ import definePlugin, { makeRange, OptionType, StartAt } from "@utils/types";
 import { onceReady } from "@webpack";
 import { FluxDispatcher, UserStore } from "@webpack/common";
 
-import { BOOT_ART, O2_LOGO } from "./bootArt";
+import { BOOT_ART, O2_LOGO, O2CORD_LOGO } from "./bootArt";
 
 // Private for now, at Ryder's request: only these accounts can see or use
 // the theme. Everyone else gets nothing - the plugin is hidden from the
@@ -41,12 +41,16 @@ import { BOOT_ART, O2_LOGO } from "./bootArt";
 // `enabled` flag is set by hand, activate() never runs for them.
 export const RETRO_USER_IDS: readonly string[] = [
     String(Devs.Ryder.id),
-    "1542531988727140477" // @aloshsaudi
+    "1542531988727140477", // @aloshsaudi
+    "793236817893785601" // @abolbnh
 ];
 
 // Turned on once automatically on first launch after the update ("publish
 // the theme on this account"); after that their own panel choice sticks.
-export const RETRO_AUTO_ENABLE_IDS: readonly string[] = ["1542531988727140477"];
+export const RETRO_AUTO_ENABLE_IDS: readonly string[] = [
+    "1542531988727140477", // @aloshsaudi
+    "793236817893785601" // @abolbnh
+];
 
 export function canUseRetro() {
     const id = UserStore?.getCurrentUser?.()?.id;
@@ -288,10 +292,15 @@ const BOOT_MAX_MS = 15_000;
 
 function loaderCss(profile: Profile, font: typeof FONTS[string], mode: ColorMode) {
     const version = typeof O2CORD_VERSION === "string" && O2CORD_VERSION ? " " + O2CORD_VERSION.replace(/-debug$/, "") : "";
-    // Text lines type at 0.16s each; the rows of Ryder's picture (between the
-    // connect line and the prompt) scroll in at 0.05s each.
+    // Text lines type at 0.16s each; the rows of the O2CORD logo (top) and of
+    // Ryder's picture (between the connect line and the prompt) scroll in at
+    // 0.05s each.
     const text = (s: string) => ({ s, t: 0.16 });
+    // Ryder's "O2CORD" logo comes first, then the text.
+    const logo = (s: string) => ({ s, t: 0.05 });
     const lines = [
+        ...O2CORD_LOGO.map(logo),
+        text(""),
         text(`O2CORD BIOS${version}`),
         text("(C) o2cord. All rights reserved."),
         text(""),
@@ -409,7 +418,12 @@ ${keyframes}
  * window, read live: #splash > .splash-inner > img + .splash-text >
  * .splash-status, and while downloading .progress > .progress-bar > .complete.
  */
+// Logo in the updater window. O2CORD_LOGO was tried here and moved to the big
+// boot screen instead - at 300px wide it came out ~5px a character.
+const SPLASH_LOGO: readonly string[] = O2_LOGO;
+
 function splashCss(profile: Profile, font: typeof FONTS[string]) {
+    const logoCols = Math.max(...SPLASH_LOGO.map(l => [...l].length));
     const fg = hexToRgb(profile.fg);
     const family = font.family ? `${font.family}, Consolas, monospace` : "Consolas, monospace";
     const version = typeof O2CORD_VERSION === "string" && O2CORD_VERSION ? " " + O2CORD_VERSION.replace(/-debug$/, "") : "";
@@ -466,15 +480,21 @@ html, body { background: #0a0806 !important; }
 .splash-inner img { display: none !important; }
 
 .splash-inner::before {
-    content: "${O2_LOGO.map(l => l.replaceAll("\\", "\\\\")).join("\\A ")}";
+    content: "${SPLASH_LOGO.map(l => l.replaceAll("\\", "\\\\")).join("\\A ")}";
     display: block;
     white-space: pre;
-    font-size: 7.4px;
-    line-height: 1.15;
+    /* Fonts that all have the full-block and box-drawing glyphs at one width,
+       so the letters line up - a retro font missing them would fall back
+       per glyph and skew the rows. */
+    font-family: "Cascadia Mono", Consolas, "Courier New", monospace !important;
+    /* Sized to the logo's width so a wide one still fits the 300px window
+       (~0.55em per character in these fonts, 22px screen padding a side). */
+    font-size: min(19px, calc((100vw - 44px) / ${(logoCols * 0.55).toFixed(2)}));
+    line-height: ${SPLASH_LOGO === O2_LOGO ? 1 : 1.15};
     color: ${profile.fg};
-    text-shadow: 0 0 2px rgba(${fg}, 0.9), 0 0 7px rgba(${fg}, 0.5);
+    text-shadow: 0 0 3px rgba(${fg}, 0.9), 0 0 12px rgba(${fg}, 0.5);
     margin: 0 auto 22px;
-    animation: o2-splash-art 0.9s steps(${O2_LOGO.length}, end) both;
+    animation: o2-splash-art 0.9s steps(${SPLASH_LOGO.length}, end) both;
 }
 
 @keyframes o2-splash-art {
