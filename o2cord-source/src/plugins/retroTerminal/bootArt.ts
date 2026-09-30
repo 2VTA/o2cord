@@ -42,17 +42,28 @@ export const BOOT_ART: readonly string[] = [
     "⢼⣿⣿⣽⣻⣿⢿⣿⣿⣿⣿⣽⣳⣟⣷⡻⣞⣯⢿⣷⣾⣿⣿⣿⣿⣿⣿⣿⣿⠈⠌⡱⢙⢷⡸⣿⣿⣿⣿⣿⣿⣿⣿⣿⣟⣿⣿⣿⢿⣿⣿⢯⣟⣾⣳⣯⣟⡿⣽⡃"
 ];
 
-// "o2" in slash-and-underscore block letters, Ryder's pick for the small
-// updater window. String.raw keeps the backslashes literal; splashCss()
-// escapes them for CSS.
+// "O2" in block letters (ANSI Shadow), Ryder's pick for the small updater
+// window. The first row's leading space was lost when it was pasted - without
+// it the O's top sits one column off - so it's put back here (every row is 17
+// columns). splashCss() still escapes backslashes, though this one has none.
 export const O2_LOGO: readonly string[] = [
-    String.raw`_______________        ____/\\\\\\\\\_____        `,
-    String.raw` _______________        __/\\\///////\\\___       `,
-    String.raw`  _______________        _\///______\//\\\__      `,
-    String.raw`   _____/\\\\\____        ___________/\\\/___     `,
-    String.raw`    ___/\\\///\\\__        ________/\\\//_____    `,
-    String.raw`     __/\\\__\//\\\_        _____/\\\//________   `,
-    String.raw`      _\//\\\__/\\\__        ___/\\\/___________  `,
-    String.raw`       __\///\\\\\/___        __/\\\\\\\\\\\\\\\_ `,
-    String.raw`        ____\/////_____        _\///////////////__`
+    " ██████╗ ██████╗ ",
+    "██╔═══██╗╚════██╗",
+    "██║   ██║ █████╔╝",
+    "██║   ██║██╔═══╝ ",
+    "╚██████╔╝███████╗",
+    " ╚═════╝ ╚══════╝"
+];
+
+// "O2CORD" in a slanted colon/plus/hash font - Ryder's trial for the updater
+// window. The first row's 5 leading spaces were lost in the paste (the
+// letters slant one column per row), so they're restored here.
+export const O2CORD_LOGO: readonly string[] = [
+    "     ::::::::        ::::::::       ::::::::       ::::::::       :::::::::       ::::::::: ",
+    "    :+:    :+:      :+:    :+:     :+:    :+:     :+:    :+:      :+:    :+:      :+:    :+: ",
+    "   +:+    +:+            +:+      +:+            +:+    +:+      +:+    +:+      +:+    +:+  ",
+    "  +#+    +:+          +#+        +#+            +#+    +:+      +#++:++#:       +#+    +:+   ",
+    " +#+    +#+        +#+          +#+            +#+    +#+      +#+    +#+      +#+    +#+    ",
+    "#+#    #+#       #+#           #+#    #+#     #+#    #+#      #+#    #+#      #+#    #+#     ",
+    "########       ##########      ########       ########       ###    ###      #########"
 ];
