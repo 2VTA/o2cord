@@ -62,7 +62,9 @@ if (Test-Path -LiteralPath $Payload) {
 }
 Compress-Archive -Path (Join-Path $DebugDist "*") -DestinationPath $Payload -Force
 
-dotnet publish $Installer -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o (Join-Path $Installer "out-debug-local")
+# O2Debug=true -> INSTALLER_DEBUG: "DEBUG BUILD" badge and the green CRT
+# palette, so it's never mistaken for the public (amber) installer.
+dotnet publish $Installer -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:O2Debug=true -o (Join-Path $Installer "out-debug-local")
 Assert-LastCommand "Debug installer publish"
 
 Copy-Item -LiteralPath (Join-Path $Installer "out-debug-local\o2cord-Installer.exe") -Destination (Join-Path $Ready "o2cord-Installer-Debug.exe") -Force
