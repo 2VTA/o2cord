@@ -1,8 +1,8 @@
 {
-    "version":  "1.3.27",
-    "hash":  "public-20260930023519",
+    "version":  "1.3.28",
+    "hash":  "public-20260930130031",
     "author":  "o2cord",
-    "message":  "Header buttons follow the theme, new AntiMoveDeco icon, retro startup screens",
+    "message":  "RetroTerminal for one more account, O2 logos on the startup screens",
     "notes":  [
                   "Public o2cord update package",
                   "ussro2 backgrounds are loaded from backgrounds.json beside this manifest",
