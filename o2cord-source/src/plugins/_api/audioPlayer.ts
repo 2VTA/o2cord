@@ -25,7 +25,11 @@ export default definePlugin({
                     // Uses the audio as-is if external, otherwise checks for an internal Discord sound.
                     // Also force loads the internal sounds module to account for the second patch group below,
                     // as well as accounting for not calling the module in this patch when this.type is not DISCORD.
-                    match: /(let \i=class.{0,1000}?new Audio;\i.src=)((\i\(\d+\))(?:\(`\.\/\$\{|.{0,50}concat\())this.name(\}\.mp3`\))/,
+                    // The gap between the class start and `new Audio` was 1063 chars after Discord added
+                    // setPlaybackRate/playWithListener (PTB 1.0.1223) and the old 1000 limit made this miss -
+                    // which drops the whole group while the SoundUtils patch below still shifts the
+                    // constructor args, so every Discord sound (mute, deafen, join...) silently broke.
+                    match: /(let \i=class.{0,3000}?new Audio;\i.src=)((\i\(\d+\))(?:\(`\.\/\$\{|.{0,50}concat\())this.name(\}\.mp3`\))/,
                     replace: "$3;$1this.type!==$self.AudioType.DISCORD?this.audio:$2this.audio$4"
                 },
                 {

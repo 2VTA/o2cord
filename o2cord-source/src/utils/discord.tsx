@@ -90,8 +90,11 @@ export function getCurrentGuild(): Guild | undefined {
     return GuildStore.getGuild(getCurrentChannel()?.guild_id!);
 }
 
-export function openPrivateChannel(userId: string) {
-    ChannelActionCreators.openPrivateChannel(userId);
+// Discord's openPrivateChannel now takes {recipientIds}; a bare id string
+// became an empty recipient list, which opens a new empty group DM instead.
+// Resolves to the channel id.
+export function openPrivateChannel(userId: string): Promise<string> {
+    return ChannelActionCreators.openPrivateChannel({ recipientIds: userId });
 }
 
 export const enum Theme {
