@@ -1,8 +1,8 @@
 {
-    "version":  "1.3.29",
-    "hash":  "public-20261001015157",
+    "version":  "1.3.30",
+    "hash":  "public-20261006234734",
     "author":  "o2cord",
-    "message":  "New plugin: StreamingCodecDisabler",
+    "message":  "Fix missing Discord sounds, Callie requests window, Send DM fix",
     "notes":  [
                   "Public o2cord update package",
                   "ussro2 backgrounds are loaded from backgrounds.json beside this manifest",
