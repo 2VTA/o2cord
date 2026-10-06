@@ -57,7 +57,7 @@ function friendItems(): PaletteListItem[] {
             actions: [{
                 id: "open",
                 label: "Open DM",
-                run: () => openPrivateChannel(user.id)
+                run: () => void openPrivateChannel(user.id)
             }]
         }));
 }
