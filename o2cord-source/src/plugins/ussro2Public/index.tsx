@@ -174,10 +174,22 @@ export default definePlugin({
             ]
         },
         {
-            find: '"VideoBackground-web"',
+            // The avatar-tinted layer Discord paints inside a voice tile (the flat
+            // brown/grey behind the centred avatar). It sits on top of the tile's
+            // own background-image, so whenever it rendered, the picture was hidden
+            // - "sometimes the picture shows, sometimes it's just that colour".
+            // Discord removed the old "VideoBackground-web" marker this used to
+            // hang on (PTB 1.0.1223), so it's found by VIDEO_TILE_BACKGROUND now,
+            // a property name that survives minification. Four other modules
+            // mention that name too (one of them was matched first and used up
+            // the patch), so the find also requires the backgroundColor spread
+            // that only this component has. For a user with a background, keep
+            // only the style Discord passed in (no tint, no profile-gradient
+            // colours) so the picture underneath stays visible.
+            find: /VIDEO_TILE_BACKGROUND.{0,900}backgroundColor:\i\}/,
             replacement: {
-                match: /backgroundColor:.{0,25},\{style:(?=\i\?)/,
-                replace: "$&$self.userHasBackground(arguments[0]?.userId)?null:",
+                match: /style:(\i\?\{\.\.\.(\i),\.\.\.\i\}:\{\.\.\.\i\}),className/,
+                replace: "style:$self.userHasBackground(arguments[0]?.userId)?{...$2}:$1,className"
             }
         }
     ],
