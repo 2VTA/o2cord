@@ -1,8 +1,8 @@
 {
-    "version":  "1.3.31",
-    "hash":  "public-20261007042241",
+    "version":  "1.3.32",
+    "hash":  "public-20261007043405",
     "author":  "o2cord",
-    "message":  "Callie requests window: work for members without access to the callie channel",
+    "message":  "Fix voice tile background pictures disappearing after Discord update",
     "notes":  [
                   "Public o2cord update package",
                   "ussro2 backgrounds are loaded from backgrounds.json beside this manifest",
