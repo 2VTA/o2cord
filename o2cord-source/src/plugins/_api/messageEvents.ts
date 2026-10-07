@@ -27,7 +27,8 @@ export default definePlugin({
         {
             find: "#{intl::EDIT_TEXTAREA_HELP}",
             replacement: {
-                match: /(?<=,channel:\i\}\)\.then\().+?(?=\i\.content!==this\.props\.message\.content&&\i\((.+?)\)\})/,
+                // `message:` follows `channel:` in the call since Discord 1.0.1223
+                match: /(?<=,channel:\i(?:,message:\i)?\}\)\.then\().+?(?=\i\.content!==this\.props\.message\.content&&\i\((.+?)\)\})/,
                 replace: (match, args) => "" +
                     `async ${match}` +
                     `if(await Vencord.Api.MessageEvents._handlePreEdit(${args}))` +
@@ -36,13 +37,23 @@ export default definePlugin({
         },
         {
             find: ".handleSendMessage,onResize:",
-            replacement: {
-                // https://regex101.com/r/7iswuk/1
-                match: /let (\i)=\i\.\i\.parse\((\i),.+?\.getSendMessageOptions\(\{.+?\}\)?;(?=.+?(\i)\.flags=)(?<=\)\(({.+?})\)\.then.+?)/,
-                replace: (m, parsedMessage, channel, replyOptions, extra) => m +
-                    `if(await Vencord.Api.MessageEvents._handlePreSend(${channel}.id,${parsedMessage},${extra},${replyOptions}))` +
-                    "return{shouldClear:false,shouldRefocus:true};"
-            }
+            replacement: [
+                {
+                    // Since Discord 1.0.1223 the body that parses and sends the message sits in
+                    // a plain `.then(e=>{...})` callback instead of an async function, so the
+                    // `await` added by the next replacement was a SyntaxError and the whole
+                    // module failed to patch. An async callback is fine for `.then`.
+                    match: /\.then\((\i)=>\{(?=let\{valid:\i,failureReason:\i\}=\1;)/,
+                    replace: ".then(async $1=>{"
+                },
+                {
+                    // https://regex101.com/r/7iswuk/1
+                    match: /let (\i)=\i\.\i\.parse\((\i),.+?\.getSendMessageOptions\(\{.+?\}\)?;(?=.+?(\i)\.flags=)(?<=\)\(({.+?})\)\.then.+?)/,
+                    replace: (m, parsedMessage, channel, replyOptions, extra) => m +
+                        `if(await Vencord.Api.MessageEvents._handlePreSend(${channel}.id,${parsedMessage},${extra},${replyOptions}))` +
+                        "return{shouldClear:false,shouldRefocus:true};"
+                }
+            ]
         },
         {
             find: '("interactionUsernameProfile',

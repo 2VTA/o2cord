@@ -93,6 +93,12 @@ export default definePlugin({
                 {
                     // https://regex101.com/r/07gpzP/1
                     // ($1 renderHeaderContent=function { ... switch (x) ... case FAVORITES:return) ($2) ($3 case default: ... return r.jsx(($<searchComp>), {...props}))
+                    //
+                    // Since Discord 1.0.1223 the Favorites header has its own search bar built in
+                    // (`t.length>0&&jsx(SearchBar,...)`), and the case body is longer than this
+                    // matches, so this no longer applies - and isn't needed. getFav below falls
+                    // back to the untouched favorites when this plugin has no search instance.
+                    noWarn: true,
                     match: /(renderHeaderContent\(\).{1,150}FAVORITES:return)(.{1,150});(case.{1,200}default:.{0,50}?return\(0,\i\.jsx\)\((?<searchComp>\i\.\i),)/,
                     replace: "$1 this?.state?.resultType === 'Favorites' ? $self.renderSearchBar(this, $<searchComp>) : $2;$3"
                 },

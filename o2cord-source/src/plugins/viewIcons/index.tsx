@@ -200,16 +200,20 @@ export default definePlugin({
         {
             find: "return{avatarProps:{",
             replacement: {
-                match: /(?<=avatarProps:(\i),eventHandlers:(\i).{0,50}?)return null==/,
-                replace: 'Object.assign($2,{style:{cursor:"pointer"},onClick:()=>$self.openAvatar($1.src)});$&',
+                // Discord 1.0.1223 returns `{avatarProps:{src:M,...},eventHandlers:P,...}` straight
+                // from the hook (no `return null==` after it any more), so hook in before it.
+                match: /return\{avatarProps:\{src:(\i),(?=.{0,400}?eventHandlers:(\i),isAnimating)/,
+                replace: 'Object.assign($2,{style:{cursor:"pointer"},onClick:()=>$self.openAvatar($1)});$&',
             }
         },
         // Banners
         {
-            find: 'backgroundColor:"COMPLETE"',
+            // The banner is its own component now (no more div with an inline backgroundImage
+            // next to the profile code), found by its cutout CSS variables.
+            find: "--custom-cutout-radius",
             replacement: {
-                match: /(overflow:"visible",.{0,125}?!1\),)style:{(?=.+?backgroundImage:null!=(\i)\?`url\(\$\{\2\}\))/,
-                replace: (_, rest, bannerSrc) => `${rest}onClick:()=>${bannerSrc}!=null&&$self.openBanner(${bannerSrc}),style:{cursor:${bannerSrc}!=null?"pointer":void 0,`
+                match: /(backgroundImage:null!=(\i)&&""!==\2\?`url\(\$\{\2\}\)`:void 0,backgroundColor:\i)\},onMouseMove:/,
+                replace: '$1,cursor:null!=$2&&""!==$2?"pointer":void 0},onClick:()=>null!=$2&&""!==$2&&$self.openBanner($2),onMouseMove:'
             }
         },
         // Group DMs top small & large icon

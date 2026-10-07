@@ -36,6 +36,12 @@ import overlayStyle from "./deleteStyleOverlay.css?managed";
 import textStyle from "./deleteStyleText.css?managed";
 import { openHistoryModal } from "./HistoryModal";
 
+interface MLAttachment {
+    id: string;
+    deleted?: boolean;
+    [key: string]: any;
+}
+
 interface MLMessage extends Message {
     deleted?: boolean;
     editHistory?: { timestamp: Date; content: string; }[];
@@ -255,6 +261,26 @@ export default definePlugin({
         };
     },
 
+    // Called for every incoming message payload: if this message is already known
+    // and an attachment is gone from the new payload, keep it and mark it deleted.
+    handleUpdateAttachments(newMessage: any): MLAttachment[] {
+        const oldMessage = MessageStore.getMessage(newMessage.channel_id, newMessage.id) as MLMessage | undefined;
+        // unknown message = a new message, nothing to compare against
+        if (!oldMessage || this.shouldIgnore(newMessage, true)) {
+            return newMessage.attachments ?? [];
+        }
+        const oldAttachments = ((oldMessage as any).attachments ?? []) as MLAttachment[];
+        if (!newMessage.attachments?.length) {
+            return oldAttachments.map(a => ({ ...a, deleted: true }));
+        }
+        const attachments: MLAttachment[] = [];
+        for (const oldAttachment of oldAttachments) {
+            const wasDeleted = newMessage.attachments.every((a: MLAttachment) => a.id !== oldAttachment.id);
+            attachments.push(wasDeleted ? { ...oldAttachment, deleted: true } : oldAttachment);
+        }
+        return attachments;
+    },
+
     handleDelete(cache: any, data: { ids: string[], id: string; mlDeleted?: boolean; }, isBulk: boolean) {
         try {
             if (cache == null || (!isBulk && !cache.has(data.id))) return cache;
@@ -419,31 +445,12 @@ export default definePlugin({
                         "Object.assign($&,{ deleted:$1.deleted, editHistory:$1.editHistory, firstEditTimestamp:$1.firstEditTimestamp })"
                 },
 
+                // Discord 1.0.1223 no longer parses attachments in the transformer (it is a plain
+                // `attachments:e.attachments??[]` now), so deleted attachments are marked here
+                // instead of through the old parser wrapper. Ported from Equicord.
                 {
-                    // Construct new edited message and add editHistory & deleted (ref above)
-                    // Pass in custom data to attachment parser to mark attachments deleted as well
-                    match: /attachments:(\i)\((\i)\)/,
-                    replace:
-                        "attachments: $1((() => {" +
-                        "   if ($self.shouldIgnore($2)) return $2;" +
-                        "   let old = arguments[1]?.attachments;" +
-                        "   if (!old) return $2;" +
-                        "   let new_ = $2.attachments?.map(a => a.id) ?? [];" +
-                        "   let diff = old.filter(a => !new_.includes(a.id));" +
-                        "   old.forEach(a => a.deleted = true);" +
-                        "   $2.attachments = [...diff, ...$2.attachments];" +
-                        "   return $2;" +
-                        "})())," +
-                        "deleted: arguments[1]?.deleted," +
-                        "editHistory: arguments[1]?.editHistory," +
-                        "firstEditTimestamp: new Date(arguments[1]?.firstEditTimestamp ?? $2.editedTimestamp ?? $2.timestamp)"
-                },
-                {
-                    // Preserve deleted attribute on attachments
-                    match: /(\((\i)\){return null==\2\.attachments.+?)spoiler:/,
-                    replace:
-                        "$1deleted: arguments[0]?.deleted," +
-                        "spoiler:"
+                    match: /attachments:(\i)\.attachments\?\?\[\],/,
+                    replace: "attachments: $self.handleUpdateAttachments($1),"
                 }
             ]
         },
@@ -452,9 +459,16 @@ export default definePlugin({
             // Attachment renderer
             find: "#{intl::REMOVE_ATTACHMENT_TOOLTIP_TEXT}",
             replacement: [
+                // add deleted class to deleted attachments
                 {
-                    match: /\.SPOILER,(?=\[\i\.\i\]:)/,
-                    replace: '$&"messagelogger-deleted-attachment":arguments[0]?.item?.originalItem?.deleted,'
+                    // we can't use arguments[0] because we patch a nested **non-arrow** function
+                    match: /\.SPOILER,(?=\[\i\.\i\]:)(?<=item:(\i),.{0,200}?)/,
+                    replace: '$&"messagelogger-deleted-attachment": $1?.originalItem?.deleted,'
+                },
+                // dont allow deleting attachments from deleted messages
+                {
+                    match: /(?<=\{let\{[^}]*?item:(\i),autoPlayGif:\i,)canRemoveItem:(\i)(?=,onRemoveItem:)/,
+                    replace: "_canRemoveItem:$2 = arguments[0].canRemoveItem && !$1?.originalItem?.deleted"
                 }
             ]
         },

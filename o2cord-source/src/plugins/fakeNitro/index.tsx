@@ -249,7 +249,8 @@ export default definePlugin({
                 },
                 {
                     // Disallow the emoji for premium locked if the intention doesn't allow it
-                    match: /!(\i\.\i\.canUseEmojisEverywhere\(\i\))/,
+                    // 1.0.1223 wraps it as `!(bypass||X.canUseEmojisEverywhere(user))`
+                    match: /!(?:\((?:\i\|\|)?\i\.\i\.canUseEmojisEverywhere\(\i\)\)|\i\.\i\.canUseEmojisEverywhere\(\i\))/,
                     replace: m => `(${m}&&!${IS_BYPASSEABLE_INTENTION})`
                 },
                 {
@@ -313,6 +314,9 @@ export default definePlugin({
             find: "customUserThemeSettings:{",
             // Discord has two separate modules for treatments 1 and 2
             all: true,
+            // Both modules have no TIER_2 premium check left (Discord 1.0.1223), so there's
+            // nothing to bypass; kept in case a later build brings the check back.
+            noWarn: true,
             replacement: {
                 match: /(?<=\i=)\(0,\i\.\i\)\(\i\.\i\.TIER_2\)(?=,|;)/g,
                 replace: "true"
@@ -324,8 +328,10 @@ export default definePlugin({
                 {
                     // Call our function to decide whether the emoji link should be kept or not
                     predicate: () => settings.store.transformEmojis,
-                    match: /1!==(\i)\.length\|\|1!==\i\.length/,
-                    replace: (m, content) => `${m}||$self.shouldKeepEmojiLink(${content}[0])`
+                    // 1.0.1223 hides a link-only message when it has embeds with
+                    // `N=simpleEmbeds(n)&&onlyLinks(...)?[]:t`; don't hide it for a fake emoji link
+                    match: /\(0,\i\.\i\)\(\i\)&&\(0,\i\.\i\)\(\(0,\i\.\i\)\((\i),\i\)\)(?=\?\[\]:\1)/,
+                    replace: (m, content) => `${m}&&!$self.shouldKeepEmojiLink(${content}[0])`
                 },
                 {
                     // Patch the rendered message content to add fake nitro emojis or remove sticker links
@@ -388,8 +394,10 @@ export default definePlugin({
             predicate: () => settings.store.transformEmojis,
             replacement: {
                 // Add the fake nitro emoji notice
-                match: /(?<=emojiDescription:)(\i)(?<=\1=\(\i=>\{.+?\}\)\((\i)\)[,;].+?)/,
-                replace: (_, reactNode, props) => `$self.addFakeNotice(${FakeNoticeType.Emoji},${reactNode},!!${props}?.fakeNitroNode?.fake)`
+                // the description is built by `let t=function(e){let{sourceType:...}=e;...}(e)` inside
+                // `function c(e)` now, so the popout props are `arguments[0]`
+                match: /(?<=emojiDescription:)(\i)(?<=\1=function\(\i\)\{let\{sourceType:.+?)/,
+                replace: (_, reactNode) => `$self.addFakeNotice(${FakeNoticeType.Emoji},${reactNode},!!arguments[0]?.fakeNitroNode?.fake)`
             }
         },
         // Separate patch for allowing using custom app icons
@@ -715,7 +723,7 @@ export default definePlugin({
     },
 
     shouldKeepEmojiLink(link: any) {
-        return link.target && fakeNitroEmojiRegex.test(link.target);
+        return !!link?.target && fakeNitroEmojiRegex.test(link.target);
     },
 
     addFakeNotice(type: FakeNoticeType, node: Array<ReactNode>, fake: boolean) {

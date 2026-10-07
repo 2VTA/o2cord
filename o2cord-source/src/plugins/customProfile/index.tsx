@@ -1765,11 +1765,14 @@ export default definePlugin({
             ]
         },
         {
-            find: "AccountPanel",
+            // The name/avatar panel at the bottom-left. "AccountPanel" now only
+            // matches the game/stream panel (Discord 1.0.1223 split them), so
+            // this hooks the user panel's own getCurrentUser() read instead.
+            find: "speakingWhileMutedTooltipTimeout",
             replacement: [
                 {
-                    match: /user:([a-zA-Z0-9_]+),/,
-                    replace: "user:$self.fakeCurrentUser($1),"
+                    match: /(?<=function \i\(\)\{let \i=)\(0,\i\.\i\)\(\[\i\.default\],\(\)=>\i\.default\.getCurrentUser\(\)\)(?=,\i=\(0,\i\.\i\)\(\[\i\.default\],\(\)=>\i\.default\.getId\(\)\),\{activities)/,
+                    replace: "$self.fakeCurrentUser($&)"
                 }
             ]
         },
