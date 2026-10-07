@@ -4,6 +4,11 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
+// "Callie requests" window: change requests (nameplate, profile theme, ussro2
+// background, typing phrase) sent to the Callie bot as a DM from the person's own
+// account, so nobody has to know any command. Callie queues pictures for Ryder
+// to accept or reject and DMs back the result. See sendRequest below.
+
 import "./styles.css";
 
 import { addHeaderBarButton, HeaderBarButton, removeHeaderBarButton } from "@api/HeaderBar";
@@ -15,17 +20,13 @@ import { classes } from "@utils/misc";
 import definePlugin from "@utils/types";
 import { chooseFile } from "@utils/web";
 import { RenderModalProps } from "@vencord/discord-types";
-import { AuthenticationStore, ChannelStore, FluxDispatcher, Forms, GuildChannelStore, GuildStore, IconUtils, Modal, openModal, PermissionsBits, PermissionStore, PresenceStore, ReactDOM, RestAPI, SnowflakeUtils, Text, TextInput, useEffect, useRef, UserStore, UserUtils, useState, useStateFromStores } from "@webpack/common";
+import { ChannelActionCreators, ChannelStore, FluxDispatcher, Forms, IconUtils, Modal, openModal, PresenceStore, ReactDOM, RestAPI, SnowflakeUtils, Text, TextInput, useEffect, useRef, UserStore, UserUtils, useState, useStateFromStores } from "@webpack/common";
 
 import { CALLIE_ART } from "./art";
 
 const CALLIE_ID = "1538029895601623100";
+// Only used to ask Discord for Callie's online status.
 const O2CORD_GUILD_ID = "1473639169535512679";
-// Callie's #callie channel - where /change normally gets used. It's hidden
-// from regular members though (and nobody but a role with "attach files" can
-// upload anywhere), so the window falls back to any channel the person can
-// actually use commands in - see pickChannel.
-const CALLIE_CHANNEL_ID = "1538034368751083550";
 const REPLY_TIMEOUT_MS = 25_000;
 const MAX_BYTES = 10 * 1024 * 1024;
 const PHRASE_MAX = 40;
@@ -70,23 +71,63 @@ const KINDS: Record<Kind, KindInfo> = {
     }
 };
 
-interface CommandInfo {
-    id: string;
-    version: string;
-    name: string;
-    [key: string]: any;
+// The window sends each request to Callie as an ordinary DM from the person's
+// own account - the same thing as opening Callie's chat and posting there, no
+// slash commands and nothing posted in any server. One message per request: the
+// first line is "o2cord-request: <kind>", then the picture as an attachment or
+// the phrase on the next line. Callie puts pictures in Ryder's Accept/Reject
+// queue (always for whoever sent the DM) and DMs back with the decision.
+//
+// Nothing here touches any token: sending goes through Discord's own message
+// helpers, which never expose it.
+const NL = String.fromCharCode(10);
+
+interface RequestResult {
+    ok: boolean;
+    text: string;
+    // shown as a "Join o2cord" button when the person has no server in common with Callie
+    joinUrl?: string;
 }
 
-// Looked up fresh each time so re-registering Callie's commands (new ids /
-// versions) never breaks the window.
-async function getCommand(name: string): Promise<CommandInfo | null> {
-    const { body } = await RestAPI.get({ url: `/guilds/${O2CORD_GUILD_ID}/application-command-index` });
-    const cmd = body?.application_commands?.find((c: any) => c.application_id === CALLIE_ID && c.name === name);
-    return cmd ?? null;
+const O2CORD_INVITE = "https://discord.gg/FjbCUD8kJJ";
+
+// The DM channel with Callie, without navigating away from where the person is.
+async function getCallieDm(): Promise<string | null> {
+    const existing = ChannelStore.getDMFromUserId(CALLIE_ID);
+    if (existing) return existing;
+
+    const id = await ChannelActionCreators.openPrivateChannel({ recipientIds: [CALLIE_ID], navigateToChannel: false });
+    return typeof id === "string" ? id : ChannelStore.getDMFromUserId(CALLIE_ID) ?? null;
 }
 
-// Stages the file the same way Discord's own upload does: ask for an upload
-// slot, PUT the bytes there, then reference it by upload_filename.
+// Discord only lets you DM a bot you share a server with.
+const NO_SHARED_SERVER = "Discord won't let you message Callie. You need to be in a server with her - join the o2cord server first, then try again.";
+// 50278: a server in common exists, but it has "Allow direct messages from server
+// members" switched off in the person's own privacy settings, which Discord treats
+// as no server in common for DMs.
+const DMS_OFF_IN_SERVER = "Discord says you have no server in common with Callie that allows DMs. In the o2cord server's Privacy Settings, turn on \"Allow direct messages from server members\", then try again.";
+
+// Waits for Callie's answer in the DM.
+function waitForReply(channelId: string) {
+    return new Promise<RequestResult>(resolve => {
+        let done = false;
+        const finish = (result: RequestResult) => {
+            if (done) return;
+            done = true;
+            clearTimeout(timer);
+            FluxDispatcher.unsubscribe("MESSAGE_CREATE", onCreate);
+            resolve(result);
+        };
+        const onCreate = ({ channelId: cid, message }: any) => {
+            if (cid === channelId && message?.author?.id === CALLIE_ID && message.content) finish({ ok: true, text: message.content });
+        };
+        const timer = setTimeout(() => finish({ ok: false, text: "Callie didn't answer. It might be offline right now - try again later." }), REPLY_TIMEOUT_MS);
+        FluxDispatcher.subscribe("MESSAGE_CREATE", onCreate);
+    });
+}
+
+// Stages the file the way Discord's own uploader does: ask for an upload slot,
+// PUT the bytes there, then attach it to the message by upload_filename.
 async function stageUpload(file: File, channelId: string) {
     const { body } = await RestAPI.post({
         url: `/channels/${channelId}/attachments`,
@@ -99,120 +140,29 @@ async function stageUpload(file: File, channelId: string) {
     return { id: "0", filename: file.name, uploaded_filename: slot.upload_filename as string };
 }
 
-// Waits for Callie's ephemeral answer. A deferred reply first arrives empty
-// ("callie is thinking...") and is filled in by a MESSAGE_UPDATE.
-function waitForReply(nonce: string) {
-    return new Promise<{ ok: boolean; text: string; }>(resolve => {
-        let done = false;
-        let messageId: string | null = null;
-        const finish = (result: { ok: boolean; text: string; }) => {
-            if (done) return;
-            done = true;
-            clearTimeout(timer);
-            FluxDispatcher.unsubscribe("MESSAGE_CREATE", onCreate);
-            FluxDispatcher.unsubscribe("MESSAGE_UPDATE", onUpdate);
-            FluxDispatcher.unsubscribe("INTERACTION_FAILURE", onFailure);
-            resolve(result);
-        };
-        const onCreate = ({ message }: any) => {
-            if (message?.author?.id !== CALLIE_ID || message.nonce !== nonce) return;
-            messageId = message.id;
-            if (message.content) finish({ ok: true, text: message.content });
-        };
-        const onUpdate = ({ message }: any) => {
-            if (messageId && message?.id === messageId && message.content) finish({ ok: true, text: message.content });
-        };
-        const onFailure = ({ nonce: n }: any) => {
-            if (n === nonce) finish({ ok: false, text: "Callie didn't take the request. It might be offline right now - try again later." });
-        };
-        const timer = setTimeout(() => finish({ ok: false, text: "Callie didn't answer. It might be offline right now - try again later." }), REPLY_TIMEOUT_MS);
-        FluxDispatcher.subscribe("MESSAGE_CREATE", onCreate);
-        FluxDispatcher.subscribe("MESSAGE_UPDATE", onUpdate);
-        FluxDispatcher.subscribe("INTERACTION_FAILURE", onFailure);
-    });
-}
-
-// A channel in the o2cord server where this account may use slash commands
-// (and upload a file, for picture requests). Callie answers ephemerally and
-// doesn't care which channel the command came from, so any usable one works;
-// #callie is preferred when the account can see it.
-function pickChannel(needFiles: boolean): string | null {
-    const groups: any = GuildChannelStore.getChannels(O2CORD_GUILD_ID);
-    const candidates: string[] = [CALLIE_CHANNEL_ID];
-    for (const { channel } of groups?.SELECTABLE ?? []) if (channel.type === 0) candidates.push(channel.id);
-
-    for (const id of candidates) {
-        const channel = ChannelStore.getChannel(id);
-        if (!channel) continue;
-        if (!PermissionStore.can(PermissionsBits.VIEW_CHANNEL, channel)) continue;
-        if (!PermissionStore.can(PermissionsBits.USE_APPLICATION_COMMANDS, channel)) continue;
-        if (needFiles && !PermissionStore.can(PermissionsBits.ATTACH_FILES, channel)) continue;
-        return id;
-    }
-    return null;
-}
-
-async function runCommand(name: string, options: any[], file?: File) {
-    if (!GuildStore.getGuild(O2CORD_GUILD_ID)) return { ok: false, text: "Join the o2cord server first - Callie's commands only work there." };
-
-    const channelId = pickChannel(!!file);
-    if (!channelId) {
-        return {
-            ok: false,
-            text: file
-                ? "Your account can't upload files in the o2cord server, so picture requests aren't available to you. Typing Phrase still works."
-                : "Your account can't use bot commands in the o2cord server."
-        };
-    }
-
+async function sendRequest(kind: Kind | "clear-typing-phrase", payload: { file?: File; phrase?: string; }): Promise<RequestResult> {
     try {
-        const cmd = await getCommand(name);
-        if (!cmd) return { ok: false, text: "Couldn't find Callie's commands. Is Callie in the o2cord server?" };
+        const channelId = await getCallieDm();
+        if (!channelId) return { ok: false, text: NO_SHARED_SERVER, joinUrl: O2CORD_INVITE };
 
-        const attachments = file ? [await stageUpload(file, channelId)] : undefined;
-        const nonce = SnowflakeUtils.fromTimestamp(Date.now());
-        const reply = waitForReply(nonce);
+        const content = payload.phrase != null ? ["o2cord-request: " + kind, payload.phrase].join(NL) : "o2cord-request: " + kind;
+        const attachments = payload.file ? [await stageUpload(payload.file, channelId)] : undefined;
 
+        const reply = waitForReply(channelId);
+        // Sent over Discord's normal message endpoint through its own request
+        // helper (which adds the login itself - no token is ever visible here).
+        // Not through the in-app send queue: that waits for the chat to be open.
         await RestAPI.post({
-            url: "/interactions",
-            body: {
-                type: 2,
-                application_id: CALLIE_ID,
-                guild_id: O2CORD_GUILD_ID,
-                channel_id: channelId,
-                session_id: AuthenticationStore.getSessionId(),
-                nonce,
-                data: {
-                    version: cmd.version,
-                    id: cmd.id,
-                    guild_id: O2CORD_GUILD_ID,
-                    name: cmd.name,
-                    type: 1,
-                    options,
-                    application_command: cmd,
-                    attachments
-                }
-            }
+            url: `/channels/${channelId}/messages`,
+            body: { content, nonce: SnowflakeUtils.fromTimestamp(Date.now()), tts: false, flags: 0, ...(attachments ? { attachments } : {}) }
         });
         return await reply;
     } catch (err: any) {
         const code = err?.body?.code ?? err?.status;
-        if (code === 50001 || code === 50013) return { ok: false, text: "The o2cord server's permissions don't let your account send this request." };
+        if (code === 50278) return { ok: false, text: DMS_OFF_IN_SERVER };
+        if (code === 50007 || code === 10013) return { ok: false, text: NO_SHARED_SERVER, joinUrl: O2CORD_INVITE };
         return { ok: false, text: `Couldn't reach Callie${code ? ` (${code})` : ""}. Try again in a bit.` };
     }
-}
-
-async function sendRequest(kind: Kind | "clear-typing-phrase", payload: { file?: File; phrase?: string; }) {
-    if (kind === "typing-phrase") return runCommand("set-typing-phrase", [{ type: 3, name: "phrase", value: payload.phrase }]);
-    if (kind === "clear-typing-phrase") return runCommand("clear-typing-phrase", []);
-
-    const result = await runCommand("change", [
-        { type: 3, name: "type", value: KINDS[kind].changeType },
-        { type: 11, name: "file", value: 0 }
-    ], payload.file);
-    return result.ok
-        ? { ok: true, text: "Sent! It's waiting for Ryder's approval - Callie will DM you once it's reviewed." }
-        : result;
 }
 
 // Callie replies in Discord markdown - drop the formatting for the status
@@ -235,7 +185,7 @@ function CallieIcon(props: { width?: number; height?: number; color?: string; })
     );
 }
 
-type Status = { state: "idle"; } | { state: "sending"; } | { state: "done"; ok: boolean; text: string; };
+type Status = { state: "idle"; } | { state: "sending"; } | { state: "done"; ok: boolean; text: string; joinUrl?: string; };
 
 function Preview({ file, aspect }: { file: File; aspect?: string; }) {
     const [url, setUrl] = useState<string | null>(null);
@@ -309,7 +259,6 @@ function CallieModal({ transitionState, onClose }: RenderModalProps) {
     const [file, setFile] = useState<File | null>(null);
     const [phrase, setPhrase] = useState("");
     const [status, setStatus] = useState<Status>({ state: "idle" });
-    const inO2cord = useStateFromStores([GuildStore], () => !!GuildStore.getGuild(O2CORD_GUILD_ID));
 
     const info = KINDS[kind];
     const busy = status.state === "sending";
@@ -341,7 +290,7 @@ function CallieModal({ transitionState, onClose }: RenderModalProps) {
             : what === "clear-typing-phrase"
                 ? await sendRequest(what, {})
                 : await sendRequest(what, { file: file! });
-        setStatus({ state: "done", ok: result.ok, text: plain(result.text) });
+        setStatus({ state: "done", ok: result.ok, text: plain(result.text), joinUrl: result.joinUrl });
         if (result.ok && what !== "clear-typing-phrase") {
             setFile(null);
             setPhrase("");
@@ -363,12 +312,6 @@ function CallieModal({ transitionState, onClose }: RenderModalProps) {
         >
             <div className="o2-callie-content" ref={contentRef}>
                 <CallieArt anchor={contentRef} />
-                {!inO2cord && (
-                    <div className="o2-callie-note">
-                        You're not in the o2cord server. Callie's commands only work there, so join it first.
-                    </div>
-                )}
-
                 <section>
                     <Text variant="heading-lg/semibold" className={classes(Margins.top8, Margins.bottom8)}>What to change</Text>
                     <div className="o2-callie-kinds">
@@ -435,6 +378,11 @@ function CallieModal({ transitionState, onClose }: RenderModalProps) {
                     )}>
                         {status.state === "sending" && "Sending to Callie..."}
                         {status.state === "done" && status.text}
+                        {status.state === "done" && status.joinUrl && (
+                            <div>
+                                <Button variant="secondary" size="small" onClick={() => VencordNative.native.openExternal(status.joinUrl!)}>Join o2cord server</Button>
+                            </div>
+                        )}
                     </div>
                     <Button variant="primary" disabled={!canSend} onClick={() => send(kind)}>
                         {busy ? "Sending..." : isPhrase ? "Set phrase" : "Send for review"}
