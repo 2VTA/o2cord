@@ -1,8 +1,8 @@
 {
-    "version":  "1.3.32",
-    "hash":  "public-20261007043405",
+    "version":  "1.3.33",
+    "hash":  "public-20261007044506",
     "author":  "o2cord",
-    "message":  "Fix voice tile background pictures disappearing after Discord update",
+    "message":  "Fix plugins broken by Discord 1.0.1223: message sending API, FakeNitro, MessageLogger, ViewIcons, CustomProfile",
     "notes":  [
                   "Public o2cord update package",
                   "ussro2 backgrounds are loaded from backgrounds.json beside this manifest",
