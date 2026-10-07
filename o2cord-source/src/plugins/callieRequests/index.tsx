@@ -1,22 +1,7 @@
 /*
- * o2cord, a Discord client mod
- * Copyright (c) 2026 Ryder
+ * Vencord, a Discord client mod
+ * Copyright (c) 2026 Vendicated and contributors
  * SPDX-License-Identifier: GPL-3.0-or-later
- *
- * A window for sending change requests (nameplate, profile theme, ussro2
- * background, typing phrase) to the Callie bot from anywhere, instead of
- * going to the o2cord server and typing /change. The window runs Callie's
- * own slash commands (/change, /set-typing-phrase, /clear-typing-phrase) in
- * Callie's channel, the same request Discord makes when you type them there.
- * Callie answers ephemerally (only you see it, nothing lands in the chat)
- * and posts pictures to its review channel as usual.
- *
- * DMs were tried first but dropped: Discord's openPrivateChannel now wants
- * {recipientIds}, and with a bare id it opened an empty group instead, and
- * Ryder didn't want any DM/group for this anyway.
- *
- * Nothing is sent until the Send button is clicked, and it's always sent as
- * the user themself - Callie applies /change to the command's own user.
  */
 
 import "./styles.css";
@@ -30,13 +15,16 @@ import { classes } from "@utils/misc";
 import definePlugin from "@utils/types";
 import { chooseFile } from "@utils/web";
 import { RenderModalProps } from "@vencord/discord-types";
-import { AuthenticationStore, FluxDispatcher, Forms, GuildStore, IconUtils, Modal, openModal, PresenceStore, ReactDOM, RestAPI, SnowflakeUtils, Text, TextInput, UserStore, UserUtils, useEffect, useRef, useState, useStateFromStores } from "@webpack/common";
+import { AuthenticationStore, ChannelStore, FluxDispatcher, Forms, GuildChannelStore, GuildStore, IconUtils, Modal, openModal, PermissionsBits, PermissionStore, PresenceStore, ReactDOM, RestAPI, SnowflakeUtils, Text, TextInput, useEffect, useRef, UserStore, UserUtils, useState, useStateFromStores } from "@webpack/common";
 
 import { CALLIE_ART } from "./art";
 
 const CALLIE_ID = "1538029895601623100";
 const O2CORD_GUILD_ID = "1473639169535512679";
-// Callie's #callie channel - where /change normally gets used.
+// Callie's #callie channel - where /change normally gets used. It's hidden
+// from regular members though (and nobody but a role with "attach files" can
+// upload anywhere), so the window falls back to any channel the person can
+// actually use commands in - see pickChannel.
 const CALLIE_CHANNEL_ID = "1538034368751083550";
 const REPLY_TIMEOUT_MS = 25_000;
 const MAX_BYTES = 10 * 1024 * 1024;
@@ -99,9 +87,9 @@ async function getCommand(name: string): Promise<CommandInfo | null> {
 
 // Stages the file the same way Discord's own upload does: ask for an upload
 // slot, PUT the bytes there, then reference it by upload_filename.
-async function stageUpload(file: File) {
+async function stageUpload(file: File, channelId: string) {
     const { body } = await RestAPI.post({
-        url: `/channels/${CALLIE_CHANNEL_ID}/attachments`,
+        url: `/channels/${channelId}/attachments`,
         body: { files: [{ filename: file.name, file_size: file.size, id: "0" }] }
     });
     const slot = body?.attachments?.[0];
@@ -144,14 +132,44 @@ function waitForReply(nonce: string) {
     });
 }
 
+// A channel in the o2cord server where this account may use slash commands
+// (and upload a file, for picture requests). Callie answers ephemerally and
+// doesn't care which channel the command came from, so any usable one works;
+// #callie is preferred when the account can see it.
+function pickChannel(needFiles: boolean): string | null {
+    const groups: any = GuildChannelStore.getChannels(O2CORD_GUILD_ID);
+    const candidates: string[] = [CALLIE_CHANNEL_ID];
+    for (const { channel } of groups?.SELECTABLE ?? []) if (channel.type === 0) candidates.push(channel.id);
+
+    for (const id of candidates) {
+        const channel = ChannelStore.getChannel(id);
+        if (!channel) continue;
+        if (!PermissionStore.can(PermissionsBits.VIEW_CHANNEL, channel)) continue;
+        if (!PermissionStore.can(PermissionsBits.USE_APPLICATION_COMMANDS, channel)) continue;
+        if (needFiles && !PermissionStore.can(PermissionsBits.ATTACH_FILES, channel)) continue;
+        return id;
+    }
+    return null;
+}
+
 async function runCommand(name: string, options: any[], file?: File) {
     if (!GuildStore.getGuild(O2CORD_GUILD_ID)) return { ok: false, text: "Join the o2cord server first - Callie's commands only work there." };
+
+    const channelId = pickChannel(!!file);
+    if (!channelId) {
+        return {
+            ok: false,
+            text: file
+                ? "Your account can't upload files in the o2cord server, so picture requests aren't available to you. Typing Phrase still works."
+                : "Your account can't use bot commands in the o2cord server."
+        };
+    }
 
     try {
         const cmd = await getCommand(name);
         if (!cmd) return { ok: false, text: "Couldn't find Callie's commands. Is Callie in the o2cord server?" };
 
-        const attachments = file ? [await stageUpload(file)] : undefined;
+        const attachments = file ? [await stageUpload(file, channelId)] : undefined;
         const nonce = SnowflakeUtils.fromTimestamp(Date.now());
         const reply = waitForReply(nonce);
 
@@ -161,7 +179,7 @@ async function runCommand(name: string, options: any[], file?: File) {
                 type: 2,
                 application_id: CALLIE_ID,
                 guild_id: O2CORD_GUILD_ID,
-                channel_id: CALLIE_CHANNEL_ID,
+                channel_id: channelId,
                 session_id: AuthenticationStore.getSessionId(),
                 nonce,
                 data: {
@@ -179,6 +197,7 @@ async function runCommand(name: string, options: any[], file?: File) {
         return await reply;
     } catch (err: any) {
         const code = err?.body?.code ?? err?.status;
+        if (code === 50001 || code === 50013) return { ok: false, text: "The o2cord server's permissions don't let your account send this request." };
         return { ok: false, text: `Couldn't reach Callie${code ? ` (${code})` : ""}. Try again in a bit.` };
     }
 }
