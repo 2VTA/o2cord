@@ -1,8 +1,8 @@
 {
-    "version":  "1.3.30",
-    "hash":  "public-20261006234734",
+    "version":  "1.3.31",
+    "hash":  "public-20261007042241",
     "author":  "o2cord",
-    "message":  "Fix missing Discord sounds, Callie requests window, Send DM fix",
+    "message":  "Callie requests window: work for members without access to the callie channel",
     "notes":  [
                   "Public o2cord update package",
                   "ussro2 backgrounds are loaded from backgrounds.json beside this manifest",
