@@ -168,7 +168,11 @@ export default definePlugin({
             find: "\"data-selenium-video-tile\":",
             replacement: [
                 {
-                    match: /(?<=function\((\i),\i\)\{)(?=let.{20,40},style:)/,
+                    // The tile used to be `forwardRef(function(e,t){let{...,style:r..` and became a
+                    // plain `function l(e){let{children:t,className:n,style:r,...,ref:d}=e` in a
+                    // Discord web update (2026-10-08), which made the old two-parameter match
+                    // miss and every tile lose its picture. Both shapes are accepted now.
+                    match: /(?<=function(?: \i)?\((\i)(?:,\i)?\)\{)(?=let\{[^}]{0,100}style:)/,
                     replace: "$1.style={...$1.style,...$self.getVoiceBackgroundStyles($1)};"
                 }
             ]
