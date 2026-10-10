@@ -134,3 +134,27 @@
     scrollbar-width: thin;
     scrollbar-color: var(--scrollbar-thin-thumb, rgba(255, 255, 255, 0.2)) transparent;
 }
+
+.o2-fake-playing-error {
+    margin-top: 8px;
+    font-size: 13px;
+    color: var(--text-feedback-critical, #f23f43);
+}
+
+.o2-fake-playing-forget {
+    flex-shrink: 0;
+    width: 24px;
+    height: 24px;
+    border: none;
+    border-radius: 6px;
+    background: transparent;
+    color: var(--text-muted, #949ba4);
+    font-size: 18px;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.o2-fake-playing-forget:hover {
+    background: var(--background-mod-normal, rgba(255, 255, 255, 0.08));
+    color: var(--text-default, #dbdee1);
+}

@@ -107,8 +107,51 @@ const settings = definePluginSettings({
         description: "Currently faked game's display name",
         default: "",
         hidden: true
+    },
+    savedGames: {
+        type: OptionType.STRING,
+        description: "Games added by application id (JSON list of {id, name})",
+        default: "[]",
+        hidden: true
     }
 });
+
+// Games added by typing an application id - kept so they can be played again with
+// one click. Only {id, name} is stored; the icon is fetched like for any game.
+const MAX_SAVED = 30;
+
+function getSavedGames(): SeenGame[] {
+    try {
+        const list = JSON.parse(settings.store.savedGames);
+        return Array.isArray(list) ? list.filter(g => /^\d{17,20}$/.test(g?.id) && typeof g?.name === "string") : [];
+    } catch {
+        return [];
+    }
+}
+
+function saveGame(game: SeenGame) {
+    const rest = getSavedGames().filter(g => g.id !== game.id);
+    settings.store.savedGames = JSON.stringify([{ id: game.id, name: game.name }, ...rest].slice(0, MAX_SAVED));
+}
+
+function forgetGame(id: string) {
+    settings.store.savedGames = JSON.stringify(getSavedGames().filter(g => g.id !== id));
+}
+
+// A game's real name and icon from its application id: the same public app info
+// Discord itself reads to draw an activity (works for any game, not just ones
+// this PC has launched). Resolves null if the id isn't a known application.
+async function lookupGame(id: string): Promise<SeenGame | null> {
+    if (!/^\d{17,20}$/.test(id)) return null;
+    try {
+        const { body } = await RestAPI.get({ url: `/applications/${id}/rpc` });
+        if (!body?.name) return null;
+        iconCache.set(id, body.icon ?? null);
+        return { id, name: String(body.name) };
+    } catch {
+        return null;
+    }
+}
 
 function applyActivity() {
     const { selectedGameId, selectedGameName } = settings.store;
@@ -186,13 +229,45 @@ function FakePlayingModal({ transitionState, onClose }: RenderModalProps) {
     );
     const { currentId, currentName } = useActivityState();
     const [customName, setCustomName] = useState("");
+    const [gameId, setGameId] = useState("");
+    const [lookingUp, setLookingUp] = useState(false);
+    const [idError, setIdError] = useState("");
+    const [savedGames, setSavedGames] = useState<SeenGame[]>(getSavedGames);
     const [, setIconsLoaded] = useState(0);
 
     useEffect(() => {
         let alive = true;
-        loadIcons(seenGames.map(g => g.id), () => alive && setIconsLoaded(n => n + 1));
+        loadIcons([...seenGames, ...savedGames].map(g => g.id), () => alive && setIconsLoaded(n => n + 1));
         return () => void (alive = false);
-    }, [seenGames.length]);
+    }, [seenGames.length, savedGames.length]);
+
+    // Looks the id up, shows the real name/icon on the profile and remembers it.
+    async function handlePlayId() {
+        const id = gameId.trim();
+        if (!id || lookingUp) return;
+        setIdError("");
+        if (!/^\d{17,20}$/.test(id)) {
+            setIdError("That doesn't look like an application ID (17-20 digits).");
+            return;
+        }
+        setLookingUp(true);
+        const game = await lookupGame(id);
+        setLookingUp(false);
+        if (!game) {
+            setIdError("Discord doesn't know a game with that ID.");
+            return;
+        }
+        saveGame(game);
+        setSavedGames(getSavedGames());
+        playGame(game);
+        notifyChange();
+        setGameId("");
+    }
+
+    function handleForget(id: string) {
+        forgetGame(id);
+        setSavedGames(getSavedGames());
+    }
 
     function handlePlayCustom() {
         const name = customName.trim();
@@ -252,6 +327,48 @@ function FakePlayingModal({ transitionState, onClose }: RenderModalProps) {
                         />
                         <Button variant="positive" size="small" disabled={!customName.trim()} onClick={handlePlayCustom}>Play</Button>
                     </div>
+                </section>
+
+                <section>
+                    <Text variant="heading-lg/semibold" className={classes(Margins.top16, Margins.bottom8)}>Game ID</Text>
+                    <Forms.FormText className={Margins.bottom8}>
+                        Paste a game's application ID to show the real game with its icon. Developer Mode, then right-click the game on a profile and Copy ID, or find it on the game's page in the Discord Developer Portal.
+                    </Forms.FormText>
+                    <div className="o2-fake-playing-custom-row">
+                        <TextInput
+                            className="o2-fake-playing-custom-input"
+                            value={gameId}
+                            onChange={(v: string) => { setGameId(v.replace(/\D/g, "").slice(0, 20)); setIdError(""); }}
+                            placeholder="e.g. 542075586886107149"
+                            onKeyDown={(e: { key: string; }) => {
+                                if (e.key === "Enter") handlePlayId();
+                            }}
+                        />
+                        <Button variant="positive" size="small" disabled={!gameId.trim() || lookingUp} onClick={handlePlayId}>
+                            {lookingUp ? "Looking up..." : "Play"}
+                        </Button>
+                    </div>
+                    {idError && <div className="o2-fake-playing-error">{idError}</div>}
+
+                    {savedGames.length > 0 && (
+                        <div className={classes("o2-fake-playing-list", Margins.top8)}>
+                            {savedGames.map(game => (
+                                <div key={game.id} className={classes("o2-fake-playing-row", currentId === game.id && "o2-fake-playing-row-active")}>
+                                    <GameIcon id={game.id} name={game.name} size={36} />
+                                    <div className="o2-fake-playing-meta">
+                                        <span className="o2-fake-playing-name">{game.name}</span>
+                                        <span className="o2-fake-playing-sub">{game.id}</span>
+                                    </div>
+                                    {currentId === game.id ? (
+                                        <Button variant="dangerPrimary" size="small" onClick={handleStop}>Stop</Button>
+                                    ) : (
+                                        <Button variant="positive" size="small" onClick={() => handlePlay(game)}>Play</Button>
+                                    )}
+                                    <button className="o2-fake-playing-forget" title="Remove from this list" onClick={() => handleForget(game.id)}>×</button>
+                                </div>
+                            ))}
+                        </div>
+                    )}
                 </section>
 
                 {seenGames.length > 0 && (
