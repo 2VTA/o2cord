@@ -86,7 +86,7 @@ function ViewScheduledModalInner({ rootProps, close }: ViewScheduledModalProps) 
                                     </div>
                                     <div className={cl("message-time")}>
                                         <TimerIcon width={14} height={14} />
-                                        <span>{new Date(msg.scheduledTime).toLocaleString()}</span>
+                                        <span>{new Date(msg.scheduledTime).toLocaleString()}{msg.repeat === "daily" ? " · every day" : ""}</span>
                                     </div>
                                     <div className={cl("message-content")}>{displayContent}</div>
                                 </div>

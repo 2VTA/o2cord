@@ -29,6 +29,9 @@ export interface ScheduledMessage {
     createdAt: number;
     reactions?: ScheduledReaction[];
     attachments?: ScheduledAttachment[];
+    // "daily": after each send it is rescheduled for the same clock time the next
+    // day and stays in the queue until the person removes it. Unset = send once.
+    repeat?: "daily";
 }
 
 export interface PhantomMessageData {

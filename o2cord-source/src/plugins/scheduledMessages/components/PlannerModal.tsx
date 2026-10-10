@@ -28,6 +28,7 @@ const SortedGuildStore = findStoreLazy("SortedGuildStore");
 const ID_RE = /^\d{17,20}$/;
 
 type Period = "AM" | "PM";
+type Repeat = "once" | "daily";
 
 // Next time the clock shows hh:mm AM/PM - today if it's still ahead, else tomorrow.
 function nextOccurrence(hour12: number, minute: number, period: Period) {
@@ -38,7 +39,7 @@ function nextOccurrence(hour12: number, minute: number, period: Period) {
     return when;
 }
 
-function describeWhen(when: Date) {
+function describeWhen(when: Date, repeat: Repeat = "once") {
     const tomorrow = new Date();
     tomorrow.setDate(tomorrow.getDate() + 1);
     const day = when.toDateString() === new Date().toDateString() ? "today"
@@ -49,6 +50,7 @@ function describeWhen(when: Date) {
     const inText = mins < 60 ? `${mins} min`
         : mins < 1440 ? `${Math.floor(mins / 60)}h ${mins % 60}m`
             : `${Math.floor(mins / 1440)}d ${Math.floor((mins % 1440) / 60)}h`;
+    if (repeat === "daily") return `Sends every day at ${time} until you remove it. First one ${day} (in ${inText})`;
     return `Sends ${day} at ${time} (in ${inText})`;
 }
 
@@ -79,6 +81,7 @@ function PlannerModalInner({ transitionState, onClose }: RenderModalProps) {
     const [channelId, setChannelId] = useState<string>("");
     const [idInput, setIdInput] = useState("");
     const [content, setContent] = useState("");
+    const [repeat, setRepeat] = useState<Repeat>("once");
     const [upcoming, setUpcoming] = useState(getScheduledMessages());
     const [, tick] = useState(0);
 
@@ -116,12 +119,12 @@ function PlannerModalInner({ transitionState, onClose }: RenderModalProps) {
             showToast("You can't send messages in that channel.", Toasts.Type.FAILURE);
             return;
         }
-        const res = await addScheduledMessage(channelId, content.trim(), when.getTime());
+        const res = await addScheduledMessage(channelId, content.trim(), when.getTime(), undefined, repeat === "daily" ? "daily" : undefined);
         if (!res.success) {
             showToast(res.error ?? "Couldn't schedule the message.", Toasts.Type.FAILURE);
             return;
         }
-        showToast("Message scheduled.", Toasts.Type.SUCCESS);
+        showToast(repeat === "daily" ? "Message will be sent every day." : "Message scheduled.", Toasts.Type.SUCCESS);
         setContent("");
         setUpcoming(getScheduledMessages());
     }
@@ -139,7 +142,7 @@ function PlannerModalInner({ transitionState, onClose }: RenderModalProps) {
             onClose={onClose}
             size="md"
             title={<BaseText tag="h1" weight="semibold" size="lg">Schedule a Message</BaseText>}
-            subtitle={<Forms.FormText>Sent from your account at the time you pick. Discord has to be open at that time.</Forms.FormText>}
+            subtitle={<Forms.FormText>Sent from your account at the time you pick, once or every day. Discord has to be open at that time.</Forms.FormText>}
         >
             <div className="o2-planner">
                 <section>
@@ -177,7 +180,29 @@ function PlannerModalInner({ transitionState, onClose }: RenderModalProps) {
                         </div>
                     </div>
                     <Forms.FormText className={classes("o2-planner-when", !timeValid && "o2-planner-error")}>
-                        {when ? describeWhen(when) : "Hour 1-12, minute 00-59."}
+                        {when ? describeWhen(when, repeat) : "Hour 1-12, minute 00-59."}
+                    </Forms.FormText>
+                </section>
+
+                <section>
+                    <Text variant="heading-lg/semibold" className={classes(Margins.top16, Margins.bottom8)}>Repeat</Text>
+                    <div className="o2-planner-switch o2-planner-switch-wide" role="radiogroup">
+                        {([["once", "Once"], ["daily", "Every day"]] as const).map(([value, label]) => (
+                            <button
+                                key={value}
+                                role="radio"
+                                aria-checked={repeat === value}
+                                className={classes("o2-planner-switch-btn", repeat === value && "o2-planner-switch-on")}
+                                onClick={() => setRepeat(value)}
+                            >
+                                {label}
+                            </button>
+                        ))}
+                    </div>
+                    <Forms.FormText className={Margins.top8}>
+                        {repeat === "daily"
+                            ? "Sent at this time every day, over and over, until you remove it from Upcoming below."
+                            : "Sent one time, then it's gone."}
                     </Forms.FormText>
                 </section>
 
@@ -229,9 +254,13 @@ function PlannerModalInner({ transitionState, onClose }: RenderModalProps) {
                                         <div className="o2-planner-item-meta">
                                             <span className="o2-planner-item-where">{guild ? `${guild.name} · ` : ""}#{info.name}</span>
                                             <span className="o2-planner-item-text">{msg.content}</span>
-                                            <span className="o2-planner-item-time">{describeWhen(new Date(msg.scheduledTime)).replace(/^Sends /, "")}</span>
+                                            <span className="o2-planner-item-time">
+                                                {msg.repeat === "daily"
+                                                    ? `Every day at ${new Date(msg.scheduledTime).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true })} · next ${describeWhen(new Date(msg.scheduledTime)).replace(/^Sends /, "")}`
+                                                    : describeWhen(new Date(msg.scheduledTime)).replace(/^Sends /, "")}
+                                            </span>
                                         </div>
-                                        <Button variant="dangerSecondary" size="small" onClick={() => cancel(msg.id)}>Cancel</Button>
+                                        <Button variant="dangerSecondary" size="small" onClick={() => cancel(msg.id)}>{msg.repeat === "daily" ? "Remove" : "Cancel"}</Button>
                                     </div>
                                 );
                             })}

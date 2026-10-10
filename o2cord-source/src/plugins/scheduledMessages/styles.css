@@ -397,3 +397,9 @@
     font-size: 12px;
     color: var(--text-feedback-positive, #23a55a);
 }
+
+/* "Once / Every day" - same switch as AM/PM but without the left gap. */
+.o2-planner-switch-wide {
+    margin-left: 0;
+    width: fit-content;
+}
