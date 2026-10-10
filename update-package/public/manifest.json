@@ -1,8 +1,8 @@
 {
-    "version":  "1.3.39",
-    "hash":  "public-20261011020845",
+    "version":  "1.3.40",
+    "hash":  "public-20261011023429",
     "author":  "o2cord",
-    "message":  "O2 Presence: you can see and click your own buttons",
+    "message":  "New AppIcon plugin: change Discord\u0027s window and taskbar icon",
     "notes":  [
                   "Public o2cord update package",
                   "ussro2 backgrounds are loaded from backgrounds.json beside this manifest",
