@@ -1,0 +1,65 @@
+/* ---- o2cord "App icon" window ---- */
+.o2-ai {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+    padding-bottom: 16px;
+    text-align: center;
+}
+
+.o2-ai-stage {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 160px;
+    height: 160px;
+    border-radius: 16px;
+    background: var(--background-mod-subtle, rgba(255, 255, 255, 0.04));
+}
+
+.o2-ai-img {
+    width: 128px;
+    height: 128px;
+}
+
+.o2-ai-empty {
+    color: var(--text-muted, #949ba4);
+    font-size: 13px;
+}
+
+.o2-ai-seg {
+    display: flex;
+    padding: 3px;
+    gap: 2px;
+    border-radius: 8px;
+    background: rgba(0, 0, 0, 0.25);
+}
+
+.o2-ai-seg-btn {
+    padding: 6px 14px;
+    border: none;
+    border-radius: 6px;
+    background: transparent;
+    color: var(--text-muted, #949ba4);
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background 0.15s ease, color 0.15s ease;
+}
+
+.o2-ai-seg-btn:hover {
+    color: var(--text-default, #dbdee1);
+}
+
+.o2-ai-seg-on {
+    background: var(--brand-500, #5865f2);
+    color: #fff !important;
+}
+
+.o2-ai-actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 8px;
+}
