@@ -52,6 +52,19 @@ export default definePlugin({
     enabledByDefault: false,
     settings,
 
+    // Discord hides the buttons on your own Rich Presence, so you could never
+    // click or even see them yourself. This shows them (same patch as CustomRPC;
+    // applying it twice is harmless).
+    patches: [
+        {
+            find: ".USER_PROFILE_ACTIVITY_BUTTONS),",
+            replacement: {
+                match: /.getId\(\)===\i.id/,
+                replace: "$& && false"
+            }
+        }
+    ],
+
     toolboxActions: {
         "O2 Presence": openPresenceModal
     },

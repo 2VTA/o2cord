@@ -323,7 +323,7 @@ function PresenceModalInner({ transitionState, onClose }: RenderModalProps) {
                             ? <ActivityView activity={activity} user={UserStore.getCurrentUser()} currentUser={UserStore.getCurrentUser()} />
                             : <span className="o2-rp-hint">Give it an activity name to see the preview.</span>}
                     </div>
-                    <Forms.FormText className={Margins.top8}>You can't see your own buttons on your profile, but everyone else can.</Forms.FormText>
+                    <Forms.FormText className={Margins.top8}>Your buttons show here and on your own profile, and everyone else sees them too.</Forms.FormText>
                 </section>
 
                 <Card title="What it says">
