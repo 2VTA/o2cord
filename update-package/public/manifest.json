@@ -1,8 +1,8 @@
 {
-    "version":  "1.3.35",
-    "hash":  "public-20261008083824",
+    "version":  "1.3.36",
+    "hash":  "public-20261010071411",
     "author":  "o2cord",
-    "message":  "Fix voice tile pictures after Discord web update; Callie requests archived",
+    "message":  "Fake Playing: add a game by its application ID",
     "notes":  [
                   "Public o2cord update package",
                   "ussro2 backgrounds are loaded from backgrounds.json beside this manifest",
