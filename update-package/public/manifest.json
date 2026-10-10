@@ -1,8 +1,8 @@
 {
-    "version":  "1.3.37",
-    "hash":  "public-20261010082645",
+    "version":  "1.3.38",
+    "hash":  "public-20261011020038",
     "author":  "o2cord",
-    "message":  "Schedule a Message: repeat every day",
+    "message":  "O2 Presence: your own Rich Presence window",
     "notes":  [
                   "Public o2cord update package",
                   "ussro2 backgrounds are loaded from backgrounds.json beside this manifest",
