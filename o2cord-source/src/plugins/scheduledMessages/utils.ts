@@ -29,6 +29,20 @@ const REACTION_COOLDOWN_MS = 2000;
 const pendingRecreations = new Map<string, ReturnType<typeof setTimeout>>();
 const RECREATE_DEBOUNCE_MS = 300;
 
+// A daily message whose time passed while Discord was closed is still sent if it is
+// at most this late (Discord was just opened a bit after the time); older than that
+// it is skipped for today, so reopening Discord at night doesn't send a "good
+// morning". One-time messages keep sending whenever they are found overdue.
+const DAILY_GRACE_MS = 60 * 60 * 1000;
+
+// Same clock time on the next day that is still ahead of `now` (setDate keeps the
+// local time of day across daylight-saving changes).
+function nextDailyOccurrence(base: number, now: number): number {
+    const next = new Date(base);
+    for (let i = 0; i < 400 && next.getTime() <= now; i++) next.setDate(next.getDate() + 1);
+    return next.getTime();
+}
+
 export async function loadScheduledMessages(): Promise<void> {
     const saved = await DataStore.get<ScheduledMessage[]>(STORAGE_KEY);
     scheduledMessages = Array.isArray(saved) ? saved : [];
@@ -387,7 +401,8 @@ export async function addScheduledMessage(
     channelId: string,
     content: string,
     scheduledTime: number,
-    attachments?: ScheduledAttachment[]
+    attachments?: ScheduledAttachment[],
+    repeat?: "daily"
 ): Promise<{ success: boolean; error?: string; }> {
     const minuteStart = Math.floor(scheduledTime / 60000) * 60000;
     const count = scheduledMessages.filter(m =>
@@ -404,7 +419,8 @@ export async function addScheduledMessage(
         content,
         scheduledTime,
         createdAt: Date.now(),
-        attachments
+        attachments,
+        ...(repeat ? { repeat } : {})
     };
 
     scheduledMessages.push(newMessage);
@@ -451,6 +467,13 @@ export async function sendScheduledMessageNow(id: string): Promise<{ success: bo
         return { success: false, error: "Scheduled message not found" };
     }
 
+    // A daily message keeps its schedule: "send now" just sends today's copy early.
+    if (message.repeat === "daily") {
+        const sentNow = await sendScheduledMessage(message);
+        await createPhantomMessage(message);
+        return sentNow ? { success: true } : { success: false, error: "Failed to send scheduled message" };
+    }
+
     await removeScheduledMessage(id);
     const sent = await sendScheduledMessage(message);
     if (!sent) {
@@ -484,6 +507,19 @@ async function checkAndSendMessages(): Promise<void> {
         const dueMessages = scheduledMessages.filter(m => m.scheduledTime <= now);
 
         for (const msg of dueMessages) {
+            if (msg.repeat === "daily") {
+                // Send (which also drops the old phantom), then move to the next day and
+                // stay in the queue - removed only when the person removes it.
+                if (now - msg.scheduledTime <= DAILY_GRACE_MS) await sendScheduledMessage(msg);
+                else removePhantomMessage(msg);
+
+                msg.scheduledTime = nextDailyOccurrence(msg.scheduledTime, Date.now());
+                scheduledMessages.sort((a, b) => a.scheduledTime - b.scheduledTime);
+                await saveScheduledMessages();
+                await createPhantomMessage(msg);
+                continue;
+            }
+
             await removeScheduledMessage(msg.id);
             await sendScheduledMessage(msg);
         }
