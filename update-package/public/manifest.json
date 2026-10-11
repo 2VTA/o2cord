@@ -1,8 +1,8 @@
 {
-    "version":  "1.3.41",
-    "hash":  "public-20261012021059",
+    "version":  "1.3.42",
+    "hash":  "public-20261012023757",
     "author":  "o2cord",
-    "message":  "New plugins: BannersEverywhere, FrequentQuickSwitcher, HideServers, LimitlessScreenshare, PartyMode, ProfileSets",
+    "message":  "o2Plugins list, debug-only plugins removed from public builds",
     "notes":  [
                   "Public o2cord update package",
                   "ussro2 backgrounds are loaded from backgrounds.json beside this manifest",
