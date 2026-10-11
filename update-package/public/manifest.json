@@ -1,8 +1,8 @@
 {
-    "version":  "1.3.40",
-    "hash":  "public-20261011023429",
+    "version":  "1.3.41",
+    "hash":  "public-20261012021059",
     "author":  "o2cord",
-    "message":  "New AppIcon plugin: change Discord\u0027s window and taskbar icon",
+    "message":  "New plugins: BannersEverywhere, FrequentQuickSwitcher, HideServers, LimitlessScreenshare, PartyMode, ProfileSets",
     "notes":  [
                   "Public o2cord update package",
                   "ussro2 backgrounds are loaded from backgrounds.json beside this manifest",
