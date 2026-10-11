@@ -1771,7 +1771,7 @@ export default definePlugin({
             find: "speakingWhileMutedTooltipTimeout",
             replacement: [
                 {
-                    match: /(?<=function \i\(\)\{let \i=)\(0,\i\.\i\)\(\[\i\.default\],\(\)=>\i\.default\.getCurrentUser\(\)\)(?=,\i=\(0,\i\.\i\)\(\[\i\.default\],\(\)=>\i\.default\.getId\(\)\),\{activities)/,
+                    match: /(?<=function \i\(\)\{let (?:\i,)*\i=)\(0,\i\.\i\)\(\[\i\.default\],\(\)=>\i\.default\.getCurrentUser\(\)\)(?=,\i=\(0,\i\.\i\)\(\[\i\.default\],\(\)=>\i\.default\.getId\(\)\),\{activities)/,
                     replace: "$self.fakeCurrentUser($&)"
                 }
             ]
