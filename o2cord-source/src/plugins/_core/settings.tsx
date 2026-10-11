@@ -18,10 +18,9 @@
 
 import { definePluginSettings } from "@api/Settings";
 import { BackupRestoreIcon, LogIcon, MainSettingsIcon, PaintbrushIcon, PatchHelperIcon, PlaceholderIcon, PluginsIcon, UpdaterIcon, VesktopSettingsIcon } from "@components/Icons";
-import { BackupAndRestoreTab, ChangelogTab, DebugO2Tab, PatchHelperTab, PluginsTab, ThemesTab, UpdaterTab, VencordTab } from "@components/settings/tabs";
+import { BackupAndRestoreTab, ChangelogTab, PatchHelperTab, PluginsTab, ThemesTab, UpdaterTab, VencordTab } from "@components/settings/tabs";
 import { Devs } from "@utils/constants";
 import { isTruthy } from "@utils/guards";
-import { isDebugOwner } from "@utils/o2Debug";
 import definePlugin, { IconProps, OptionType } from "@utils/types";
 import { waitFor } from "@webpack";
 import { React } from "@webpack/common";
@@ -208,13 +207,7 @@ export default definePlugin({
                 Component: BackupAndRestoreTab,
                 Icon: BackupRestoreIcon
             }),
-            isDebugOwner() && buildEntry({
-                key: "o2cord_debug",
-                title: "debug o2",
-                panelTitle: "debug o2",
-                Component: DebugO2Tab,
-                Icon: MainSettingsIcon
-            }),
+            // "debug o2" now opens from its own top-bar button (O2DebugButton).
             !IS_STANDALONE && PatchHelperTab && buildEntry({
                 key: "o2cord_patch_helper",
                 title: "Patch Helper",

@@ -5,8 +5,6 @@
 
 import * as DataStore from "@api/DataStore";
 import { Settings, useSettings } from "@api/Settings";
-import { CogWheel, DeleteIcon } from "@components/Icons";
-import { AddonCard } from "@components/settings/AddonCard";
 import { SettingsTab, wrapTab } from "@components/settings/tabs/BaseTab";
 import { openPluginModal } from "@components/settings/tabs/plugins/PluginModal";
 import { copyWithToast } from "@utils/discord";
@@ -275,33 +273,6 @@ async function cropImageToNameplateAspect(dataUrl: string): Promise<string> {
     ctx.globalCompositeOperation = "source-over";
 
     return canvas.toDataURL("image/png");
-}
-
-function DebugFeatureCard({
-    title,
-    description,
-    onSettingsClick
-}: {
-    title: string;
-    description: string;
-    onSettingsClick: () => void;
-}) {
-    return (
-        <div className="o2-debug-feature-card">
-            <div className="o2-debug-feature-header">
-                <div className="o2-debug-feature-title">{title}</div>
-                <button
-                    type="button"
-                    className="o2-debug-feature-settings"
-                    aria-label={`${title} settings`}
-                    onClick={onSettingsClick}
-                >
-                    <CogWheel width={18} height={18} />
-                </button>
-            </div>
-            <div className="o2-debug-feature-description">{description}</div>
-        </div>
-    );
 }
 
 type ActiveSettingsModal = "badge" | "nameplate" | "ussro2" | "nitroserver" | null;
@@ -864,267 +835,141 @@ function DebugO2Tab() {
         });
     }
 
+    const me = UserStore.getCurrentUser();
+    // a build without one of them (public) just leaves it out
+    const managed = MANAGED_PLUGINS.filter(p => Plugins[p.name]);
+    const enabledCount = managed.filter(p => isManagedPluginEnabled(p.name)).length;
+    const tools = [
+        { key: "profile_img", title: "Profile Image", hint: "ProfileTheme image/target, then a publish code", open: () => openManagedPluginSettings("ProfileTheme"), show: true },
+        { key: "role_icon", title: "NitroServer Role Icon", hint: "role icon locally, JSON for the registry", open: () => setActiveSettingsModal("nitroserver"), show: SHOW_NITROSERVER_FEATURE },
+        { key: "badge", title: "Add Badge", hint: "image badges on profile badge rows", open: () => setActiveSettingsModal("badge"), show: SHOW_ADD_BADGE_FEATURE },
+        { key: "nameplate", title: "Add Nameplate", hint: "video background behind a username", open: () => setActiveSettingsModal("nameplate"), show: SHOW_ADD_NAMEPLATE_FEATURE },
+        { key: "ussro2", title: "ussro2", hint: "profile/voice backgrounds, JSON for the registry", open: () => setActiveSettingsModal("ussro2"), show: SHOW_USSRO2_FEATURE }
+    ].filter(t => t.show);
+
+    const OnOff = ({ on, onClick, label }: { on: boolean; onClick: () => void; label: string; }) => (
+        <button type="button" className={`o2-con-pill${on ? " o2-con-pill-on" : ""}`} aria-label={label} aria-pressed={on} onClick={onClick}>
+            {on ? "ON" : "OFF"}
+        </button>
+    );
+    const Act = ({ children, onClick, label, danger }: { children: React.ReactNode; onClick: () => void; label: string; danger?: boolean; }) => (
+        <button type="button" className={`o2-con-act${danger ? " o2-con-act-danger" : ""}`} aria-label={label} onClick={onClick}>[{children}]</button>
+    );
+
     return (
         <SettingsTab>
-            <Forms.FormTitle tag="h5">debug o2</Forms.FormTitle>
-            <Forms.FormText className={Margins.bottom20}>
-                Local debug tools for your o2cord build.
-            </Forms.FormText>
+            <div className="o2-con">
+                <header className="o2-con-bar">
+                    <span>&gt; debug_o2 <span className="o2-con-dim">— {me?.username ?? "you"}@o2cord</span></span>
+                    <span className="o2-con-dim">{O2CORD_VERSION || VERSION} · {IS_DISCORD_DESKTOP ? "desktop" : "web"} · <span className="o2-con-ok">online</span></span>
+                </header>
 
-            {(SHOW_ADD_BADGE_FEATURE || SHOW_ADD_NAMEPLATE_FEATURE || SHOW_USSRO2_FEATURE || SHOW_NITROSERVER_FEATURE) && (
-                <section className="o2-debug-feature-grid">
-                    <DebugFeatureCard
-                        title="Profile Image"
-                        description="Set the ProfileTheme image/target locally, then export a publish code"
-                        onSettingsClick={() => openManagedPluginSettings("ProfileTheme")}
-                    />
-                    {SHOW_NITROSERVER_FEATURE && (
-                        <DebugFeatureCard
-                            title="NitroServer Role Icon"
-                            description="Add a role icon locally, then export JSON for the public registry"
-                            onSettingsClick={() => setActiveSettingsModal("nitroserver")}
-                        />
-                    )}
-                    {SHOW_ADD_BADGE_FEATURE && (
-                        <DebugFeatureCard
-                            title="Add Badge"
-                            description="Add custom image badges to Discord profile badge rows"
-                            onSettingsClick={() => setActiveSettingsModal("badge")}
-                        />
-                    )}
-                    {SHOW_ADD_NAMEPLATE_FEATURE && (
-                        <DebugFeatureCard
-                            title="Add Nameplate"
-                            description="Add an animated video background behind a username in the member list"
-                            onSettingsClick={() => setActiveSettingsModal("nameplate")}
-                        />
-                    )}
-                    {SHOW_USSRO2_FEATURE && (
-                        <DebugFeatureCard
-                            title="ussro2"
-                            description="Add profile or voice backgrounds locally, then export JSON for the public registry"
-                            onSettingsClick={() => setActiveSettingsModal("ussro2")}
-                        />
-                    )}
-                </section>
-            )}
-
-            <section className="o2-debug-managed-section">
-                <Forms.FormTitle tag="h5">Debug Plugins</Forms.FormTitle>
-                <Forms.FormText className={Margins.bottom8}>
-                    Turn your added debug plugins on or off here.
-                </Forms.FormText>
-                <div className="o2-debug-managed-grid">
-                    {MANAGED_PLUGINS.map(plugin => (
-                        <AddonCard
-                            key={plugin.name}
-                            name={plugin.name}
-                            description={plugin.description}
-                            enabled={isManagedPluginEnabled(plugin.name)}
-                            setEnabled={enabled => setManagedPluginEnabled(plugin.name, enabled)}
-                            infoButton={
-                                <button
-                                    type="button"
-                                    className="o2-debug-plugin-info"
-                                    aria-label={`${plugin.name} settings`}
-                                    onClick={() => openManagedPluginSettings(plugin.name)}
-                                >
-                                    <CogWheel width={18} height={18} />
+                {tools.length > 0 && (
+                    <section className="o2-con-section">
+                        <div className="o2-con-label">[ tools ]</div>
+                        <div className="o2-con-tools">
+                            {tools.map((t, i) => (
+                                <button key={t.key} type="button" className="o2-con-tool" onClick={t.open} title={t.title}>
+                                    <span className="o2-con-num">{String(i + 1).padStart(2, "0")}</span>
+                                    <span className="o2-con-tool-name">{t.key}</span>
+                                    <span className="o2-con-tool-hint">{t.hint}</span>
                                 </button>
-                            }
-                        />
-                    ))}
-                </div>
-                {pluginStatus && (
-                    <Forms.FormText className={Margins.top8}>{pluginStatus}</Forms.FormText>
+                            ))}
+                        </div>
+                    </section>
                 )}
-            </section>
 
-            {SHOW_ADD_BADGE_FEATURE && (
-                <section className="o2-debug-managed-section">
-                    <Forms.FormTitle tag="h5">Saved Local Badges</Forms.FormTitle>
-                    <Forms.FormText className={Margins.bottom8}>
-                        Toggle a badge off to hide it without losing its config. The gear opens it for
-                        editing (name, image, size, link); the trash removes it for good.
-                    </Forms.FormText>
-                    <div className="o2-debug-managed-grid">
-                        {badges.length === 0 && (
-                            <Forms.FormText>No local badges saved yet.</Forms.FormText>
-                        )}
-                        {badges.map(badge => (
-                            <AddonCard
-                                key={badge.id}
-                                name={badge.name}
-                                description={badge.userId + (badge.link ? " · has link" : "")}
-                                enabled={badge.enabled ?? true}
-                                setEnabled={enabled => toggleBadgeEnabled(badge.id, enabled)}
-                                infoButton={
-                                    <div className="o2-debug-badge-card-actions">
-                                        <button
-                                            type="button"
-                                            className="o2-debug-plugin-info"
-                                            aria-label={`Edit ${badge.name}`}
-                                            onClick={() => editBadge(badge)}
-                                        >
-                                            <CogWheel width={18} height={18} />
-                                        </button>
-                                        <button
-                                            type="button"
-                                            className="o2-debug-plugin-info"
-                                            aria-label={`Delete ${badge.name}`}
-                                            onClick={() => deleteBadge(badge.id)}
-                                        >
-                                            <DeleteIcon width={18} height={18} />
-                                        </button>
-                                    </div>
-                                }
-                            />
-                        ))}
-                    </div>
-                </section>
-            )}
-
-            {SHOW_ADD_NAMEPLATE_FEATURE && (
-                <section className="o2-debug-managed-section">
-                    <Forms.FormTitle tag="h5">Saved Local Nameplates</Forms.FormTitle>
-                    <Forms.FormText className={Margins.bottom8}>
-                        Previews on your own client only until you download the video and publish it with
-                        the bot. The gear reopens it for editing; the trash removes it.
-                    </Forms.FormText>
-                    <div className="o2-debug-nameplate-list">
-                        {nameplates.length === 0 && (
-                            <Forms.FormText>No local nameplates saved yet.</Forms.FormText>
-                        )}
-                        {nameplates.map(entry => (
-                            <div key={entry.id} className="o2-debug-nameplate-item">
-                                {isVideoDataUrl(entry.videoUrl)
-                                    ? <video src={entry.videoUrl} autoPlay loop muted playsInline />
-                                    : <img src={entry.videoUrl} alt="" />}
-                                <div className="o2-debug-nameplate-meta">
-                                    <strong>{entry.userId}</strong>
-                                </div>
-                                <button
-                                    type="button"
-                                    className="o2-debug-plugin-info"
-                                    aria-label={`Edit nameplate for ${entry.userId}`}
-                                    onClick={() => editNameplate(entry)}
-                                >
-                                    <CogWheel width={18} height={18} />
-                                </button>
-                                <button
-                                    type="button"
-                                    className="o2-debug-plugin-info"
-                                    aria-label={`Delete nameplate for ${entry.userId}`}
-                                    onClick={() => deleteNameplate(entry.id)}
-                                >
-                                    <DeleteIcon width={18} height={18} />
-                                </button>
+                <section className="o2-con-section">
+                    <div className="o2-con-label">[ plugins ] <span className="o2-con-dim">{enabledCount}/{managed.length} on</span></div>
+                    <div className="o2-con-list">
+                        {managed.map(plugin => (
+                            <div key={plugin.name} className="o2-con-row">
+                                <span className="o2-con-prompt">$</span>
+                                <span className="o2-con-row-main">
+                                    <span className="o2-con-row-title">{plugin.name}</span>
+                                    <span className="o2-con-row-sub">{plugin.description}</span>
+                                </span>
+                                <OnOff
+                                    on={isManagedPluginEnabled(plugin.name)}
+                                    label={`Turn ${plugin.name} on or off`}
+                                    onClick={() => setManagedPluginEnabled(plugin.name, !isManagedPluginEnabled(plugin.name))}
+                                />
+                                <Act label={`${plugin.name} settings`} onClick={() => openManagedPluginSettings(plugin.name)}>cfg</Act>
                             </div>
                         ))}
                     </div>
+                    {pluginStatus && <div className="o2-con-status">&gt; {pluginStatus}</div>}
                 </section>
-            )}
 
-            {SHOW_USSRO2_FEATURE && (
-                <section className="o2-debug-managed-section">
-                    <Forms.FormTitle tag="h5">Saved ussro2 Backgrounds</Forms.FormTitle>
-                    <Forms.FormText className={Margins.bottom8}>
-                        These entries preview locally on debug builds. Copy or download JSON to publish the same image for everyone.
-                    </Forms.FormText>
-                    <div className="o2-debug-nameplate-list">
-                        {ussro2Backgrounds.length === 0 && (
-                            <Forms.FormText>No ussro2 backgrounds saved yet.</Forms.FormText>
-                        )}
-                        {ussro2Backgrounds.map(entry => (
-                            <div key={entry.id} className="o2-debug-nameplate-item o2-debug-ussro2-item">
-                                <img src={entry.imageUrl} alt="" />
-                                <div className="o2-debug-nameplate-meta">
-                                    <strong>{entry.userId}</strong>
-                                    <span>{entry.enabled === false ? "Disabled" : "Enabled"}</span>
-                                </div>
-                                <Button
-                                    size={Button.Sizes.SMALL}
-                                    color={entry.enabled === false ? Button.Colors.GREEN : Button.Colors.PRIMARY}
-                                    onClick={() => toggleUssro2Enabled(entry.id, entry.enabled === false)}
-                                >
-                                    {entry.enabled === false ? "Enable" : "Disable"}
-                                </Button>
-                                <button
-                                    type="button"
-                                    className="o2-debug-plugin-info"
-                                    aria-label={`Edit ussro2 for ${entry.userId}`}
-                                    onClick={() => editUssro2Background(entry)}
-                                >
-                                    <CogWheel width={18} height={18} />
-                                </button>
-                                <button
-                                    type="button"
-                                    className="o2-debug-plugin-info"
-                                    aria-label={`Delete ussro2 for ${entry.userId}`}
-                                    onClick={() => deleteUssro2Background(entry.id)}
-                                >
-                                    <DeleteIcon width={18} height={18} />
-                                </button>
+                <section className="o2-con-section">
+                    <div className="o2-con-label">
+                        [ saved ] <span className="o2-con-dim">
+                            badges {badges.length} · nameplates {nameplates.length} · ussro2 {ussro2Backgrounds.length} · role_icons {nitroServerIcons.length}
+                        </span>
+                    </div>
+                    <div className="o2-con-list">
+                        {SHOW_ADD_BADGE_FEATURE && badges.map(badge => (
+                            <div key={badge.id} className="o2-con-row">
+                                <span className="o2-con-prompt">$</span>
+                                <span className="o2-con-thumb">{badge.image ? <img src={badge.image} alt="" /> : null}</span>
+                                <span className="o2-con-row-main">
+                                    <span className="o2-con-row-title">{badge.name} <span className="o2-con-tag">badge</span></span>
+                                    <span className="o2-con-row-sub">{badge.userId}{badge.link ? " · has link" : ""}</span>
+                                </span>
+                                <OnOff on={badge.enabled ?? true} label={`Show ${badge.name}`} onClick={() => toggleBadgeEnabled(badge.id, !(badge.enabled ?? true))} />
+                                <Act label={`Edit ${badge.name}`} onClick={() => editBadge(badge)}>edit</Act>
+                                <Act label={`Delete ${badge.name}`} danger onClick={() => deleteBadge(badge.id)}>del</Act>
                             </div>
                         ))}
-                    </div>
-                    {ussro2Status && (
-                        <Forms.FormText className={Margins.top8}>{ussro2Status}</Forms.FormText>
-                    )}
-                </section>
-            )}
-
-            {SHOW_NITROSERVER_FEATURE && (
-                <section className="o2-debug-managed-section">
-                    <Forms.FormTitle tag="h5">Saved NitroServer Role Icons</Forms.FormTitle>
-                    <Forms.FormText className={Margins.bottom8}>
-                        These entries preview locally on debug builds. Copy or download JSON to publish the same icon for everyone.
-                    </Forms.FormText>
-                    <div className="o2-debug-nameplate-list">
-                        {nitroServerIcons.length === 0 && (
-                            <Forms.FormText>No role icons saved yet.</Forms.FormText>
-                        )}
-                        {nitroServerIcons.map(entry => (
-                            <div key={entry.id} className="o2-debug-nameplate-item o2-debug-ussro2-item">
-                                <img src={entry.imageUrl} alt="" />
-                                <div className="o2-debug-nameplate-meta">
-                                    <strong>{entry.roleId}</strong>
-                                    <span>{entry.enabled === false ? "Disabled" : "Enabled"}</span>
-                                </div>
-                                <Button
-                                    size={Button.Sizes.SMALL}
-                                    color={entry.enabled === false ? Button.Colors.GREEN : Button.Colors.PRIMARY}
-                                    onClick={() => toggleNitroServerEnabled(entry.id, entry.enabled === false)}
-                                >
-                                    {entry.enabled === false ? "Enable" : "Disable"}
-                                </Button>
-                                <Button size={Button.Sizes.SMALL} color={Button.Colors.GREEN} onClick={() => copyNitroServerPublicJson(entry)}>
-                                    Copy JSON
-                                </Button>
-                                <button
-                                    type="button"
-                                    className="o2-debug-plugin-info"
-                                    aria-label={`Edit role icon for ${entry.roleId}`}
-                                    onClick={() => editNitroServerRoleIcon(entry)}
-                                >
-                                    <CogWheel width={18} height={18} />
-                                </button>
-                                <button
-                                    type="button"
-                                    className="o2-debug-plugin-info"
-                                    aria-label={`Delete role icon for ${entry.roleId}`}
-                                    onClick={() => deleteNitroServerRoleIcon(entry.id)}
-                                >
-                                    <DeleteIcon width={18} height={18} />
-                                </button>
+                        {SHOW_ADD_NAMEPLATE_FEATURE && nameplates.map(entry => (
+                            <div key={entry.id} className="o2-con-row">
+                                <span className="o2-con-prompt">$</span>
+                                <span className="o2-con-thumb o2-con-thumb-wide">
+                                    {isVideoDataUrl(entry.videoUrl)
+                                        ? <video src={entry.videoUrl} autoPlay loop muted playsInline />
+                                        : <img src={entry.videoUrl} alt="" />}
+                                </span>
+                                <span className="o2-con-row-main">
+                                    <span className="o2-con-row-title">{entry.userId} <span className="o2-con-tag">nameplate</span></span>
+                                    <span className="o2-con-row-sub">local preview until published with the bot</span>
+                                </span>
+                                <Act label={`Edit nameplate for ${entry.userId}`} onClick={() => editNameplate(entry)}>edit</Act>
+                                <Act label={`Delete nameplate for ${entry.userId}`} danger onClick={() => deleteNameplate(entry.id)}>del</Act>
                             </div>
                         ))}
+                        {SHOW_USSRO2_FEATURE && ussro2Backgrounds.map(entry => (
+                            <div key={entry.id} className="o2-con-row">
+                                <span className="o2-con-prompt">$</span>
+                                <span className="o2-con-thumb o2-con-thumb-wide"><img src={entry.imageUrl} alt="" /></span>
+                                <span className="o2-con-row-main">
+                                    <span className="o2-con-row-title">{entry.userId} <span className="o2-con-tag">ussro2</span></span>
+                                    <span className="o2-con-row-sub">background</span>
+                                </span>
+                                <OnOff on={entry.enabled !== false} label={`Show ussro2 for ${entry.userId}`} onClick={() => toggleUssro2Enabled(entry.id, entry.enabled === false)} />
+                                <Act label={`Edit ussro2 for ${entry.userId}`} onClick={() => editUssro2Background(entry)}>edit</Act>
+                                <Act label={`Delete ussro2 for ${entry.userId}`} danger onClick={() => deleteUssro2Background(entry.id)}>del</Act>
+                            </div>
+                        ))}
+                        {SHOW_NITROSERVER_FEATURE && nitroServerIcons.map(entry => (
+                            <div key={entry.id} className="o2-con-row">
+                                <span className="o2-con-prompt">$</span>
+                                <span className="o2-con-thumb"><img src={entry.imageUrl} alt="" /></span>
+                                <span className="o2-con-row-main">
+                                    <span className="o2-con-row-title">{entry.roleId} <span className="o2-con-tag">role_icon</span></span>
+                                    <span className="o2-con-row-sub">NitroServer role icon</span>
+                                </span>
+                                <OnOff on={entry.enabled !== false} label={`Show role icon ${entry.roleId}`} onClick={() => toggleNitroServerEnabled(entry.id, entry.enabled === false)} />
+                                <Act label={`Copy JSON for ${entry.roleId}`} onClick={() => copyNitroServerPublicJson(entry)}>json</Act>
+                                <Act label={`Edit role icon for ${entry.roleId}`} onClick={() => editNitroServerRoleIcon(entry)}>edit</Act>
+                                <Act label={`Delete role icon for ${entry.roleId}`} danger onClick={() => deleteNitroServerRoleIcon(entry.id)}>del</Act>
+                            </div>
+                        ))}
+                        {badges.length + nameplates.length + ussro2Backgrounds.length + nitroServerIcons.length === 0 && (
+                            <div className="o2-con-row o2-con-dim"><span className="o2-con-prompt">$</span> nothing saved yet - open a tool above<span className="o2-con-caret">_</span></div>
+                        )}
                     </div>
-                    {nitroServerStatus && (
-                        <Forms.FormText className={Margins.top8}>{nitroServerStatus}</Forms.FormText>
-                    )}
+                    {(ussro2Status || nitroServerStatus) && <div className="o2-con-status">&gt; {ussro2Status || nitroServerStatus}</div>}
                 </section>
-            )}
 
             {SHOW_ADD_BADGE_FEATURE && activeSettingsModal === "badge" && (
                 <div className="o2-debug-modal-backdrop" onClick={() => setActiveSettingsModal(null)}>
@@ -1384,6 +1229,7 @@ function DebugO2Tab() {
                     </div>
                 </div>
             )}
+            </div>
         </SettingsTab>
     );
 }
