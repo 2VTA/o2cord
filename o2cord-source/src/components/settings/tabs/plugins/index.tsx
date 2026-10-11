@@ -33,6 +33,7 @@ import { isTruthy } from "@utils/guards";
 import { Logger } from "@utils/Logger";
 import { Margins } from "@utils/margins";
 import { classes } from "@utils/misc";
+import { DEBUG_ONLY_PLUGINS } from "@utils/o2Debug";
 import { useAwaiter, useCleanupEffect } from "@utils/react";
 import { PluginTag, PluginTags } from "@utils/types";
 import { Button, ConfirmModal,lodash, openModal, Parser, React, SearchableSelect, Select, TextInput, Tooltip, useMemo, useRef, useState } from "@webpack/common";
@@ -92,7 +93,17 @@ const O2_PLUGIN_NAMES = new Set([
     "ProfileTheme",
     "CustomProfile",
     "NitroServer",
-    "FakePlaying"
+    "FakePlaying",
+    "O2Presence",
+    "AppIcon",
+    "CustomTyping",
+    "Nameplate",
+    "ProfileImages",
+    "Widget",
+    "RetroTerminal",
+    "o2Settings",
+    "O2WhatsNew",
+    "O2WindowControls"
 ]);
 
 function ExcludedPluginsList({ search }: { search: string; }) {
@@ -185,6 +196,9 @@ function PluginSettings() {
 
     const pluginFilter = (plugin: typeof Plugins[keyof typeof Plugins]) => {
         const { status, tags } = searchValue;
+
+        // managed only from debug o2
+        if (DEBUG_ONLY_PLUGINS.has(plugin.name)) return false;
 
         switch (status) {
             case SearchStatus.DISABLED:

@@ -23,8 +23,32 @@ $UpdateFiles = Join-Path $UpdatePublic "files"
 $Payload = Join-Path $Installer "payload\dist.zip"
 $Ready = Join-Path $Installer "ready"
 
+# Ryder-only plugins: moved out of src/plugins for the public build (so they are
+# not compiled in at all) and always put back afterwards, even if the build fails.
+# The public files are then checked for their names before anything is written.
+$PrivatePlugins = @(
+    @{ Dir = "accountSwitcher.desktop"; Name = "AccountSwitcher" },
+    @{ Dir = "serverCloner"; Name = "ServerCloner" },
+    @{ Dir = "channelWallpaper"; Name = "ChannelWallpaper" },
+    @{ Dir = "antiMoveDeco"; Name = "AntiMoveDeco" },
+    @{ Dir = "FakeVoice"; Name = "FakeVoice" }
+)
+$PluginsDir = Join-Path $Source "src\plugins"
+$HoldDir = Join-Path (Split-Path -Parent $Root) "_held_private_plugins"
+if (Test-Path -LiteralPath $HoldDir) { throw "$HoldDir already exists - a previous publish didn't restore its private plugins. Move them back into src\plugins first." }
+New-Item -ItemType Directory -Path $HoldDir | Out-Null
+$Held = @()
+
 Push-Location $Source
 try {
+    foreach ($p in $PrivatePlugins) {
+        $from = Join-Path $PluginsDir $p.Dir
+        if (Test-Path -LiteralPath $from) {
+            Move-Item -LiteralPath $from -Destination (Join-Path $HoldDir $p.Dir)
+            $Held += $p.Dir
+        }
+    }
+
     Remove-Item Env:O2CORD_DEBUG -ErrorAction SilentlyContinue
     Remove-Item Env:O2CORD_USSRO2_REGISTRY_URL -ErrorAction SilentlyContinue
     $env:O2CORD_UPDATE_MANIFEST = $ManifestUrl
@@ -43,7 +67,20 @@ try {
     Copy-Item -LiteralPath (Join-Path $Source "node_modules\koffi") -Destination (Join-Path $KoffiDest "koffi") -Recurse -Force
     Copy-Item -LiteralPath (Join-Path $Source "node_modules\@koromix\koffi-win32-x64") -Destination (Join-Path $KoffiDest "@koromix\koffi-win32-x64") -Recurse -Force
 } finally {
+    foreach ($dir in $Held) {
+        Move-Item -LiteralPath (Join-Path $HoldDir $dir) -Destination (Join-Path $PluginsDir $dir)
+    }
+    if (@(Get-ChildItem -LiteralPath $HoldDir -Force).Count -eq 0) { Remove-Item -LiteralPath $HoldDir -Force }
     Pop-Location
+}
+
+# Refuse to publish if a private plugin made it into the build anyway.
+foreach ($p in $PrivatePlugins) {
+    foreach ($f in "patcher.js", "preload.js", "renderer.js") {
+        # every bundled plugin carries folderName:"<dir>" in the build's plugin list
+        $hit = Select-String -LiteralPath (Join-Path $Source "dist\$f") -Pattern ("folderName:`"" + $p.Dir + "`"") -SimpleMatch -Quiet
+        if ($hit) { throw "Private plugin $($p.Name) is inside dist\$f - not publishing." }
+    }
 }
 
 if (Test-Path -LiteralPath $PublicDist) {

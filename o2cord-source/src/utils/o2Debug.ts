@@ -17,6 +17,13 @@ import { Devs } from "./constants";
  * other users - they never match Devs.Ryder.id no matter which build they
  * run - so the build flag was redundant and just kept causing that bug.
  */
+/**
+ * Plugins that live only under "debug o2" (turned on/off there, never listed in
+ * the normal Plugins page). They are also held out of public builds by
+ * tools/publish-public-update.ps1, so nobody else gets them at all.
+ */
+export const DEBUG_ONLY_PLUGINS = new Set(["ServerCloner", "ChannelWallpaper", "AntiMoveDeco", "FakeVoice"]);
+
 export function isDebugOwner() {
     return UserStore.getCurrentUser()?.id === String(Devs.Ryder.id);
 }
