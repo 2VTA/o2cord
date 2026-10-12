@@ -31,7 +31,8 @@ $PrivatePlugins = @(
     @{ Dir = "serverCloner"; Name = "ServerCloner" },
     @{ Dir = "channelWallpaper"; Name = "ChannelWallpaper" },
     @{ Dir = "antiMoveDeco"; Name = "AntiMoveDeco" },
-    @{ Dir = "FakeVoice"; Name = "FakeVoice" }
+    @{ Dir = "FakeVoice"; Name = "FakeVoice" },
+    @{ Dir = "callieLauncher"; Name = "CallieLauncher" }
 )
 $PluginsDir = Join-Path $Source "src\plugins"
 $HoldDir = Join-Path (Split-Path -Parent $Root) "_held_private_plugins"

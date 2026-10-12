@@ -4,17 +4,17 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  *
  * Puts "debug o2" behind a button in the top bar (instead of a page in User
- * Settings) and opens it as a big window. The button only renders for the
- * debug owner's account - same check that guards the debug tools themselves -
- * so everyone else's top bar is untouched.
+ * Settings) and opens it as a big window. The button only renders for Ryder and
+ * the people he gave access to (Callie's -debug-access) - same check that guards
+ * the debug tools themselves - so everyone else's top bar is untouched.
  */
 
 import { addHeaderBarButton, HeaderBarButton, removeHeaderBarButton } from "@api/HeaderBar";
 import { DebugO2Tab } from "@components/settings/tabs";
 import { Devs } from "@utils/constants";
-import { isDebugOwner } from "@utils/o2Debug";
+import { DEBUG_ACCESS_UPDATED_EVENT, isDebugOwner, loadDebugAccess } from "@utils/o2Debug";
 import definePlugin from "@utils/types";
-import { Modal, openModal } from "@webpack/common";
+import { Modal, openModal, useEffect, useState } from "@webpack/common";
 
 function TerminalIcon({ width = 20, height = 20, className }: { width?: number; height?: number; className?: string; }) {
     return (
@@ -38,6 +38,14 @@ export function openDebugO2Window() {
 }
 
 function DebugButton() {
+    // the access list arrives a moment after start; show the button once it does
+    const [, rerender] = useState(0);
+    useEffect(() => {
+        const onUpdate = () => rerender(n => n + 1);
+        window.addEventListener(DEBUG_ACCESS_UPDATED_EVENT, onUpdate);
+        return () => window.removeEventListener(DEBUG_ACCESS_UPDATED_EVENT, onUpdate);
+    }, []);
+
     if (!isDebugOwner()) return null;
     return <HeaderBarButton icon={TerminalIcon} tooltip="debug o2" onClick={openDebugO2Window} />;
 }
@@ -51,6 +59,7 @@ export default definePlugin({
     dependencies: ["HeaderBarAPI"],
 
     start() {
+        void loadDebugAccess();
         addHeaderBarButton("o2cord-debug-o2", () => <DebugButton />, 1000);
     },
 
