@@ -33,8 +33,9 @@ import {
     O2_USSRO2_LOCAL_BACKGROUNDS_UPDATED_EVENT,
     O2LocalUssro2Background
 } from "@utils/o2Ussro2";
+import { DEBUG_ACCESS_UPDATED_EVENT, getDebugAccessList, isRealDebugOwner } from "@utils/o2Debug";
 import { chooseFile, saveFile } from "@utils/web";
-import { Button, Forms, React, TextInput, UserStore, useState } from "@webpack/common";
+import { Button, Forms, React, RestAPI, TextInput, UserStore, useState } from "@webpack/common";
 
 import Plugins from "~plugins";
 
@@ -66,7 +67,14 @@ const NITROSERVER_KEY = O2_NITROSERVER_LOCAL_ROLE_ICONS_KEY;
 const NITROSERVER_EVENT = O2_NITROSERVER_LOCAL_ROLE_ICONS_UPDATED_EVENT;
 const SHOW_NITROSERVER_FEATURE = true;
 
+// #callie in the o2cord server - where Callie listens for -debug-access
+const CALLIE_CHANNEL_ID = "1538034368751083550";
+
 const MANAGED_PLUGINS: ManagedPlugin[] = [
+    {
+        name: "CallieLauncher",
+        description: "Top-bar button to start, stop or restart your local Callie bot"
+    },
     {
         name: "ServerCloner",
         description: "Clone server roles, channels, permissions, icon, and emojis without token or relay sending"
@@ -836,6 +844,32 @@ function DebugO2Tab() {
     }
 
     const me = UserStore.getCurrentUser();
+
+    // [ access ] - who else gets this window (Ryder only hands it out). The
+    // change itself is done by Callie (-debug-access), which publishes the list.
+    const [accessIds, setAccessIds] = useState(getDebugAccessList);
+    const [accessInput, setAccessInput] = useState("");
+    const [accessStatus, setAccessStatus] = useState("");
+    React.useEffect(() => {
+        const onUpdate = () => setAccessIds(getDebugAccessList());
+        window.addEventListener(DEBUG_ACCESS_UPDATED_EVENT, onUpdate);
+        return () => window.removeEventListener(DEBUG_ACCESS_UPDATED_EVENT, onUpdate);
+    }, []);
+
+    async function sendAccessCommand(action: "add" | "remove", id: string) {
+        if (!/^\d{17,20}$/.test(id)) {
+            setAccessStatus("That isn't a user ID (17-20 digits).");
+            return;
+        }
+        try {
+            await RestAPI.post({ url: `/channels/${CALLIE_CHANNEL_ID}/messages`, body: { content: `-debug-access ${action} ${id}` } });
+            setAccessStatus(`Sent to Callie: ${action} ${id}. Their access changes after they restart Discord.`);
+            setAccessInput("");
+            setAccessIds(list => (action === "add" ? [...new Set([...list, id])] : list.filter(x => x !== id)));
+        } catch {
+            setAccessStatus("Couldn't post to #callie. Send it yourself: -debug-access " + action + " " + id);
+        }
+    }
     // a build without one of them (public) just leaves it out
     const managed = MANAGED_PLUGINS.filter(p => Plugins[p.name]);
     const enabledCount = managed.filter(p => isManagedPluginEnabled(p.name)).length;
@@ -900,6 +934,40 @@ function DebugO2Tab() {
                     </div>
                     {pluginStatus && <div className="o2-con-status">&gt; {pluginStatus}</div>}
                 </section>
+
+                {isRealDebugOwner() && (
+                    <section className="o2-con-section">
+                        <div className="o2-con-label">[ access ] <span className="o2-con-dim">{accessIds.length} granted</span></div>
+                        <div className="o2-con-list">
+                            {accessIds.map(id => {
+                                const u = UserStore.getUser(id);
+                                return (
+                                    <div key={id} className="o2-con-row">
+                                        <span className="o2-con-prompt">$</span>
+                                        <span className="o2-con-row-main">
+                                            <span className="o2-con-row-title">{u?.username ?? id}</span>
+                                            <span className="o2-con-row-sub">{id}</span>
+                                        </span>
+                                        <Act label={`Remove debug access for ${id}`} danger onClick={() => sendAccessCommand("remove", id)}>revoke</Act>
+                                    </div>
+                                );
+                            })}
+                            <div className="o2-con-row">
+                                <span className="o2-con-prompt">$</span>
+                                <span className="o2-con-dim">grant</span>
+                                <input
+                                    className="o2-con-input"
+                                    value={accessInput}
+                                    placeholder="user id"
+                                    onChange={e => setAccessInput(e.target.value.replace(/\D/g, "").slice(0, 20))}
+                                    onKeyDown={e => { if (e.key === "Enter") void sendAccessCommand("add", accessInput); }}
+                                />
+                                <Act label="Grant debug access" onClick={() => sendAccessCommand("add", accessInput)}>grant</Act>
+                            </div>
+                        </div>
+                        {accessStatus && <div className="o2-con-status">&gt; {accessStatus}</div>}
+                    </section>
+                )}
 
                 <section className="o2-con-section">
                     <div className="o2-con-label">

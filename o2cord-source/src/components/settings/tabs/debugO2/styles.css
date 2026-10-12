@@ -1010,3 +1010,17 @@
 
 .o2-con-window { padding-bottom: 16px; }
 .o2-con-window .vc-settings-tab { padding: 0; }
+
+.o2-con-input {
+    flex: 1;
+    min-width: 0;
+    padding: 4px 8px;
+    border: 1px solid var(--con-line);
+    border-radius: 3px;
+    background: #000;
+    color: var(--con-fg);
+    font: inherit;
+    outline: none;
+}
+
+.o2-con-input:focus { border-color: var(--con-fg); }
