@@ -7,12 +7,12 @@
 import "./styles.css";
 
 import { classNameFactory } from "@utils/css";
-import { getGuildAcronym, openImageModal, openUserProfile } from "@utils/discord";
+import { copyWithToast, getGuildAcronym, openImageModal, openUserProfile } from "@utils/discord";
 import { classes } from "@utils/misc";
 import { useAwaiter } from "@utils/react";
 import { Guild, RenderModalProps, User } from "@vencord/discord-types";
 import { findComponentByCodeLazy, findCssClassesLazy } from "@webpack";
-import { FluxDispatcher, Forms, GuildChannelStore, GuildMemberStore, GuildRoleStore, IconUtils, Modal,openModal, Parser, PresenceStore, RelationshipStore, ScrollerThin, SnowflakeUtils, TabBar, Timestamp, useEffect, UserStore, UserUtils, useState, useStateFromStores } from "@webpack/common";
+import { FluxDispatcher, Forms, GuildChannelStore, GuildMemberStore, GuildRoleStore, IconUtils, Modal,openModal, Parser, PresenceStore, RelationshipStore, SnowflakeUtils, TabBar, Timestamp, useEffect, UserStore, UserUtils, useState, useStateFromStores } from "@webpack/common";
 
 const IconClasses = findCssClassesLazy("icon", "acronym", "childWrapper");
 const FriendRow = findComponentByCodeLazy("discriminatorClass:", ".isMobileOnline", "avatarSrc:");
@@ -25,6 +25,7 @@ export function openGuildInfoModal(guild: Guild) {
 
 const enum Tabs {
     ServerInfo,
+    Roles,
     Friends,
     BlockedUsers,
     IgnoredUsers
@@ -125,6 +126,12 @@ function GuildInfoModal({ guild, modalProps }: GuildProps & { modalProps: Render
                     Server Info
                 </TabBar.Item>
                 <TabBar.Item
+                    className={cl("tab", { selected: currentTab === Tabs.Roles })}
+                    id={Tabs.Roles}
+                >
+                    Roles ({Math.max(0, GuildRoleStore.getSortedRoles(guild.id).length - 1)})
+                </TabBar.Item>
+                <TabBar.Item
                     className={cl("tab", { selected: currentTab === Tabs.Friends })}
                     id={Tabs.Friends}
                 >
@@ -146,6 +153,7 @@ function GuildInfoModal({ guild, modalProps }: GuildProps & { modalProps: Render
 
             <div className={cl("tab-content")}>
                 {currentTab === Tabs.ServerInfo && <ServerInfoTab guild={guild} />}
+                {currentTab === Tabs.Roles && <RolesTab guild={guild} />}
                 {currentTab === Tabs.Friends && <FriendsTab guild={guild} setCount={setFriendCount} />}
                 {currentTab === Tabs.BlockedUsers && <BlockedUsersTab guild={guild} setCount={setBlockedCount} />}
                 {currentTab === Tabs.IgnoredUsers && <IgnoredUserTab guild={guild} setCount={setIgnoredCount} />}
@@ -214,6 +222,34 @@ function ServerInfoTab({ guild }: GuildProps) {
     );
 }
 
+// Every role, top to bottom: colour, name, how many members (of the ones Discord
+// has loaded) have it, and the id - click a role to copy its id.
+function RolesTab({ guild }: GuildProps) {
+    const roles = GuildRoleStore.getSortedRoles(guild.id).filter(r => r.id !== guild.id);
+    const memberIds = GuildMemberStore.getMemberIds(guild.id);
+    const counts: Record<string, number> = {};
+    for (const id of memberIds) {
+        for (const roleId of GuildMemberStore.getMember(guild.id, id)?.roles ?? []) counts[roleId] = (counts[roleId] ?? 0) + 1;
+    }
+
+    if (!roles.length) return <Forms.FormText className={cl("empty")}>This server has no roles besides @everyone.</Forms.FormText>;
+
+    return (
+        <div className={cl("scroller")}>
+            {roles.map(role => (
+                <button key={role.id} className={cl("role")} onClick={() => copyWithToast(role.id, "Role ID copied")} title="Click to copy the role ID">
+                    <span className={cl("role-dot")} style={{ backgroundColor: role.colorString ?? "#99aab5" }} />
+                    <span className={cl("role-name")} style={{ color: role.colorString ?? undefined }}>{role.name}</span>
+                    {role.hoist && <span className={cl("role-tag")}>shown separately</span>}
+                    {role.managed && <span className={cl("role-tag")}>bot / integration</span>}
+                    <span className={cl("role-count")}>{counts[role.id] ?? 0} loaded</span>
+                    <span className={cl("role-id")}>{role.id}</span>
+                </button>
+            ))}
+        </div>
+    );
+}
+
 function FriendsTab({ guild, setCount }: RelationshipProps) {
     return UserList("friends", guild, RelationshipStore.getFriendIDs(), setCount);
 }
@@ -262,7 +298,7 @@ function UserList(type: "friends" | "blocked" | "ignored", guild: Guild, ids: st
     useEffect(() => setCount(members.length), [members.length]);
 
     return (
-        <ScrollerThin fade className={cl("scroller")}>
+        <div className={cl("scroller")}>
             {members.map(id =>
                 <FriendRow
                     key={id}
@@ -272,6 +308,7 @@ function UserList(type: "friends" | "blocked" | "ignored", guild: Guild, ids: st
                     onContextMenu={() => { }}
                 />
             )}
-        </ScrollerThin>
+            {!members.length && <Forms.FormText className={cl("empty")}>Nobody from this list is in the server.</Forms.FormText>}
+        </div>
     );
 }

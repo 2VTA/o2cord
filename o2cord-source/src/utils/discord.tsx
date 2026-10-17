@@ -18,12 +18,13 @@
 
 import type { MessageObject } from "@api/MessageEvents";
 import type { Channel, CloudUpload, Guild, GuildFeatures, MediaModalItem, MediaModalProps, Message, User } from "@vencord/discord-types";
-import { ChannelActionCreators, ChannelStore, ComponentDispatch, Constants, FluxDispatcher, GuildStore, i18n, InviteActions, MessageActions, openMediaModal, RestAPI, SelectedChannelStore, SelectedGuildStore, Toasts, UserProfileActions, UserProfileStore, UserSettingsActionCreators, UserUtils } from "@webpack/common";
+import { ChannelActionCreators, ChannelStore, ComponentDispatch, Constants, FluxDispatcher, GuildStore, i18n, InviteActions, MessageActions, openMediaModal, RestAPI, SelectedChannelStore, SelectedGuildStore, Toasts, UserProfileActions, UserProfileStore, UserSettingsActionCreators, UserStore, UserUtils } from "@webpack/common";
 import { Except } from "type-fest";
 
 import { copyToClipboard } from "./clipboard";
 import { runtimeHashMessageKey } from "./intlHash";
 import { Logger } from "./Logger";
+import { isRyderPicture, openRyderPrank } from "./o2Prank";
 
 const IntlManagerLogger = new Logger("IntlManager");
 
@@ -170,6 +171,9 @@ export function sendMessage(
  * You must specify either height or width in the item
  */
 export function openImageModal(item: Except<MediaModalItem, "type">, mediaModalProps?: Omit<MediaModalProps, "items">) {
+    // o2cord joke: Ryder's own avatar/banner can't be opened full size by others
+    if (isRyderPicture(item.url, UserStore.getCurrentUser()?.id)) return openRyderPrank(item.url);
+
     return openMediaModal({
         items: [{
             type: "IMAGE",

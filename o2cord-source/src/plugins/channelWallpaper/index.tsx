@@ -49,8 +49,10 @@ const settings = definePluginSettings({
     },
     syncWithFriends: {
         type: OptionType.BOOLEAN,
-        description: "Sync wallpapers with Nightcord friends in DMs.",
-        default: true,
+        // Off unless turned on: without a VPS it syncs by posting a real message
+        // in the DM, which a friend without the plugin sees as text.
+        description: "Sync wallpapers with friends in DMs (posts a sync message in the DM).",
+        default: false,
         restartNeeded: false,
     },
     vpsUrl: {

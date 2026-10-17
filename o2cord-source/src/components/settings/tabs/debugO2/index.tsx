@@ -80,10 +80,6 @@ const MANAGED_PLUGINS: ManagedPlugin[] = [
         description: "Clone server roles, channels, permissions, icon, and emojis without token or relay sending"
     },
     {
-        name: "ChannelWallpaper",
-        description: "Set per-channel wallpapers from URLs or uploaded images"
-    },
-    {
         name: "AntiMoveDeco",
         description: "Adds a voice button to return to your protected voice channel if moved or disconnected"
     },
