@@ -1,8 +1,8 @@
 {
-    "version":  "1.3.43",
-    "hash":  "public-20261012030254",
+    "version":  "1.3.44",
+    "hash":  "public-20261017065507",
     "author":  "o2cord",
-    "message":  "Callie requests are back (join o2cord, then send), debug o2 access by ID",
+    "message":  "Server Info: friends and roles tabs fixed; ChannelWallpaper public again",
     "notes":  [
                   "Public o2cord update package",
                   "ussro2 backgrounds are loaded from backgrounds.json beside this manifest",
