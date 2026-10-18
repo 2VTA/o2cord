@@ -34,6 +34,7 @@ import { onceReady } from "@webpack";
 import { FluxDispatcher, UserStore } from "@webpack/common";
 
 import { BOOT_ART, O2_LOGO, O2CORD_LOGO } from "./bootArt";
+import { BootPictureSetting } from "./BootPicture";
 
 // Private for now, at Ryder's request: only these accounts can see or use
 // the theme. Everyone else gets nothing - the plugin is hidden from the
@@ -93,8 +94,36 @@ const LAYER_IDS = ["o2-retro-fx", "o2-retro-tint", "o2-retro-lift"] as const;
 const settings = definePluginSettings({
     profile: {
         type: OptionType.SELECT,
-        description: "Colour profile (from cool-retro-term).",
-        options: Object.entries(PROFILES).map(([value, p]) => ({ label: p.label, value, default: value === "amber" }))
+        description: "Colour profile (from cool-retro-term). Picking one also turns the phosphor colour on if it was set to Discord's own colours.",
+        options: [
+            ...Object.entries(PROFILES).map(([value, p]) => ({ label: p.label, value, default: value === "amber" })),
+            { label: "Custom - your own text and background colours (below)", value: "custom" }
+        ]
+    },
+    customText: {
+        type: OptionType.STRING,
+        description: "Custom profile: text colour, like #ff8100.",
+        default: "#ff8100"
+    },
+    customBackground: {
+        type: OptionType.STRING,
+        description: "Custom profile: background colour, like #000000.",
+        default: "#000000"
+    },
+    followDiscordBackground: {
+        type: OptionType.BOOLEAN,
+        description: "Custom profile: use Discord's own background colour instead of the one above.",
+        default: false
+    },
+    bootArt: {
+        type: OptionType.STRING,
+        description: "",
+        default: "",
+        hidden: true
+    },
+    bootPicture: {
+        type: OptionType.COMPONENT,
+        component: () => BootPictureSetting({ value: settings.store.bootArt ?? "", onChange: v => { settings.store.bootArt = v; } })
     },
     colorMode: {
         type: OptionType.SELECT,
@@ -166,6 +195,33 @@ const clamp = (n: unknown, min: number, max: number, fallback: number) => {
     const v = Number(n);
     return Number.isFinite(v) ? Math.min(max, Math.max(min, v)) : fallback;
 };
+
+const HEX = /^#[0-9a-f]{6}$/i;
+
+// Discord's own darkest background, as it was before any recolouring.
+function discordBackground() {
+    const known = harvested.find(([n]) => n === "--background-base-lowest" || n === "--background-tertiary");
+    if (known) return "#" + known.slice(1, 4).map(v => Number(v).toString(16).padStart(2, "0")).join("");
+    const probe = document.createElement("div");
+    probe.style.cssText = "position:absolute;left:-9999px;background:var(--background-base-lowest, var(--background-tertiary, #000))";
+    document.body.append(probe);
+    const m = getComputedStyle(probe).backgroundColor.match(/\d+/g);
+    probe.remove();
+    return m ? "#" + m.slice(0, 3).map(v => Number(v).toString(16).padStart(2, "0")).join("") : "#000000";
+}
+
+function getProfile(): Profile {
+    const s = settings.store;
+    if (s.profile !== "custom") return PROFILES[s.profile] ?? PROFILES.amber;
+    const fg = HEX.test(s.customText ?? "") ? s.customText! : "#ff8100";
+    const bg = s.followDiscordBackground ? discordBackground() : HEX.test(s.customBackground ?? "") ? s.customBackground! : "#000000";
+    return { label: "Custom", short: "Custom", fg, bg };
+}
+
+function getBootArt(): readonly string[] {
+    const custom = settings.store.bootArt;
+    return custom ? custom.split("\n") : BOOT_ART;
+}
 
 function hexToRgb(hex: string) {
     const n = parseInt(hex.slice(1), 16);
@@ -257,7 +313,7 @@ function buildVarsCss() {
     if (!harvested.length) harvestColorVars();
 
     const s = settings.store;
-    const profile = PROFILES[s.profile] ?? PROFILES.amber;
+    const profile = getProfile();
     const bright = clamp(s.brightness, 70, 150, 110) / 100;
     const hex = (h: string) => [16, 8, 0].map(sh => (parseInt(h.slice(1), 16) >> sh) & 255);
     const fg = hex(profile.fg), bg = hex(profile.bg);
@@ -308,7 +364,7 @@ function loaderCss(profile: Profile, font: typeof FONTS[string], mode: ColorMode
         text("Loading DISCORD.EXE ...... OK"),
         text("Connecting to gateway ..."),
         text(""),
-        ...BOOT_ART.map(s => ({ s, t: 0.05 })),
+        ...getBootArt().map(s => ({ s, t: 0.05 })),
         text(""),
         text("C:\\\\>") // CSS "\\" = one backslash on screen
     ];
@@ -576,7 +632,7 @@ function pushSplashCss() {
     clearTimeout(splashTimer);
     splashTimer = setTimeout(() => {
         const s = settings.store;
-        const css = splashCss(PROFILES[s.profile] ?? PROFILES.amber, FONTS[s.font] ?? FONTS.vt323);
+        const css = splashCss(getProfile(), FONTS[s.font] ?? FONTS.vt323);
         void VencordNative.pluginHelpers.RetroTerminal?.setSplashCss(css).catch(() => { });
     }, 400);
 }
@@ -626,7 +682,7 @@ function hideBoot(instant: boolean) {
 
 function buildCss() {
     const s = settings.store;
-    const profile = PROFILES[s.profile] ?? PROFILES.amber;
+    const profile = getProfile();
     const font = FONTS[s.font] ?? FONTS.vt323;
     const mode = getColorMode();
     const mono = mode === "all";
@@ -841,6 +897,14 @@ const SETTINGS_PREFIX = "plugins.RetroTerminal";
 
 let active = false;
 
+// "Discord's own colours" ignores the colour profile, so picking a profile there
+// looked broken (Ryder: none of the colours work). Picking one now also turns the
+// phosphor colour back on.
+const PROFILE_PATH = "plugins.RetroTerminal.profile";
+function onProfilePicked() {
+    if (settings.store.colorMode === "off") settings.store.colorMode = "ui";
+}
+
 function activate() {
     if (active) return;
     active = true;
@@ -854,6 +918,7 @@ function activate() {
     addLayers();
     showBoot();
     SettingsStore.addPrefixChangeListener(SETTINGS_PREFIX, update);
+    SettingsStore.addChangeListener(PROFILE_PATH, onProfilePicked);
     // Discord loads some stylesheets a little after startup - read the
     // colours once more then so late-defined variables get recoloured too.
     reharvestTimer = setTimeout(() => {
@@ -871,6 +936,7 @@ function deactivate() {
     active = false;
     clearTimeout(reharvestTimer);
     SettingsStore.removePrefixChangeListener(SETTINGS_PREFIX, update);
+    SettingsStore.removeChangeListener(PROFILE_PATH, onProfilePicked);
     style?.remove();
     varsStyle?.remove();
     style = varsStyle = null;

@@ -103,7 +103,8 @@ const O2_PLUGIN_NAMES = new Set([
     "RetroTerminal",
     "o2Settings",
     "O2WhatsNew",
-    "O2WindowControls"
+    "O2WindowControls",
+    "CallieRequests"
 ]);
 
 function ExcludedPluginsList({ search }: { search: string; }) {
