@@ -1,0 +1,183 @@
+/* ---- Edit Image (crop) ---- */
+.o2-ar-crop {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    padding-bottom: 16px;
+}
+
+.o2-ar-stage {
+    position: relative;
+    display: grid;
+    place-items: center;
+    height: 330px;
+    overflow: hidden;
+    border-radius: 8px;
+    background: var(--background-base-lowest, #111);
+    cursor: grab;
+    touch-action: none;
+    user-select: none;
+}
+
+.o2-ar-stage:active {
+    cursor: grabbing;
+}
+
+.o2-ar-stage img {
+    position: absolute;
+    max-width: none;
+    pointer-events: none;
+}
+
+/* everything outside the 300px circle is dimmed, the ring marks the edge */
+.o2-ar-ring {
+    position: absolute;
+    width: 300px;
+    height: 300px;
+    border: 3px solid rgb(255 255 255 / 85%);
+    border-radius: 50%;
+    box-shadow: 0 0 0 999px rgb(0 0 0 / 55%);
+    pointer-events: none;
+}
+
+.o2-ar-zoom {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    color: var(--text-muted);
+}
+
+.o2-ar-zoom input {
+    width: 160px;
+}
+
+.o2-ar-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.o2-ar-reset {
+    border: none;
+    background: none;
+    color: var(--text-muted);
+    cursor: pointer;
+}
+
+.o2-ar-reset:hover {
+    color: var(--text-default);
+}
+
+/* ---- incoming request, like an incoming call ---- */
+.o2-ar-call-host {
+    position: fixed;
+    top: 56px;
+    left: 50%;
+    z-index: 10002;
+    transform: translateX(-50%);
+}
+
+.o2-ar-call {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    width: 250px;
+    padding: 16px;
+    border-radius: 14px;
+    background: var(--background-base-lower, #1e1f22);
+    box-shadow: 0 12px 40px rgb(0 0 0 / 55%);
+    animation: o2-ar-in 0.25s ease-out;
+}
+
+@keyframes o2-ar-in {
+    from { opacity: 0; transform: translateY(-14px) scale(0.96); }
+    to { opacity: 1; transform: none; }
+}
+
+.o2-ar-call-head {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+}
+
+.o2-ar-call-avatar {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+}
+
+.o2-ar-call-name {
+    color: var(--text-strong, #fff);
+    font-weight: 700;
+}
+
+.o2-ar-call-sub {
+    color: var(--text-muted);
+    font-size: 12px;
+}
+
+/* the requested picture, ringing */
+.o2-ar-call-pic {
+    width: 120px;
+    height: 120px;
+    border-radius: 50%;
+    object-fit: cover;
+    animation: o2-ar-ring 1.4s ease-out infinite;
+}
+
+@keyframes o2-ar-ring {
+    0% { box-shadow: 0 0 0 0 rgb(35 165 90 / 60%); }
+    100% { box-shadow: 0 0 0 16px rgb(35 165 90 / 0%); }
+}
+
+.o2-ar-call-buttons {
+    display: flex;
+    gap: 10px;
+    width: 100%;
+}
+
+.o2-ar-call-btn {
+    flex: 1;
+    padding: 9px 0;
+    border: none;
+    border-radius: 8px;
+    color: #fff;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.o2-ar-call-btn:disabled {
+    opacity: 0.6;
+    cursor: default;
+}
+
+.o2-ar-accept {
+    background: #23a55a;
+}
+
+.o2-ar-accept:hover:not(:disabled) {
+    background: #1f8b4c;
+}
+
+.o2-ar-reject {
+    background: #da373c;
+}
+
+.o2-ar-reject:hover:not(:disabled) {
+    background: #a12828;
+}
+
+.o2-ar-call-later {
+    position: absolute;
+    top: 8px;
+    right: 10px;
+    border: none;
+    background: none;
+    color: var(--text-muted);
+    font-size: 11px;
+    cursor: pointer;
+}

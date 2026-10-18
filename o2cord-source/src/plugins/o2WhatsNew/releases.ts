@@ -29,6 +29,33 @@ export interface Release {
 
 export const RELEASES: Release[] = [
     {
+        version: "1.3.45",
+        date: "October 18, 2026",
+        features: [
+            {
+                plugin: "RetroTerminal",
+                title: "Your own colours",
+                text: "Pick \"Custom\" in the colour profile and choose your own text and background colours - or let the background follow Discord's own."
+            },
+            {
+                plugin: "RetroTerminal",
+                title: "Your own boot picture",
+                text: "The picture on the boot screen can now be yours: choose any image in RetroTerminal's settings and it's turned into dot art."
+            },
+            {
+                plugin: "ServerInfo",
+                title: "Roles tab",
+                text: "Server Info now lists every role with its colour and ID - click a role to copy its ID."
+            }
+        ],
+        fixes: [
+            { plugin: "RetroTerminal", text: "Picking a colour profile works again when the colours were set to Discord's own." },
+            { plugin: "ServerInfo", text: "The Friends, Blocked and Ignored tabs show people again." },
+            { plugin: "ChannelWallpaper", text: "Back for everyone. Syncing wallpapers with friends is now off unless you turn it on (it posts a message in the DM)." },
+            { plugin: "CallieRequests", text: "Join the o2cord server from the window with one button, and fix \"Callie can't DM you\" with one click." }
+        ]
+    },
+    {
         version: "1.3.25",
         date: "September 29, 2026",
         features: [
