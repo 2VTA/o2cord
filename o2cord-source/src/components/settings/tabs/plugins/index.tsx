@@ -104,7 +104,8 @@ const O2_PLUGIN_NAMES = new Set([
     "o2Settings",
     "O2WhatsNew",
     "O2WindowControls",
-    "CallieRequests"
+    "CallieRequests",
+    "ProfileSong"
 ]);
 
 function ExcludedPluginsList({ search }: { search: string; }) {

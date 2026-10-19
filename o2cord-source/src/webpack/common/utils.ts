@@ -182,7 +182,7 @@ export const MessageActions = findByPropsLazy("editMessage", "sendMessage");
 export const VoiceActions = findByPropsLazy("toggleSelfMute");
 export const CloudUploader = findLazy(m => m.prototype?.trackUploadFinished) as typeof t.CloudUpload;
 export const MessageCache = findByPropsLazy("clearCache", "_channelMessages");
-export const UserProfileActions = findByPropsLazy("openUserProfileModal", "closeUserProfileModal");
+export const UserProfileActions = findByPropsLazy("openUserProfileModal");
 export const InviteActions = findByPropsLazy("resolveInvite");
 export const ChannelActionCreators = findByPropsLazy("openPrivateChannel");
 

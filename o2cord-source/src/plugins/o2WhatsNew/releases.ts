@@ -29,6 +29,21 @@ export interface Release {
 
 export const RELEASES: Release[] = [
     {
+        version: "1.3.46",
+        date: "October 19, 2026",
+        features: [
+            {
+                plugin: "ProfileSong",
+                title: "Profile songs",
+                text: "Like MySpace: some profiles now play a short song when you open them, and it fades out when you close the profile. Don't want it? Turn on \"Don't play profile songs\" in ProfileSong's settings."
+            }
+        ],
+        fixes: [
+            { plugin: "ServerInfo", text: "Clicking a friend in Server Info opens their profile again (also fixes other places that open profiles)." },
+            { plugin: "TenorGifSearch", text: "Picking a GIF works again after a Discord update." }
+        ]
+    },
+    {
         version: "1.3.45",
         date: "October 18, 2026",
         features: [

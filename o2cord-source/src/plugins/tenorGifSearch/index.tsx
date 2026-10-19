@@ -159,8 +159,10 @@ export default definePlugin({
                     replace: "return $self.handleTrendingGifsFetch();$&"
                 },
                 {
-                    match: /\i\.\i\.post\(\{url:\i\.\i\.GIFS_SELECT,body:\{id:(\i),q:(\i),provider:\i\}/,
-                    replace: "return $self.handleGifSelect($1,$2);$&"
+                    // The call now sits inside `null!=id&&post(...)` (no room for a `return`) and
+                    // lost its `provider` field - swap the post itself for ours, any shape.
+                    match: /\i\.\i\.post(?=\(\{url:\i\.\i\.GIFS_SELECT,body:\{id:\i,q:\i)/,
+                    replace: "$self.selectGif"
                 }
             ]
         },
@@ -213,6 +215,12 @@ export default definePlugin({
 
     handleGifSelect(id: string, query: string) {
         tenorFetch("/registershare", { id, q: query });
+    },
+
+    // stands in for Discord's post({url: GIFS_SELECT, body: {id, q}})
+    selectGif(req: { body?: { id?: string; q?: string; }; }) {
+        if (req?.body?.id) this.handleGifSelect(req.body.id, req.body.q ?? "");
+        return Promise.resolve();
     },
 
     handleTrendingGifsFetch() {
