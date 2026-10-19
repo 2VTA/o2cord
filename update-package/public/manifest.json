@@ -1,8 +1,8 @@
 {
-    "version":  "1.3.45",
-    "hash":  "public-20261018132310",
+    "version":  "1.3.46",
+    "hash":  "public-20261019115216",
     "author":  "o2cord",
-    "message":  "RetroTerminal custom colours and boot picture, Server Info roles tab, fixes",
+    "message":  "Profile songs, Server Info profile clicks and Tenor GIF fixes",
     "notes":  [
                   "Public o2cord update package",
                   "ussro2 backgrounds are loaded from backgrounds.json beside this manifest",
