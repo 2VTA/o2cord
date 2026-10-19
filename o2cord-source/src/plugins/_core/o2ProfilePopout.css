@@ -1,0 +1,85 @@
+/* ---- profile frames (drawn around the popout's outer box) ---- */
+.user-profile-popout:has(> .o2-frame) {
+    overflow: visible !important;
+}
+
+.o2-frame {
+    position: absolute !important;
+    inset: -5px !important;
+    z-index: 5;
+    pointer-events: none;
+}
+
+.o2-frame svg {
+    position: absolute;
+    inset: 0;
+    overflow: visible;
+}
+
+.o2-frame-run {
+    animation: o2-frame-run 3.2s linear infinite;
+    filter: drop-shadow(0 0 3px #fff);
+}
+
+@keyframes o2-frame-run {
+    to { stroke-dashoffset: -1000; }
+}
+
+.o2-frame-corner {
+    position: absolute;
+    width: 22px;
+    height: 22px;
+    border: 0 solid #fff;
+}
+
+.o2-frame-tl { top: -3px; left: -3px; border-top-width: 3px; border-left-width: 3px; }
+.o2-frame-tr { top: -3px; right: -3px; border-top-width: 3px; border-right-width: 3px; }
+.o2-frame-bl { bottom: -3px; left: -3px; border-bottom-width: 3px; border-left-width: 3px; }
+.o2-frame-br { bottom: -3px; right: -3px; border-bottom-width: 3px; border-right-width: 3px; }
+
+/* slow scan line over the card */
+.o2-frame-scan {
+    position: absolute;
+    left: 5px;
+    right: 5px;
+    top: 5px;
+    height: 2px;
+    background: rgb(255 255 255 / 16%);
+    box-shadow: 0 0 8px rgb(255 255 255 / 25%);
+    animation: o2-frame-scan 3.5s linear infinite;
+}
+
+@keyframes o2-frame-scan {
+    from { transform: translateY(0); }
+    to { transform: translateY(calc(var(--o2-frame-h, 580px))); opacity: 0.2; }
+}
+
+.o2-frame-tag {
+    position: absolute;
+    top: -9px;
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 1px 10px;
+    background: #000;
+    border: 1px solid #e8e8e8;
+    color: #fff;
+    font-family: "Consolas", "gg mono", monospace;
+    font-size: 11px;
+    line-height: 16px;
+    letter-spacing: 1px;
+    white-space: nowrap;
+}
+
+.o2-frame-caret {
+    animation: o2-frame-blink 1s steps(1) infinite;
+}
+
+@keyframes o2-frame-blink {
+    50% { opacity: 0; }
+}
+
+/* our frame replaces a Discord shop frame on the same profile */
+.user-profile-popout:has(> .o2-frame) [class*="profileFrameLayer"],
+.user-profile-popout:has(> .o2-frame) [class*="profileFrameMask"] {
+    display: none !important;
+}

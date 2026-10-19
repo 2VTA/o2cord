@@ -29,6 +29,18 @@ export interface Release {
 
 export const RELEASES: Release[] = [
     {
+        version: "1.3.47",
+        date: "October 19, 2026",
+        features: [
+            {
+                plugin: "ProfileSong",
+                title: "o2cord profile frames",
+                text: "o2cord can now draw its own frames around profiles. The first one is Ryder's: a terminal frame with a light running round the edge - open his profile to see it."
+            }
+        ],
+        fixes: []
+    },
+    {
         version: "1.3.46",
         date: "October 19, 2026",
         features: [

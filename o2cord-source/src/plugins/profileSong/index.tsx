@@ -12,15 +12,14 @@
  * o2cord user reads that list and hears it on the matching profile; anyone can
  * turn the sound off with the "Don't play profile songs" switch.
  *
- * It rides on the same spot in the profile popout as ShowConnections: a tiny
- * invisible component that starts the song when the popout mounts and fades it
- * out when it unmounts.
+ * _core/o2ProfilePopout mounts SongTrigger (below) inside the profile popout: it
+ * starts the song when the popout opens and fades it out when it closes.
  */
 
 import * as DataStore from "@api/DataStore";
+import { isPluginEnabled } from "@api/PluginManager";
 import { definePluginSettings } from "@api/Settings";
 import { Button } from "@components/Button";
-import ErrorBoundary from "@components/ErrorBoundary";
 import { Devs } from "@utils/constants";
 import { isRealDebugOwner } from "@utils/o2Debug";
 import definePlugin, { OptionType } from "@utils/types";
@@ -115,9 +114,10 @@ function play(song: Song) {
     playing.timer = setTimeout(() => { if (current === playing) stop(900); }, Math.min(MAX_SECONDS, song.length) * 1000);
 }
 
-// mounted inside the profile popout
-function SongTrigger({ user }: { user?: User; }) {
+// mounted inside the profile popout by _core/o2ProfilePopout (shared with ProfileFrame)
+export function SongTrigger({ user }: { user?: User; }) {
     useEffect(() => {
+        if (!isPluginEnabled("ProfileSong")) return;
         const song = user && songFor(user.id);
         if (!song) return;
         play(song);
@@ -266,18 +266,6 @@ export default definePlugin({
     enabledByDefault: true,
     settings,
 
-    patches: [
-        {
-            // same spot as ShowConnections' row in the profile popout
-            find: '"UserProfilePopout");',
-            replacement: {
-                match: /userId:\i\.id,guild:\i\}\)(?=])/,
-                replace: "$&,$self.SongTrigger(arguments[0])"
-            }
-        }
-    ],
-
-    SongTrigger: ErrorBoundary.wrap((props: { user?: User; }) => <SongTrigger user={props.user} />, { noop: true }),
 
     start() {
         void load();
