@@ -16,6 +16,10 @@
  * "sorry {user} but boss dont want this pic". Requests that arrived while his
  * Discord was closed pop up the next time it opens.
  *
+ * "Change image (server)" does the same for Ryder's picture in one server only
+ * (shown when right-clicking him inside a server you're both in); accepting it
+ * sets his server profile picture there.
+ *
  * Everyone else: nothing - no menu item, no listener doing anything.
  */
 
@@ -27,7 +31,7 @@ import { Devs } from "@utils/constants";
 import definePlugin from "@utils/types";
 import { chooseFile } from "@utils/web";
 import { User } from "@vencord/discord-types";
-import { ChannelActionCreators, ChannelStore, createRoot, IconUtils, Menu, RestAPI, showToast, SnowflakeUtils, Toasts, UserStore, UserUtils, useState } from "@webpack/common";
+import { ChannelActionCreators, ChannelStore, createRoot, GuildMemberStore, GuildStore, IconUtils, Menu, RestAPI, showToast, SnowflakeUtils, Toasts, UserStore, UserUtils, useState } from "@webpack/common";
 
 import { openCropModal } from "./CropModal";
 
@@ -48,7 +52,10 @@ async function dmChannelWith(userId: string): Promise<string | null> {
     return typeof id === "string" ? id : ChannelStore.getDMFromUserId(userId) ?? null;
 }
 
-async function sendRequest(png: Blob) {
+// "o2cord-avatar-request" = his main picture, "o2cord-avatar-request:server:<id>" = his picture in that server
+const SERVER_MARKER = /^o2cord-avatar-request:server:(\d{17,20})\b/;
+
+async function sendRequest(png: Blob, guildId?: string) {
     try {
         const channelId = await dmChannelWith(RYDER);
         if (!channelId) throw new Error("no DM");
@@ -64,7 +71,9 @@ async function sendRequest(png: Blob) {
         await RestAPI.post({
             url: `/channels/${channelId}/messages`,
             body: {
-                content: `${MARKER} - asked to change your picture`,
+                content: guildId
+                    ? `${MARKER}:server:${guildId} - asked to change your picture in ${GuildStore.getGuild(guildId)?.name ?? "a server"}`
+                    : `${MARKER} - asked to change your picture`,
                 nonce: SnowflakeUtils.fromTimestamp(Date.now()),
                 attachments: [{ id: "0", filename: file.name, uploaded_filename: slot.upload_filename }]
             }
@@ -75,28 +84,31 @@ async function sendRequest(png: Blob) {
     }
 }
 
-async function startRequest() {
+async function startRequest(guildId?: string) {
     const file = await chooseFile("image/png,image/jpeg,image/webp,image/gif");
     if (!file) return;
     const url = URL.createObjectURL(file);
     openCropModal(url, png => {
         URL.revokeObjectURL(url);
-        void sendRequest(png);
+        void sendRequest(png, guildId);
     });
 }
 
-const UserContext: NavContextMenuPatchCallback = (children, { user }: { user?: User; }) => {
+const UserContext: NavContextMenuPatchCallback = (children, { user, guildId }: { user?: User; guildId?: string; }) => {
     if (user?.id !== RYDER || me() !== REQUESTER) return;
+    // the server option only inside a server Ryder is in
+    const inServer = !!guildId && GuildMemberStore.isMember(guildId, RYDER);
     children.push(
         <Menu.MenuGroup>
-            <Menu.MenuItem id="o2-avatar-request" label="Change image" action={startRequest} />
+            <Menu.MenuItem id="o2-avatar-request" label="Change image" action={() => startRequest()} />
+            {inServer && <Menu.MenuItem id="o2-avatar-request-server" label="Change image (server)" action={() => startRequest(guildId)} />}
         </Menu.MenuGroup>
     );
 };
 
 // -------------------------------------------------------------------- Ryder
 
-interface Incoming { messageId: string; channelId: string; imageUrl: string; }
+interface Incoming { messageId: string; channelId: string; imageUrl: string; guildId?: string; }
 
 let handled: Set<string> = new Set();
 const shown = new Set<string>();
@@ -119,18 +131,24 @@ async function toDataUrl(url: string) {
 function CallBox({ req, requester, close }: { req: Incoming; requester?: User; close(): void; }) {
     const [busy, setBusy] = useState<"" | "accept" | "reject">("");
     const name = requester?.globalName || requester?.username || "Someone";
+    const guildName = req.guildId ? GuildStore.getGuild(req.guildId)?.name ?? "a server" : "";
 
     async function accept() {
         setBusy("accept");
         try {
             const avatar = await toDataUrl(req.imageUrl);
-            await RestAPI.patch({ url: "/users/@me", body: { avatar } });
-            showToast("Your picture is changed.", Toasts.Type.SUCCESS);
+            if (req.guildId) await RestAPI.patch({ url: `/guilds/${req.guildId}/members/@me`, body: { avatar } });
+            else await RestAPI.patch({ url: "/users/@me", body: { avatar } });
+            showToast(req.guildId ? `Your picture in ${guildName} is changed.` : "Your picture is changed.", Toasts.Type.SUCCESS);
             await markHandled(req.messageId);
             close();
         } catch (e: any) {
             const code = e?.body?.code ?? e?.status;
-            showToast(code === 50035 || code === 429 ? "Discord says too many avatar changes - try again in a few minutes." : `Couldn't change it (${code ?? "error"}).`, Toasts.Type.FAILURE);
+            const why = code === 429 ? "Discord says too many picture changes - try again in a few minutes."
+                : req.guildId && (code === 50013 || code === 50035 || code === 20009) ? "Discord refused the server picture (per-server pictures need Nitro)."
+                    : code === 50035 ? "Discord says too many picture changes - try again in a few minutes."
+                        : `Couldn't change it (${code ?? "error"}).`;
+            showToast(why, Toasts.Type.FAILURE);
             setBusy("");
         }
     }
@@ -152,7 +170,7 @@ function CallBox({ req, requester, close }: { req: Incoming; requester?: User; c
                 {requester && <img className="o2-ar-call-avatar" src={IconUtils.getUserAvatarURL(requester, true, 64)} alt="" />}
                 <div>
                     <div className="o2-ar-call-name">{name}</div>
-                    <div className="o2-ar-call-sub">wants to change your picture</div>
+                    <div className="o2-ar-call-sub">{req.guildId ? `wants to change your picture in ${guildName}` : "wants to change your picture"}</div>
                 </div>
             </div>
             <img className="o2-ar-call-pic" src={req.imageUrl} alt="" />
@@ -200,7 +218,8 @@ function asRequest(message: any, channelId: string): Incoming | null {
     if (typeof message.content !== "string" || !message.content.startsWith(MARKER)) return null;
     const att = message.attachments?.find((a: any) => /^image\//.test(a.content_type ?? "") || /\.(png|jpe?g|webp|gif)(\?|$)/i.test(a.url ?? ""));
     if (!att) return null;
-    return { messageId: message.id, channelId, imageUrl: att.url };
+    const guildId = message.content.match(SERVER_MARKER)?.[1];
+    return { messageId: message.id, channelId, imageUrl: att.url, guildId };
 }
 
 // requests that came while Discord was closed
