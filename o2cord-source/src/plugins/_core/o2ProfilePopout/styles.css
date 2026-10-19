@@ -1,5 +1,5 @@
 /* ---- profile frames (drawn around the popout's outer box) ---- */
-.user-profile-popout:has(> .o2-frame) {
+.user-profile-popout:has(.o2-frame) {
     overflow: visible !important;
 }
 
@@ -79,7 +79,7 @@
 }
 
 /* our frame replaces a Discord shop frame on the same profile */
-.user-profile-popout:has(> .o2-frame) [class*="profileFrameLayer"],
-.user-profile-popout:has(> .o2-frame) [class*="profileFrameMask"] {
+.user-profile-popout:has(.o2-frame) [class*="profileFrameLayer"],
+.user-profile-popout:has(.o2-frame) [class*="profileFrameMask"] {
     display: none !important;
 }

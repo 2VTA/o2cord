@@ -29,6 +29,15 @@ export interface Release {
 
 export const RELEASES: Release[] = [
     {
+        version: "1.3.48",
+        date: "October 19, 2026",
+        features: [],
+        fixes: [
+            { plugin: "Settings", text: "The Plugins page opens again - 1.3.47 made it show an error." },
+            { plugin: "ProfileSong", text: "Profile frames now also show on your own profile card (when you click your picture bottom-left)." }
+        ]
+    },
+    {
         version: "1.3.47",
         date: "October 19, 2026",
         features: [

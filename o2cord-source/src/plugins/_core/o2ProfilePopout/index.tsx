@@ -9,14 +9,14 @@
  * popout's outer box through a portal).
  */
 
-import "./o2ProfilePopout.css";
+import "./styles.css";
 
 import ErrorBoundary from "@components/ErrorBoundary";
 import { SongTrigger } from "@plugins/profileSong";
 import { Devs } from "@utils/constants";
 import definePlugin from "@utils/types";
 import { User } from "@vencord/discord-types";
-import { ReactDOM, useEffect, useRef, useState } from "@webpack/common";
+import { createRoot, useEffect, useState } from "@webpack/common";
 
 // who wears which frame (only Ryder for now)
 const FRAMES: Record<string, "terminal"> = {
@@ -51,35 +51,64 @@ function TerminalFrame({ host }: { host: HTMLElement; }) {
     );
 }
 
-function FrameOverlay({ user }: { user?: User; }) {
-    const anchor = useRef<HTMLSpanElement>(null);
-    const [host, setHost] = useState<HTMLElement | null>(null);
-    const frame = user ? FRAMES[user.id] : undefined;
+// Frames are found on screen rather than through one component: Discord shows
+// a profile card in several places (the popout when you click someone, your own
+// account popout bottom-left, ...), and every one of them is a .user-profile-popout
+// with the user's avatar inside. A card for someone with a frame gets one.
+const AVATAR_ID = /\/(?:avatars|users)\/(\d{17,20})\//;
+const mounted = new Map<HTMLElement, ReturnType<typeof createRoot>>();
+const retries = new WeakMap<HTMLElement, number>();
+let observer: MutationObserver | undefined;
+let scanQueued = false;
 
-    useEffect(() => {
-        if (!frame) return;
-        const card = anchor.current?.closest<HTMLElement>(".user-profile-popout");
-        if (!card) return;
-        // (a Discord shop frame on the same card is hidden by CSS while ours is there)
-        setHost(card);
-    }, [frame]);
+function cardUserId(card: HTMLElement) {
+    for (const img of card.querySelectorAll<HTMLImageElement>("img[class*='avatar'], [class*='avatar'] img")) {
+        const id = img.src.match(AVATAR_ID)?.[1];
+        if (id) return id;
+    }
+    return undefined;
+}
 
-    if (!frame) return null;
-    return (
-        <>
-            <span ref={anchor} style={{ display: "none" }} />
-            {host && ReactDOM.createPortal(<TerminalFrame host={host} />, host)}
-        </>
-    );
+function scan() {
+    scanQueued = false;
+    for (const [card, root] of mounted) {
+        if (!card.isConnected) { root.unmount(); mounted.delete(card); }
+    }
+    let waiting = false;
+    for (const card of document.querySelectorAll<HTMLElement>(".user-profile-popout")) {
+        if (mounted.has(card)) continue;
+        const id = cardUserId(card);
+        if (!id) {
+            // the avatar comes in a moment after the card - look again shortly
+            const tries = (retries.get(card) ?? 0) + 1;
+            retries.set(card, tries);
+            if (tries < 12) waiting = true;
+            continue;
+        }
+        if (!FRAMES[id]) continue;
+        // the frame is laid out against the card; some cards (your own account
+        // popout) aren't positioned, which would throw it off somewhere else
+        if (getComputedStyle(card).position === "static") card.style.position = "relative";
+        const holder = document.createElement("div");
+        holder.className = "o2-frame-holder";
+        // covers the card exactly (Discord makes the card's children position:relative)
+        holder.style.cssText = "position:absolute !important;inset:0;z-index:5;pointer-events:none;";
+        card.append(holder);
+        const root = createRoot(holder);
+        root.render(<TerminalFrame host={card} />);
+        mounted.set(card, root);
+    }
+    if (waiting) setTimeout(queueScan, 250);
+}
+
+function queueScan() {
+    if (scanQueued) return;
+    scanQueued = true;
+    requestAnimationFrame(scan);
 }
 
 function Extras(props: { user?: User; }) {
-    return (
-        <>
-            <SongTrigger user={props.user} />
-            <FrameOverlay user={props.user} />
-        </>
-    );
+    return <SongTrigger user={props.user} />;
 }
 
 export default definePlugin({
@@ -100,5 +129,17 @@ export default definePlugin({
         }
     ],
 
-    Extras: ErrorBoundary.wrap(Extras, { noop: true })
+    Extras: ErrorBoundary.wrap(Extras, { noop: true }),
+
+    start() {
+        observer = new MutationObserver(queueScan);
+        observer.observe(document.body, { childList: true, subtree: true });
+        queueScan();
+    },
+
+    stop() {
+        observer?.disconnect();
+        for (const root of mounted.values()) root.unmount();
+        mounted.clear();
+    }
 });
