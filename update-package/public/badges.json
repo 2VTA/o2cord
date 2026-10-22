@@ -109,6 +109,14 @@
             "image": "https://raw.githubusercontent.com/2VTA/o2cord/main/update-package/public/assets/badges/badge-mtrolu47.gif",
             "size": 26,
             "enabled": true
+        },
+        {
+            "id": "badge-friend-619494728622407704",
+            "userId": "619494728622407704",
+            "name": "Friend",
+            "image": "https://raw.githubusercontent.com/2VTA/o2cord/main/update-package/public/assets/badges/badge-friend-619494728622407704.png",
+            "size": 23,
+            "enabled": true
         }
     ]
 }
