@@ -117,6 +117,14 @@
             "image": "https://raw.githubusercontent.com/2VTA/o2cord/main/update-package/public/assets/badges/badge-friend-619494728622407704.png",
             "size": 23,
             "enabled": true
+        },
+        {
+            "id": "badge-friend-642731005924343819",
+            "userId": "642731005924343819",
+            "name": "Friend",
+            "image": "https://raw.githubusercontent.com/2VTA/o2cord/main/update-package/public/assets/badges/badge-friend-642731005924343819.png",
+            "size": 23,
+            "enabled": true
         }
     ]
 }
