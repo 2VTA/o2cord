@@ -125,6 +125,14 @@
             "image": "https://raw.githubusercontent.com/2VTA/o2cord/main/update-package/public/assets/badges/badge-friend-642731005924343819.png",
             "size": 23,
             "enabled": true
+        },
+        {
+            "id": "badge-mvk0bhbp",
+            "userId": "642731005924343819",
+            "name": "Ga",
+            "image": "https://raw.githubusercontent.com/2VTA/o2cord/main/update-package/public/assets/badges/badge-mvk0bhbp.png",
+            "size": 25,
+            "enabled": true
         }
     ]
 }
