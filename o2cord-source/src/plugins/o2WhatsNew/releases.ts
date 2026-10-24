@@ -29,6 +29,23 @@ export interface Release {
 
 export const RELEASES: Release[] = [
     {
+        version: "1.3.51",
+        date: "October 24, 2026",
+        features: [
+            {
+                plugin: "RetroTerminal",
+                title: "Retro Terminal for everyone",
+                text: "Turn Discord into an old CRT screen: phosphor colours, glow, scanlines and a terminal boot screen. Open the o2cord Settings panel (puzzle button at the top) -> Themes -> Retro Terminal, and pick a colour."
+            },
+            {
+                plugin: "RetroTerminal",
+                title: "New colour: Red",
+                text: "Red phosphor joins Amber, Green, Blue and the rest - also in the quick colour picker."
+            }
+        ],
+        fixes: []
+    },
+    {
         version: "1.3.50",
         date: "October 24, 2026",
         features: [

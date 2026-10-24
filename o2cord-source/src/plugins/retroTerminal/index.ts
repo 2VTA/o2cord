@@ -36,16 +36,6 @@ import { FluxDispatcher, UserStore } from "@webpack/common";
 import { BOOT_ART, O2_LOGO, O2CORD_LOGO } from "./bootArt";
 import { BootPictureSetting } from "./BootPicture";
 
-// Private for now, at Ryder's request: only these accounts can see or use
-// the theme. Everyone else gets nothing - the plugin is hidden from the
-// Plugins list, o2Settings leaves it out of the Themes panel, and even if its
-// `enabled` flag is set by hand, activate() never runs for them.
-export const RETRO_USER_IDS: readonly string[] = [
-    String(Devs.Ryder.id),
-    "1542531988727140477", // @aloshsaudi
-    "793236817893785601" // @abolbnh
-];
-
 // Turned on once automatically on first launch after the update ("publish
 // the theme on this account"); after that their own panel choice sticks.
 export const RETRO_AUTO_ENABLE_IDS: readonly string[] = [
@@ -53,9 +43,10 @@ export const RETRO_AUTO_ENABLE_IDS: readonly string[] = [
     "793236817893785601" // @abolbnh
 ];
 
+// Public since 1.3.51 (was limited to an allow-list before) - kept as a
+// function so o2Settings and the mobile build don't need to change shape.
 export function canUseRetro() {
-    const id = UserStore?.getCurrentUser?.()?.id;
-    return !!id && RETRO_USER_IDS.includes(id);
+    return true;
 }
 
 interface Profile { label: string; short: string; fg: string; bg: string; }
@@ -66,6 +57,7 @@ export const PROFILES: Record<string, Profile> = {
     amber: { label: "Default Amber", short: "Amber", fg: "#ff8100", bg: "#000000" },
     green: { label: "Monochrome Green", short: "Green", fg: "#0ccc68", bg: "#000000" },
     apple: { label: "Apple ][", short: "Apple ][", fg: "#4dff6b", bg: "#001100" },
+    red: { label: "Red Phosphor", short: "Red", fg: "#ff3b30", bg: "#000000" },
     blue: { label: "Deep Blue", short: "Blue", fg: "#7fb4ff", bg: "#000000" },
     cyan: { label: "Neon Cyan", short: "Cyan", fg: "#52f7ff", bg: "#001018" },
     plasma: { label: "Plasma", short: "Plasma", fg: "#ff9bd6", bg: "#070014" },
@@ -948,24 +940,16 @@ function deactivate() {
     setTimeout(syncOwnerThemeClass, 0);
 }
 
-// Re-checked on every login too, so switching to an account that isn't
-// allowed drops the theme straight away.
-// The loading screen shows before Discord knows who's logged in, so the
-// account check alone would leave it untouched. Remember the last allowed
-// account on this device and switch on straight away for it; CONNECTION_OPEN
-// then confirms (or drops it if a different account logged in).
+// The loading screen shows before Discord knows who's logged in. Remember
+// that someone was logged in on this device and switch on straight away;
+// CONNECTION_OPEN then confirms.
 const LAST_USER_KEY = "o2cord.retro.lastAllowedUser";
 
 function syncAccess() {
     const id = UserStore?.getCurrentUser?.()?.id;
     if (!id) return;
-    if (RETRO_USER_IDS.includes(id)) {
-        activate();
-        void DataStore.set(LAST_USER_KEY, id);
-    } else {
-        deactivate();
-        void DataStore.del(LAST_USER_KEY);
-    }
+    activate();
+    void DataStore.set(LAST_USER_KEY, id);
 }
 
 let pluginRunning = false;
@@ -987,7 +971,7 @@ async function activateEarly() {
     // Still logged-out at this point -> trust the remembered account for the
     // loading screen; the real check follows on CONNECTION_OPEN.
     if (UserStore?.getCurrentUser?.()) return syncAccess();
-    if (last && RETRO_USER_IDS.includes(last)) activate();
+    if (last) activate();
 }
 
 export default definePlugin({
@@ -996,9 +980,6 @@ export default definePlugin({
     tags: ["Appearance", "Customisation"],
     authors: [Devs.Ryder],
     enabledByDefault: false,
-    // Not in the Plugins list for anyone; allowed users reach it from the
-    // o2cord Settings panel (Themes -> Retro Terminal -> More settings).
-    hidden: true,
     settings,
 
     syncAccess,
