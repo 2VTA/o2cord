@@ -33,6 +33,22 @@ $ErrorActionPreference = "Stop"
 
 $ProcessName = if ($Channel -eq "ptb") { "DiscordPTB" } else { "DiscordCanary" }
 
+# AccountSwitcher's second window runs the same exe on its own data folder
+# (%APPDATA%\o2cord-secondary-profile). Force-killing it mid-write is what
+# wiped its saved accounts, so it's left alone here: its child processes carry
+# that folder in --user-data-dir, and its main process is their parent. It
+# just keeps running the previous build until it's restarted.
+function Get-MainDiscordProcesses {
+    $all = @(Get-CimInstance Win32_Process -Filter "Name='$ProcessName.exe'")
+    $secondaryKids = @($all | Where-Object { $_.CommandLine -match 'o2cord-secondary-profile' })
+    $protected = @($secondaryKids.ProcessId) + @($secondaryKids.ParentProcessId)
+    $all | Where-Object { $protected -notcontains $_.ProcessId }
+}
+
+function Stop-MainDiscord {
+    Get-MainDiscordProcesses | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
+}
+
 $Root = Split-Path -Parent $PSScriptRoot
 $Source = Join-Path $Root "o2cord-source"
 $LocalDist = Join-Path $env:LOCALAPPDATA "o2cord\dist"
@@ -73,7 +89,7 @@ try {
 }
 
 Write-Host "== Stopping $ProcessName ==" -ForegroundColor Cyan
-Stop-Process -Name $ProcessName -Force -ErrorAction SilentlyContinue
+Stop-MainDiscord
 Start-Sleep -Seconds 3
 
 $ChannelRoot = Join-Path $env:LOCALAPPDATA $ProcessName
@@ -95,7 +111,7 @@ if (-not $IsPatched) {
     # our debug flag) - that instance holds the single-instance lock, so our
     # own launch below would silently do nothing but focus it. Kill it first.
     Write-Host "== Stopping installer's own auto-launch ==" -ForegroundColor Cyan
-    Stop-Process -Name $ProcessName -Force -ErrorAction SilentlyContinue
+    Stop-MainDiscord
     Start-Sleep -Seconds 2
 }
 
@@ -129,12 +145,12 @@ Write-Host "== Syncing dist files into $LocalDist ==" -ForegroundColor Cyan
 # where an install step or Discord's own crash-recovery can have silently
 # relaunched it since), wait for zero processes, then verify byte-for-byte
 # afterward and fail loudly if the copy didn't actually take.
-Stop-Process -Name $ProcessName -Force -ErrorAction SilentlyContinue
+Stop-MainDiscord
 for ($i = 0; $i -lt 10; $i++) {
-    if (-not (Get-Process -Name $ProcessName -ErrorAction SilentlyContinue)) { break }
+    if (-not (Get-MainDiscordProcesses)) { break }
     Start-Sleep -Seconds 1
 }
-if (Get-Process -Name $ProcessName -ErrorAction SilentlyContinue) {
+if (Get-MainDiscordProcesses) {
     throw "$ProcessName is still running after 10s - can't safely sync dist files."
 }
 
@@ -150,5 +166,7 @@ Write-Host "== Sync verified (hash match on all 4 files) ==" -ForegroundColor Gr
 
 Write-Host "== Launching $($LatestApp.Name) with debug port ==" -ForegroundColor Cyan
 $Exe = Join-Path $LatestApp.FullName "$ProcessName.exe"
-Start-Process -FilePath $Exe -ArgumentList "--remote-debugging-port=9222"
+# Start from the app folder: Discord writes discord_utils.log into its
+# working directory, and a copy landing in src/plugins broke the build.
+Start-Process -FilePath $Exe -ArgumentList "--remote-debugging-port=9222" -WorkingDirectory $LatestApp.FullName
 Write-Host "Done. $ProcessName is restarting with the fresh build." -ForegroundColor Green

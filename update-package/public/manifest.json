@@ -1,8 +1,8 @@
 {
-    "version":  "1.3.49",
-    "hash":  "public-20261019184349",
+    "version":  "1.3.50",
+    "hash":  "public-20261024083308",
     "author":  "o2cord",
-    "message":  "AvatarRequest: server picture option",
+    "message":  "AntiMoveDeco public + Hide Spectators toggle",
     "notes":  [
                   "Public o2cord update package",
                   "ussro2 backgrounds are loaded from backgrounds.json beside this manifest",

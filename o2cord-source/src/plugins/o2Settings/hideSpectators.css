@@ -1,0 +1,6 @@
+/* "SPECTATORS - n" heading and the viewers' avatars under the stream panel
+   (WhosWatching) - the custom share image stays. */
+.vc-whos-watching-spectating-header,
+.vc-whos-watching-spectating-users {
+    display: none !important;
+}

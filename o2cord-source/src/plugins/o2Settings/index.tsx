@@ -32,6 +32,7 @@ import disableBlurStyle from "./disableBlur.css?managed";
 import hideNitroHomeStyle from "./hideNitroHome.css?managed";
 import hideQuestsStyle from "./hideQuests.css?managed";
 import hideShopStyle from "./hideShop.css?managed";
+import hideSpectatorsStyle from "./hideSpectators.css?managed";
 import { PuzzleIcon } from "./PuzzleIcon";
 
 interface ToggleDef {
@@ -44,6 +45,7 @@ const TOGGLES: ToggleDef[] = [
     { key: "hideShop", title: "Hide Shop", style: hideShopStyle },
     { key: "hideQuests", title: "Hide Quests", style: hideQuestsStyle },
     { key: "hideNitroHome", title: "Hide Nitro Tab", style: hideNitroHomeStyle },
+    { key: "hideSpectators", title: "Hide Spectators", style: hideSpectatorsStyle },
     { key: "disableBlur", title: "Disable Blur Effects", style: disableBlurStyle },
     { key: "disableAnimations", title: "Reduce Animations", style: disableAnimationsStyle }
 ];
@@ -52,6 +54,7 @@ const settings = definePluginSettings({
     hideShop: { type: OptionType.BOOLEAN, description: "Hide the Shop entry in the DM sidebar", default: false, onChange: applyToggle("hideShop", hideShopStyle) },
     hideQuests: { type: OptionType.BOOLEAN, description: "Hide the Quests entry in the DM sidebar", default: false, onChange: applyToggle("hideQuests", hideQuestsStyle) },
     hideNitroHome: { type: OptionType.BOOLEAN, description: "Hide the Nitro entry in the DM sidebar", default: false, onChange: applyToggle("hideNitroHome", hideNitroHomeStyle) },
+    hideSpectators: { type: OptionType.BOOLEAN, description: "Hide the spectators list under your stream panel", default: false, onChange: applyToggle("hideSpectators", hideSpectatorsStyle) },
     disableBlur: { type: OptionType.BOOLEAN, description: "Disable backdrop-filter blur everywhere (GPU-heavy)", default: false, onChange: applyToggle("disableBlur", disableBlurStyle) },
     disableAnimations: { type: OptionType.BOOLEAN, description: "Collapse animations/transitions to near-zero duration", default: false, onChange: applyToggle("disableAnimations", disableAnimationsStyle) },
     enableTheme: {
