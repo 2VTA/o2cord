@@ -3,17 +3,17 @@
  * Copyright (c) 2026 Ryder
  * SPDX-License-Identifier: GPL-3.0-or-later
  *
- * Replaces the native Help (?) header bar button with the o2cord button
- * (puzzle icon), which opens the o2cord Hub (Hub.tsx): quick switches for
- * hiding/disabling parts of Discord's UI, themes, plugins, profile tools and
- * the news, in one window.
+ * The o2cord quick switches (hiding/disabling parts of Discord's UI) and the
+ * theme choice. They're shown on the o2cord settings page and in the o2cord
+ * Hub (Hub.tsx, opened from that page). Discord's Help (?) button stays
+ * hidden. The top-bar puzzle button was removed at Ryder's request - the
+ * settings page covers it.
  */
 
 import "./hideHelpButton.css";
 import "./styles.css";
 
 import * as DataStore from "@api/DataStore";
-import { addHeaderBarButton, HeaderBarButton, removeHeaderBarButton } from "@api/HeaderBar";
 import { plugins, startPlugin, stopPlugin } from "@api/PluginManager";
 import { definePluginSettings, Settings } from "@api/Settings";
 import { disableStyle, enableStyle } from "@api/Styles";
@@ -29,8 +29,6 @@ import hideNitroHomeStyle from "./hideNitroHome.css?managed";
 import hideQuestsStyle from "./hideQuests.css?managed";
 import hideShopStyle from "./hideShop.css?managed";
 import hideSpectatorsStyle from "./hideSpectators.css?managed";
-import { openHub } from "./Hub";
-import { PuzzleIcon } from "./PuzzleIcon";
 
 interface ToggleDef {
     key: string;
@@ -112,10 +110,6 @@ export function chooseTheme(choice: ThemeChoice) {
     syncOwnerThemeClass();
 }
 
-function O2SettingsHeaderButton() {
-    return <HeaderBarButton icon={PuzzleIcon} tooltip="o2cord" onClick={openHub} />;
-}
-
 // Accounts in RETRO_AUTO_ENABLE_IDS get RetroTerminal switched on once, on
 // their first launch after the update. Remembered per account on this
 // device, so choosing another theme in the panel afterwards sticks.
@@ -131,20 +125,17 @@ async function autoEnableRetroOnce() {
 
 export default definePlugin({
     name: "o2Settings",
-    description: "The o2cord button at the top: one window with quick switches, themes, plugins, your profile tools and what's new",
+    description: "o2cord's quick switches (hide Shop, Quests, Nitro tab, spectators...) and theme choice",
     authors: [Devs.Ryder],
-    dependencies: ["HeaderBarAPI"],
     enabledByDefault: true,
     settings,
     autoEnableRetroOnce,
     start() {
         applyAllFromSettings();
-        addHeaderBarButton("o2cord-settings", () => <O2SettingsHeaderButton />, 1000);
         FluxDispatcher.subscribe("CONNECTION_OPEN", autoEnableRetroOnce);
         void autoEnableRetroOnce();
     },
     stop() {
-        removeHeaderBarButton("o2cord-settings");
         FluxDispatcher.unsubscribe("CONNECTION_OPEN", autoEnableRetroOnce);
         for (const { style } of TOGGLES) disableStyle(style);
     }

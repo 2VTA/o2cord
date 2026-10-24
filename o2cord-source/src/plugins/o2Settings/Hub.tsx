@@ -3,11 +3,15 @@
  * Copyright (c) 2026 Ryder
  * SPDX-License-Identifier: GPL-3.0-or-later
  *
- * o2cord Hub - one window (the puzzle button at the top) for everything an
+ * o2cord Hub - one window for everything an
  * o2cord user touches day to day: quick switches, themes, the o2cord
  * plugins grouped by what they're for, profile tools and the news. Built
  * to be simple for everyone; anything advanced stays one "More" click away
  * in the plugin's own settings window.
+ *
+ * Nothing opens it right now (the top-bar button and the settings page
+ * button were removed until there's a better idea for it); its quick
+ * switches and theme cards are used on the o2cord settings page.
  */
 
 import "./hub.css";
@@ -64,7 +68,7 @@ function Icon({ d }: { d: string; }) {
     return <svg className="o2-hub-icon" viewBox="0 0 24 24" aria-hidden="true"><path d={d} fill="currentColor" /></svg>;
 }
 
-function Switch({ on, label, onToggle }: { on: boolean; label: string; onToggle(): void; }) {
+export function Switch({ on, label, onToggle }: { on: boolean; label: string; onToggle(): void; }) {
     return (
         <Clickable className="o2-hub-tile" role="switch" aria-checked={on} onClick={onToggle}>
             <span>{label}</span>
@@ -73,7 +77,7 @@ function Switch({ on, label, onToggle }: { on: boolean; label: string; onToggle(
     );
 }
 
-function ThemeCards({ onChange }: { onChange(): void; }) {
+export function ThemeCards({ onChange }: { onChange(): void; }) {
     const theme = currentTheme();
     const profile = RETRO_PROFILES[Settings.plugins.RetroTerminal?.profile ?? "amber"] ?? RETRO_PROFILES.amber;
     const options = THEMES.filter(t => t.id !== "glass" || isOwner()).filter(t => t.id !== "retro" || canUseRetro());
@@ -98,9 +102,21 @@ function ThemeCards({ onChange }: { onChange(): void; }) {
     );
 }
 
+// The o2Settings switches as tiles - also used on the o2cord settings page.
+export function QuickSwitches({ onChange }: { onChange?(): void; }) {
+    const [, setTick] = useState(0);
+    const store = settings.store as Record<string, boolean>;
+    return (
+        <div className="o2-hub-tiles">
+            {TOGGLES.map(({ key, title }) => (
+                <Switch key={key} label={title} on={!!store[key]} onToggle={() => { store[key] = !store[key]; setTick(n => n + 1); onChange?.(); }} />
+            ))}
+        </div>
+    );
+}
+
 function HomePage({ go, refresh }: { go(page: Page): void; refresh(): void; }) {
     const user = UserStore.getCurrentUser();
-    const store = settings.store as Record<string, boolean>;
     const latest = RELEASES[0];
     const headline = latest?.features[0]?.title ?? latest?.fixes[0]?.text;
     return (
@@ -111,11 +127,7 @@ function HomePage({ go, refresh }: { go(page: Page): void; refresh(): void; }) {
             </div>
             <section>
                 <div className="o2-hub-label">Quick switches</div>
-                <div className="o2-hub-tiles">
-                    {TOGGLES.map(({ key, title }) => (
-                        <Switch key={key} label={title} on={!!store[key]} onToggle={() => { store[key] = !store[key]; refresh(); }} />
-                    ))}
-                </div>
+                <QuickSwitches />
             </section>
             <section>
                 <div className="o2-hub-label">Theme</div>
@@ -220,7 +232,7 @@ function NewsPage() {
                 {RELEASES.slice(0, 10).map(r => (
                     <Clickable key={r.version} className="o2-hub-row o2-hub-row-top" onClick={() => openWhatsNew(r)}>
                         <span>
-                            <div className="o2-hub-row-title">{r.version} <span className="o2-hub-muted">· {r.date}</span></div>
+                            <div className="o2-hub-row-title">{r.version}{r.name ? ` · ${r.name}` : ""} <span className="o2-hub-muted">· {r.date}</span></div>
                             {r.features.map((f, i) => <div key={"f" + i} className="o2-hub-muted">• {f.title}</div>)}
                             {r.fixes.map((f, i) => <div key={"x" + i} className="o2-hub-muted">• Fix: {f.text}</div>)}
                         </span>

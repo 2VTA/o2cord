@@ -17,16 +17,14 @@
 */
 
 import "./styles.css";
+import "@components/settings/tabs/plugins/o2Plugins.css";
 
-import { BaseText } from "@components/BaseText";
 import { Card } from "@components/Card";
 import { Flex } from "@components/Flex";
 import { Link } from "@components/Link";
-import { Margins } from "@components/margins";
-import { Paragraph } from "@components/Paragraph";
 import { SettingsTab, wrapTab } from "@components/settings/tabs/BaseTab";
 import { getStylusWebStoreUrl } from "@utils/web";
-import { Forms, React, TabBar, useState } from "@webpack/common";
+import { Clickable, Forms, React, TabBar, useState } from "@webpack/common";
 
 import { CspErrorCard } from "./CspErrorCard";
 import { LocalThemesTab } from "./LocalThemesTab";
@@ -35,6 +33,27 @@ import { OnlineThemesTab } from "./OnlineThemesTab";
 const enum ThemeTab {
     LOCAL,
     ONLINE
+}
+
+// o2cord: the three info cards (performance, where to find themes, blocked
+// resources) folded into one small "Tips" box.
+function ThemeTips() {
+    const [open, setOpen] = useState(false);
+    return (
+        <div className="o2s-card">
+            <Clickable className="o2s-row o2s-tips-head" onClick={() => setOpen(v => !v)}>
+                <div className="o2s-row-title">Tips</div>
+                <div className="o2s-muted">{open ? "Hide" : "Show"}</div>
+            </Clickable>
+            {open && (
+                <div className="o2s-tips">
+                    <div>• Themes and custom CSS can make Discord slow. If it lags, turn them off to check.</div>
+                    <div>• Find themes on <Link href="https://betterdiscord.app/themes">BetterDiscord</Link> or <Link href="https://github.com/search?q=discord+theme">GitHub</Link>, then put the .theme.css file in your themes folder.</div>
+                    <div>• Pictures and fonts in a theme only load from GitHub, GitLab, Codeberg, Imgur, Discord or Google Fonts.</div>
+                </div>
+            )}
+        </div>
+    );
 }
 
 function ThemesTab() {
@@ -63,16 +82,10 @@ function ThemesTab() {
                 </TabBar.Item>
             </TabBar>
 
-            <Flex flexDirection="column" gap="1em">
+            <Flex flexDirection="column" gap="1em" className="o2s-page o2s-plugins">
                 <CspErrorCard />
 
-                <Card variant="warning">
-                    <BaseText tag="h3" size="md" weight="medium" className={Margins.bottom8}>Theme Performance</BaseText>
-                    <Paragraph>
-                        Themes and custom CSS have the potential to cause major lag! If you experience performance issues, try
-                        disabling your themes and CSS to see if they're the cause. The most common cause of lag is the <code>:has()</code> operator.
-                    </Paragraph>
-                </Card>
+                <ThemeTips />
 
                 {currentTab === ThemeTab.LOCAL && <LocalThemesTab />}
                 {currentTab === ThemeTab.ONLINE && <OnlineThemesTab />}
