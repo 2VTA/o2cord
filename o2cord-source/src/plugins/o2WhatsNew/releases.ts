@@ -29,6 +29,14 @@ export interface Release {
 
 export const RELEASES: Release[] = [
     {
+        version: "1.3.52",
+        date: "October 24, 2026",
+        features: [],
+        fixes: [
+            { text: "You can drag the Discord window again (to another screen, or snap it to a side) - on the newest Discord the window had stopped moving." }
+        ]
+    },
+    {
         version: "1.3.51",
         date: "October 24, 2026",
         features: [
