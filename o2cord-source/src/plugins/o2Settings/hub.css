@@ -1,0 +1,314 @@
+/* o2cord Hub - black and white, follows Discord's theme colours (so it also
+   turns retro under RetroTerminal). */
+
+.o2-hub-modal {
+    width: min(880px, 92vw) !important;
+    max-width: none !important;
+}
+
+.o2-hub {
+    display: grid;
+    grid-template-columns: 180px minmax(0, 1fr);
+    height: min(620px, 82vh);
+    color: var(--text-default, #dbdee1);
+    font-size: 14px;
+}
+
+.o2-hub-side {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 18px 10px 14px;
+    border-right: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.08));
+    background: var(--background-base-lower, rgba(0, 0, 0, 0.15));
+}
+
+.o2-hub-brand {
+    padding: 0 10px 14px;
+    font-family: var(--font-code, monospace);
+    font-size: 17px;
+    font-weight: 700;
+    color: var(--text-strong, #fff);
+}
+
+.o2-hub-nav {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 10px;
+    border-radius: 8px;
+    color: var(--text-muted, #949ba4);
+    cursor: pointer;
+}
+
+.o2-hub-nav:hover {
+    background: var(--background-mod-subtle, rgba(255, 255, 255, 0.04));
+    color: var(--text-default, #dbdee1);
+}
+
+.o2-hub-nav-on {
+    background: var(--background-mod-normal, rgba(255, 255, 255, 0.08));
+    color: var(--text-strong, #fff);
+}
+
+.o2-hub-icon {
+    width: 18px;
+    height: 18px;
+    flex-shrink: 0;
+}
+
+.o2-hub-grow {
+    flex: 1;
+}
+
+.o2-hub-version {
+    padding: 0 10px;
+    font-size: 12px;
+    color: var(--text-muted, #949ba4);
+}
+
+.o2-hub-main {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    padding: 22px 24px 24px;
+    overflow-y: auto;
+}
+
+.o2-hub-close {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+}
+
+.o2-hub-hello {
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--text-strong, #fff);
+}
+
+.o2-hub-muted {
+    color: var(--text-muted, #949ba4);
+    font-size: 13px;
+    line-height: 1.45;
+}
+
+.o2-hub-label {
+    margin-bottom: 8px;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--text-muted, #949ba4);
+}
+
+/* quick switches */
+.o2-hub-tiles {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+    gap: 8px;
+}
+
+.o2-hub-tile {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 10px 12px;
+    border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.08));
+    border-radius: 8px;
+    cursor: pointer;
+}
+
+.o2-hub-tile:hover {
+    background: var(--background-mod-subtle, rgba(255, 255, 255, 0.04));
+}
+
+.o2-hub-switch {
+    position: relative;
+    width: 32px;
+    height: 18px;
+    flex-shrink: 0;
+    border-radius: 9px;
+    border: 1px solid var(--border-strong, rgba(255, 255, 255, 0.24));
+    transition: background 0.15s ease;
+}
+
+.o2-hub-switch::after {
+    content: "";
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: var(--text-muted, #949ba4);
+    transition: transform 0.15s ease, background 0.15s ease;
+}
+
+.o2-hub-switch-on {
+    background: var(--text-strong, #fff);
+    border-color: var(--text-strong, #fff);
+}
+
+.o2-hub-switch-on::after {
+    transform: translateX(14px);
+    background: var(--background-base-low, #000);
+}
+
+/* theme cards */
+.o2-hub-themes {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+    gap: 10px;
+}
+
+.o2-hub-theme {
+    padding: 10px;
+    border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.08));
+    border-radius: 10px;
+    cursor: pointer;
+}
+
+.o2-hub-theme:hover {
+    background: var(--background-mod-subtle, rgba(255, 255, 255, 0.04));
+}
+
+.o2-hub-theme-on {
+    border: 2px solid var(--text-strong, #fff);
+    padding: 9px;
+}
+
+.o2-hub-theme-preview {
+    height: 56px;
+    margin-bottom: 8px;
+    padding: 6px 8px;
+    border-radius: 6px;
+    font-family: var(--font-code, monospace);
+    font-size: 13px;
+    background: var(--background-base-low, #2b2d31);
+}
+
+.o2-hub-theme-preview-glass {
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.18), rgba(255, 255, 255, 0.04));
+}
+
+.o2-hub-theme-title {
+    margin-bottom: 2px;
+    font-weight: 600;
+    color: var(--text-strong, #fff);
+}
+
+/* retro colours */
+.o2-hub-swatches {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 10px;
+}
+
+.o2-hub-swatch {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 10px;
+    border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.08));
+    border-radius: 999px;
+    cursor: pointer;
+    font-size: 13px;
+}
+
+.o2-hub-swatch-on {
+    border-color: var(--text-strong, #fff);
+    color: var(--text-strong, #fff);
+}
+
+.o2-hub-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+}
+
+.o2-hub-link {
+    display: inline-block;
+    color: var(--text-default, #dbdee1);
+    font-size: 13px;
+    cursor: pointer;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+}
+
+/* news line on Home */
+.o2-hub-news-line {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    padding-top: 14px;
+    border-top: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.08));
+    cursor: pointer;
+}
+
+/* plugins page */
+.o2-hub-plugins {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 8px;
+}
+
+/* rows: profile + news */
+.o2-hub-list {
+    display: flex;
+    flex-direction: column;
+    border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.08));
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+.o2-hub-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 12px 14px;
+    cursor: pointer;
+}
+
+.o2-hub-row + .o2-hub-row {
+    border-top: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.08));
+}
+
+.o2-hub-row:hover {
+    background: var(--background-mod-subtle, rgba(255, 255, 255, 0.04));
+}
+
+.o2-hub-row-top {
+    align-items: flex-start;
+}
+
+.o2-hub-row-title {
+    font-weight: 600;
+    color: var(--text-strong, #fff);
+    margin-bottom: 2px;
+}
+
+/* restart notice */
+.o2-hub-restart {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 10px 12px;
+    margin-right: 36px;
+    border: 1px solid var(--border-strong, rgba(255, 255, 255, 0.24));
+    border-radius: 8px;
+}
+
+.o2-hub-restart-btn {
+    padding: 5px 12px;
+    border-radius: 6px;
+    background: var(--text-strong, #fff);
+    color: var(--background-base-low, #000);
+    font-weight: 600;
+    cursor: pointer;
+}

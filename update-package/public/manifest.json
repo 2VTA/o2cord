@@ -1,8 +1,8 @@
 {
-    "version":  "1.3.52",
-    "hash":  "public-20261024090345",
+    "version":  "1.3.53",
+    "hash":  "public-20261024184245",
     "author":  "o2cord",
-    "message":  "Fix window dragging on Electron 44",
+    "message":  "o2cord Hub",
     "notes":  [
                   "Public o2cord update package",
                   "ussro2 backgrounds are loaded from backgrounds.json beside this manifest",
