@@ -7,7 +7,6 @@
 import { definePluginSettings } from "@api/Settings";
 import { addHeaderBarButton, HeaderBarButton, removeHeaderBarButton } from "@api/HeaderBar";
 import { Devs } from "@utils/constants";
-import { isDebugOwner } from "@utils/o2Debug";
 import definePlugin, { OptionType } from "@utils/types";
 import { findByPropsLazy } from "@webpack";
 import { Button, FluxDispatcher, Forms, React, UserStore } from "@webpack/common";
@@ -183,11 +182,9 @@ export default definePlugin({
     authors: [Devs.Ryder],
     dependencies: ["HeaderBarAPI"],
     enabledByDefault: false,
-    hidden: true,
     settings,
 
     start() {
-        if (!isDebugOwner()) return;
         addHeaderBarButton("anti-move-deco", () => <AntiMoveDecoButton />, 31);
         FluxDispatcher.subscribe("VOICE_STATE_UPDATES", onVoiceStateUpdate);
     },

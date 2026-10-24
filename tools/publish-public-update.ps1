@@ -29,7 +29,6 @@ $Ready = Join-Path $Installer "ready"
 $PrivatePlugins = @(
     @{ Dir = "accountSwitcher.desktop"; Name = "AccountSwitcher" },
     @{ Dir = "serverCloner"; Name = "ServerCloner" },
-    @{ Dir = "antiMoveDeco"; Name = "AntiMoveDeco" },
     @{ Dir = "FakeVoice"; Name = "FakeVoice" },
     @{ Dir = "callieLauncher"; Name = "CallieLauncher" }
 )

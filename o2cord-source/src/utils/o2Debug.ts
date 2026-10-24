@@ -13,7 +13,7 @@ import { Devs } from "./constants";
  * the normal Plugins page). They are also held out of public builds by
  * tools/publish-public-update.ps1, so nobody else gets them at all.
  */
-export const DEBUG_ONLY_PLUGINS = new Set(["ServerCloner", "AntiMoveDeco", "FakeVoice", "CallieLauncher"]);
+export const DEBUG_ONLY_PLUGINS = new Set(["ServerCloner", "FakeVoice", "CallieLauncher"]);
 
 /**
  * People Ryder gave "debug o2" to. The list is published by Callie

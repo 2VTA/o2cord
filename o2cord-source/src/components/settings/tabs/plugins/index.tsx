@@ -95,6 +95,7 @@ const O2_PLUGIN_NAMES = new Set([
     "NitroServer",
     "FakePlaying",
     "O2Presence",
+    "AntiMoveDeco",
     "AppIcon",
     "CustomTyping",
     "Nameplate",

@@ -29,6 +29,23 @@ export interface Release {
 
 export const RELEASES: Release[] = [
     {
+        version: "1.3.50",
+        date: "October 24, 2026",
+        features: [
+            {
+                plugin: "AntiMoveDeco",
+                title: "AntiMoveDeco for everyone",
+                text: "Join a voice channel and press the shield button at the top: if someone moves or disconnects you, o2cord takes you straight back. Turn it on in Plugins."
+            },
+            {
+                plugin: "o2Settings",
+                title: "Hide Spectators",
+                text: "New switch in the o2cord Settings panel (puzzle button at the top): hides the SPECTATORS list under your stream. Your stream picture stays."
+            }
+        ],
+        fixes: []
+    },
+    {
         version: "1.3.48",
         date: "October 19, 2026",
         features: [],
