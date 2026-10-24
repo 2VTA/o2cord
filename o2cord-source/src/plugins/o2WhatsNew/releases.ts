@@ -29,6 +29,19 @@ export interface Release {
 
 export const RELEASES: Release[] = [
     {
+        version: "1.3.53",
+        date: "October 24, 2026",
+        features: [
+            {
+                plugin: "o2Settings",
+                title: "The o2cord Hub",
+                text: "The puzzle button at the top now opens one simple window for everything: quick switches, themes, o2cord's plugins grouped by what they do, your profile tools and the news. Anything advanced is one \"More\" click away.",
+                image: IMAGES.o2Hub
+            }
+        ],
+        fixes: []
+    },
+    {
         version: "1.3.52",
         date: "October 24, 2026",
         features: [],

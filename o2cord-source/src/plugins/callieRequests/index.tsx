@@ -436,7 +436,7 @@ function CallieModal({ transitionState, onClose }: RenderModalProps) {
     );
 }
 
-function openCallieModal() {
+export function openCallieModal() {
     openModal(props => <CallieModal {...props} />);
 }
 
