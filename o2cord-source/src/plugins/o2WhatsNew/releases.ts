@@ -22,12 +22,55 @@ export interface Fix {
 
 export interface Release {
     version: string;
+    /** optional nickname shown next to the version, like "Bread Update" */
+    name?: string;
     date: string;
     features: Feature[];
     fixes: Fix[];
 }
 
 export const RELEASES: Release[] = [
+    {
+        version: "1.3.54",
+        name: "Bread Update",
+        date: "October 24, 2026",
+        features: [
+            {
+                plugin: "o2cord Settings",
+                title: "A new look for o2cord Settings",
+                text: "The o2cord page in Discord's settings is all new and much simpler: your version and a Restart button up top, the quick switches, the theme picker, the window options in plain words, and the tools at the bottom. Advanced stuff hides behind \"Advanced\".",
+                image: IMAGES.breadSettings
+            },
+            {
+                plugin: "o2cord Settings",
+                title: "Plugins page",
+                text: "Search, then pick All, On, Off, New or o2cord with one click. Cleaner cards, a count of how many plugins you have on, and the built-in plugins tucked away.",
+                image: IMAGES.breadPlugins
+            },
+            {
+                plugin: "o2cord Settings",
+                title: "Themes, without the wall of text",
+                text: "The three info boxes became one small \"Tips\" box, so your themes show straight away.",
+                image: IMAGES.breadThemes
+            },
+            {
+                plugin: "o2cord Settings",
+                title: "Backup in one card",
+                text: "Save your o2cord settings to a file, or load them back - two buttons, that's it.",
+                image: IMAGES.breadBackup
+            },
+            {
+                plugin: "o2cord Settings",
+                title: "The dev button",
+                text: "Press \"dev\" in Tools to meet the people behind o2cord.",
+                image: IMAGES.breadDev
+            }
+        ],
+        fixes: [
+            { plugin: "o2Settings", text: "The puzzle button at the top is gone - everything it had is on the o2cord settings page now." },
+            { plugin: "o2cord Settings", text: "Patch Helper (a developer tool) was removed." }
+        ]
+    },
     {
         version: "1.3.53",
         date: "October 24, 2026",

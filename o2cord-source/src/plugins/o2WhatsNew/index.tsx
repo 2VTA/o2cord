@@ -53,7 +53,7 @@ function WhatsNewModal({ release, transitionState, onClose }: RenderModalProps &
             title={
                 <div className="o2-whats-new-title">
                     <BaseText tag="h1" weight="semibold" size="lg">What's new in o2cord!?</BaseText>
-                    <span className="o2-whats-new-version">v{release.version}</span>
+                    <span className="o2-whats-new-version">v{release.version}{release.name ? ` · ${release.name}` : ""}</span>
                 </div>
             }
             subtitle={

@@ -1,0 +1,65 @@
+/* o2cord: plugins page in the same black and white look as the o2cord
+   settings page (o2s-* basics come from tabs/vencord/o2Settings.css). */
+
+.o2s-plugins-head {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
+
+.o2s-chips {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+}
+
+.o2s-chip {
+    padding: 5px 12px;
+    border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.08));
+    border-radius: 999px;
+    color: var(--text-muted, #949ba4);
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+}
+
+.o2s-chip:hover {
+    color: var(--text-default, #dbdee1);
+}
+
+.o2s-chip-on {
+    background: var(--text-strong, #fff);
+    border-color: var(--text-strong, #fff);
+    color: var(--background-base-low, #000);
+}
+
+.o2s-tags {
+    min-width: 180px;
+    margin-left: auto;
+}
+
+.o2s-gap {
+    margin: 10px 0;
+}
+
+.o2s-restart {
+    border-color: var(--text-strong, #fff);
+}
+
+/* cards: flat, hairline, no lift */
+.o2s-plugins .vc-addon-card {
+    background: transparent;
+    border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.08));
+    border-radius: 10px;
+}
+
+.o2s-plugins .vc-addon-card:hover {
+    transform: none;
+    box-shadow: none;
+    background: var(--background-mod-subtle, rgba(255, 255, 255, 0.04));
+}
+
+.o2s-plugins .vc-addon-note {
+    color: var(--text-muted, #949ba4);
+}

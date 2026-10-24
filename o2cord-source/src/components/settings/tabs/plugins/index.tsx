@@ -17,14 +17,12 @@
 */
 
 import "./styles.css";
+import "./o2Plugins.css";
 
 import * as DataStore from "@api/DataStore";
 import { isPluginEnabled } from "@api/PluginManager";
 import { useSettings } from "@api/Settings";
-import { Card } from "@components/Card";
-import { Divider } from "@components/Divider";
 import ErrorBoundary from "@components/ErrorBoundary";
-import { HeadingTertiary } from "@components/Heading";
 import { Paragraph } from "@components/Paragraph";
 import { SettingsTab, wrapTab } from "@components/settings/tabs/BaseTab";
 import { ChangeList } from "@utils/ChangeList";
@@ -36,40 +34,28 @@ import { classes } from "@utils/misc";
 import { DEBUG_ONLY_PLUGINS } from "@utils/o2Debug";
 import { useAwaiter, useCleanupEffect } from "@utils/react";
 import { PluginTag, PluginTags } from "@utils/types";
-import { Button, ConfirmModal,lodash, openModal, Parser, React, SearchableSelect, Select, TextInput, Tooltip, useMemo, useRef, useState } from "@webpack/common";
+import { Clickable, ConfirmModal, lodash, openModal, Parser, React, SearchableSelect, TextInput, Tooltip, useMemo, useRef, useState } from "@webpack/common";
 import { JSX } from "react";
 
 import Plugins, { ExcludedPlugins, PluginMeta } from "~plugins";
 
 import { PluginCard } from "./PluginCard";
-import { UIElementsButton } from "./UIElements";
+import { UIElementsModal } from "./UIElements";
 
 export const cl = classNameFactory("vc-plugins-");
 export const logger = new Logger("PluginSettings", "#a6d189");
 
+// o2cord: only shown when something actually needs a restart.
 function ReloadRequiredCard({ required }: { required: boolean; }) {
+    if (!required) return null;
     return (
-        <Card variant={required ? "warning" : "normal"} className={cl("info-card")}>
-            {required
-                ? (
-                    <>
-                        <HeadingTertiary>Restart required!</HeadingTertiary>
-                        <Paragraph className={cl("dep-text")}>
-                            Restart now to apply new plugins and their settings
-                        </Paragraph>
-                        <Button onClick={() => location.reload()} className={cl("restart-button")}>
-                            Restart
-                        </Button>
-                    </>
-                )
-                : (
-                    <>
-                        <HeadingTertiary>Plugin Management</HeadingTertiary>
-                        <Paragraph>Press the cog wheel or info icon to get more info on a plugin</Paragraph>
-                        <Paragraph>Plugins with a cog wheel have settings you can modify!</Paragraph>
-                    </>
-                )}
-        </Card>
+        <div className="o2s-hero o2s-restart">
+            <div className="o2s-grow">
+                <div className="o2s-row-title">Restart to finish</div>
+                <div className="o2s-muted">Some plugins you turned on or off need a restart</div>
+            </div>
+            <Clickable className="o2s-btn o2s-btn-on" onClick={() => location.reload()}>Restart</Clickable>
+        </div>
     );
 }
 
@@ -193,6 +179,7 @@ function PluginSettings() {
     const hasUserPlugins = useMemo(() => !IS_STANDALONE && Object.values(PluginMeta).some(m => m.userPlugin), []);
 
     const [searchValue, setSearchValue] = useState({ value: "", tags: [] as PluginTag[], status: SearchStatus.ALL });
+    const [showRequired, setShowRequired] = useState(false);
 
     const search = searchValue.value.toLowerCase();
     const onSearch = (query: string) => setSearchValue(prev => ({ ...prev, value: query }));
@@ -297,83 +284,92 @@ function PluginSettings() {
         }
     }
 
+    const visible = sortedPlugins.filter(p => !p.hidden && !DEBUG_ONLY_PLUGINS.has(p.name) && !(p.name.endsWith("API") && !p.settings));
+    const onCount = visible.filter(p => isPluginEnabled(p.name)).length;
+    const chips = [
+        { label: "All", value: SearchStatus.ALL },
+        { label: "On", value: SearchStatus.ENABLED },
+        { label: "Off", value: SearchStatus.DISABLED },
+        { label: "New", value: SearchStatus.NEW },
+        { label: "o2cord", value: SearchStatus.O2_PLUGINS },
+        hasUserPlugins && { label: "User plugins", value: SearchStatus.USER_PLUGINS },
+        { label: "API", value: SearchStatus.API_PLUGINS }
+    ].filter(isTruthy);
+
     return (
         <SettingsTab>
-            <ReloadRequiredCard required={changes.hasChanges} />
+            <div className="o2s-page o2s-plugins">
+                <ReloadRequiredCard required={changes.hasChanges} />
 
-            <UIElementsButton />
-
-            <HeadingTertiary className={classes(Margins.top20, Margins.bottom8)}>
-                Filters
-            </HeadingTertiary>
-
-            <ErrorBoundary noop>
-                <TextInput
-                    inputClassName={cl("filter-control")}
-                    placeholder="Search for a plugin..."
-                    value={searchValue.value}
-                    onChange={onSearch}
-                    autoFocus
-                />
-            </ErrorBoundary>
-
-            <ErrorBoundary noop>
-                <div className={classes(Margins.bottom20, Margins.top8, cl("filter-controls"))}>
-                    <Select
-                        options={[
-                            { label: "Show All", value: SearchStatus.ALL, default: true },
-                            { label: "Show Enabled", value: SearchStatus.ENABLED },
-                            { label: "Show Disabled", value: SearchStatus.DISABLED },
-                            { label: "Show New", value: SearchStatus.NEW },
-                            hasUserPlugins && { label: "Show UserPlugins", value: SearchStatus.USER_PLUGINS },
-                            { label: "Show API Plugins", value: SearchStatus.API_PLUGINS },
-                            { label: "Show o2Plugins", value: SearchStatus.O2_PLUGINS },
-                        ].filter(isTruthy)}
-                        serialize={String}
-                        select={status => setSearchValue(prev => ({ ...prev, status }))}
-                        isSelected={v => v === searchValue.status}
-                        closeOnSelect={true}
-                        placeholder="Filter by Type"
-                    />
-                    <SearchableSelect
-                        options={PluginTags.map(tag => ({ label: tag, value: tag }))}
-                        value={searchValue.tags}
-                        onChange={tags => setSearchValue(prev => ({ ...prev, tags }))}
-                        closeOnSelect={false}
-                        placeholder="Filter by Tags"
-                        multi
-                    />
-                </div>
-            </ErrorBoundary>
-
-            <HeadingTertiary className={Margins.top20}>Plugins</HeadingTertiary>
-
-            {plugins.length || requiredPlugins.length
-                ? (
-                    <div className={cl("grid")}>
-                        {plugins.length
-                            ? plugins
-                            : <Paragraph>No plugins meet the search criteria.</Paragraph>
-                        }
+                <div className="o2s-plugins-head">
+                    <div className="o2s-grow">
+                        <div className="o2s-hero-title">Plugins</div>
+                        <div className="o2s-muted">{onCount} of {visible.length} on · the cog on a card opens its settings</div>
                     </div>
-                )
-                : <ExcludedPluginsList search={search} />
-            }
+                    <Clickable className="o2s-btn" onClick={() => openModal(modalProps => <UIElementsModal {...modalProps} />)}>Hide plugin buttons</Clickable>
+                </div>
 
+                <ErrorBoundary noop>
+                    <TextInput
+                        inputClassName={cl("filter-control")}
+                        placeholder="Search plugins"
+                        value={searchValue.value}
+                        onChange={onSearch}
+                        autoFocus
+                    />
+                </ErrorBoundary>
 
-            <Divider className={Margins.top20} />
+                <ErrorBoundary noop>
+                    <div className="o2s-chips">
+                        {chips.map(c => (
+                            <Clickable
+                                key={c.value}
+                                className={classes("o2s-chip", searchValue.status === c.value && "o2s-chip-on")}
+                                onClick={() => setSearchValue(prev => ({ ...prev, status: c.value }))}
+                            >
+                                {c.label}
+                            </Clickable>
+                        ))}
+                        <div className="o2s-tags">
+                            <SearchableSelect
+                                options={PluginTags.map(tag => ({ label: tag, value: tag }))}
+                                value={searchValue.tags}
+                                onChange={tags => setSearchValue(prev => ({ ...prev, tags }))}
+                                closeOnSelect={false}
+                                placeholder="Tags"
+                                multi
+                            />
+                        </div>
+                    </div>
+                </ErrorBoundary>
 
-            <HeadingTertiary className={classes(Margins.top20, Margins.bottom8)}>
-                Required Plugins
-            </HeadingTertiary>
-
-            <div className={cl("grid")}>
-                {requiredPlugins.length
-                    ? requiredPlugins
-                    : <Paragraph>No plugins meet the search criteria.</Paragraph>
+                {plugins.length || requiredPlugins.length
+                    ? (
+                        <div className={cl("grid")}>
+                            {plugins.length
+                                ? plugins
+                                : <Paragraph>No plugins match that.</Paragraph>
+                            }
+                        </div>
+                    )
+                    : <ExcludedPluginsList search={search} />
                 }
+
+                {requiredPlugins.length > 0 && (
+                    <section>
+                        <Clickable className="o2s-btn" onClick={() => setShowRequired(v => !v)}>
+                            {showRequired ? "Hide" : "Show"} built-in plugins ({requiredPlugins.length})
+                        </Clickable>
+                        {showRequired && (
+                            <>
+                                <div className="o2s-muted o2s-gap">These keep o2cord working, so they can't be turned off.</div>
+                                <div className={cl("grid")}>{requiredPlugins}</div>
+                            </>
+                        )}
+                    </section>
+                )}
             </div>
-        </SettingsTab >
+        </SettingsTab>
     );
 }
 

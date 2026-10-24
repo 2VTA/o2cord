@@ -16,49 +16,41 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-import { downloadSettingsBackup, uploadSettingsBackup } from "@api/SettingsSync/offline";
-import { Card } from "@components/Card";
-import { Flex } from "@components/Flex";
-import { Heading } from "@components/Heading";
-import { Paragraph } from "@components/Paragraph";
-import { SettingsTab, wrapTab } from "@components/settings/tabs/BaseTab";
-import { Margins } from "@utils/margins";
-import { Button, Text } from "@webpack/common";
+import "@components/settings/tabs/vencord/o2Settings.css";
 
+import { downloadSettingsBackup, uploadSettingsBackup } from "@api/SettingsSync/offline";
+import { SettingsTab, wrapTab } from "@components/settings/tabs/BaseTab";
+import { Clickable } from "@webpack/common";
+
+// o2cord: one simple card - what's saved, and the two buttons.
 function BackupAndRestoreTab() {
     return (
         <SettingsTab>
-            <Flex flexDirection="column" gap="0.5em">
-                <Card variant="warning">
-                    <Heading tag="h4">Warning</Heading>
-                    <Paragraph>Importing a settings file will overwrite your current settings.</Paragraph>
-                </Card>
-
-                <Text variant="text-md/normal" className={Margins.bottom8}>
-                    You can import and export your o2cord settings as a JSON file.
-                    This allows you to easily transfer your settings to another device,
-                    or recover your settings after reinstalling o2cord or Discord.
-                </Text>
-
-                <Heading tag="h4">Settings Export contains:</Heading>
-                <Text variant="text-md/normal" className={Margins.bottom8}>
-                    <ul>
-                        <li>&mdash; Custom QuickCSS</li>
-                        <li>&mdash; Theme Links</li>
-                        <li>&mdash; Plugin Settings</li>
-                    </ul>
-                </Text>
-
-                <Flex>
-                    <Button onClick={() => uploadSettingsBackup()}>
-                        Import Settings
-                    </Button>
-                    <Button onClick={downloadSettingsBackup}>
-                        Export Settings
-                    </Button>
-                </Flex>
-            </Flex>
-        </SettingsTab >
+            <div className="o2s-page">
+                <div className="o2s-hero">
+                    <div className="o2s-grow">
+                        <div className="o2s-hero-title">Backup</div>
+                        <div className="o2s-muted">Save your o2cord settings to a file - your plugins and their settings, theme links and custom CSS. Load it on a new PC or after reinstalling.</div>
+                    </div>
+                </div>
+                <div className="o2s-card">
+                    <div className="o2s-row">
+                        <div>
+                            <div className="o2s-row-title">Save a backup</div>
+                            <div className="o2s-muted">Downloads a .json file</div>
+                        </div>
+                        <Clickable className="o2s-btn" onClick={downloadSettingsBackup}>Save</Clickable>
+                    </div>
+                    <div className="o2s-row">
+                        <div>
+                            <div className="o2s-row-title">Load a backup</div>
+                            <div className="o2s-muted">Replaces your current o2cord settings</div>
+                        </div>
+                        <Clickable className="o2s-btn" onClick={() => uploadSettingsBackup()}>Load</Clickable>
+                    </div>
+                </div>
+            </div>
+        </SettingsTab>
     );
 }
 

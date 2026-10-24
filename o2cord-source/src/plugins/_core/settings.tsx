@@ -17,8 +17,8 @@
 */
 
 import { definePluginSettings } from "@api/Settings";
-import { BackupRestoreIcon, LogIcon, MainSettingsIcon, PaintbrushIcon, PatchHelperIcon, PlaceholderIcon, PluginsIcon, UpdaterIcon, VesktopSettingsIcon } from "@components/Icons";
-import { BackupAndRestoreTab, ChangelogTab, PatchHelperTab, PluginsTab, ThemesTab, UpdaterTab, VencordTab } from "@components/settings/tabs";
+import { BackupRestoreIcon, LogIcon, MainSettingsIcon, PaintbrushIcon, PlaceholderIcon, PluginsIcon, UpdaterIcon, VesktopSettingsIcon } from "@components/Icons";
+import { BackupAndRestoreTab, ChangelogTab, PluginsTab, ThemesTab, UpdaterTab, VencordTab } from "@components/settings/tabs";
 import { Devs } from "@utils/constants";
 import { isTruthy } from "@utils/guards";
 import definePlugin, { IconProps, OptionType } from "@utils/types";
@@ -208,12 +208,7 @@ export default definePlugin({
                 Icon: BackupRestoreIcon
             }),
             // "debug o2" now opens from its own top-bar button (O2DebugButton).
-            !IS_STANDALONE && PatchHelperTab && buildEntry({
-                key: "o2cord_patch_helper",
-                title: "Patch Helper",
-                Component: PatchHelperTab,
-                Icon: PatchHelperIcon
-            }),
+            // Patch Helper was removed entirely at Ryder's request.
             ...this.customEntries.map(buildEntry),
             // TODO: Remove deprecated customSections in a future update
             ...this.customSections.map((func, i) => {

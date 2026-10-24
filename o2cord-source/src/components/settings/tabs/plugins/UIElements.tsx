@@ -90,7 +90,7 @@ function Section(props: {
     );
 }
 
-function UIElementsModal(props: RenderModalProps) {
+export function UIElementsModal(props: RenderModalProps) {
     const { uiElements } = useSettings(["uiElements.*"]);
 
     return (
