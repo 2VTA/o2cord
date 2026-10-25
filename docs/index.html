@@ -70,28 +70,40 @@ details + details { margin-top: 10px; }
 summary { cursor: pointer; font-weight: 600; }
 details p { margin: 10px 0 0; color: var(--muted); }
 
-/* gallery: two profile cards side by side */
+/* gallery: how a profile theme, a USSRO2 background and a nameplate look in Discord */
 .stage { position: relative; aspect-ratio: 16 / 9; container-type: size; border: 1px solid var(--line-strong); border-radius: 14px; background: var(--card); overflow: hidden; }
-.slide { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; gap: clamp(12px, 4cqw, 40px); opacity: 0; transition: opacity 0.7s ease; pointer-events: none; }
+.slide { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; gap: clamp(14px, 4cqw, 44px); opacity: 0; transition: opacity 0.7s ease; pointer-events: none; }
 .slide.on { opacity: 1; pointer-events: auto; }
-.fig { display: flex; flex-direction: column; align-items: center; gap: 10px; }
-.cap { font: 600 13px var(--mono); color: var(--muted); }
-.pcard { position: relative; height: min(78cqh, 44cqw * 1.367); aspect-ratio: 3 / 4.1; border: 1px solid var(--line-strong); border-radius: 14px; overflow: hidden; background: #0b0b0b; box-shadow: 0 10px 40px rgba(0, 0, 0, 0.6); }
+.fig { display: flex; flex-direction: column; align-items: center; gap: 9px; }
+.col { display: flex; flex-direction: column; gap: clamp(12px, 3cqh, 24px); width: 46cqw; }
+.col .fig { align-items: stretch; }
+.cap { font: 600 12px var(--mono); color: var(--muted); text-align: center; }
+
+/* profile theme: the picture behind the whole card */
+.pcard { position: relative; height: min(78cqh, 40cqw * 1.367); aspect-ratio: 3 / 4.1; border: 1px solid var(--line-strong); border-radius: 14px; overflow: hidden; background: #0b0b0b; box-shadow: 0 10px 40px rgba(0, 0, 0, 0.6); }
 .pcard .art { position: absolute; inset: 0; background: var(--img) center / cover no-repeat; }
 .pcard .shade { position: absolute; inset: 0; background: linear-gradient(180deg, rgba(0, 0, 0, 0.05) 30%, rgba(0, 0, 0, 0.88) 100%); }
-.pcard .banner { position: absolute; left: 0; right: 0; top: 0; height: 30%; background: var(--img) 50% var(--pos, 50%) / cover no-repeat; }
-.pcard .body { position: absolute; left: 0; right: 0; bottom: 0; top: 30%; background: #111214; }
-.pcard .av { position: absolute; left: 6%; width: 21%; aspect-ratio: 1; border: 3px solid #000; border-radius: 50%; background: #111 url(assets/logo.png) center / cover; }
-.pcard.theme .av { bottom: 19%; }
-.pcard.us .av { top: 30%; transform: translateY(-50%); }
-.pcard .who { position: absolute; left: 6%; right: 6%; font-size: 12px; color: #cfcfcf; }
+.pcard .av { position: absolute; left: 6%; bottom: 19%; width: 21%; aspect-ratio: 1; border: 3px solid #000; border-radius: 50%; background: #111 url(assets/logo.png) center / cover; }
+.pcard .who { position: absolute; left: 6%; right: 6%; bottom: 6%; font-size: 12px; color: #cfcfcf; }
 .pcard .who b { display: block; margin-bottom: 1px; color: #fff; font: 700 15px var(--sans); }
-.pcard.theme .who { bottom: 6%; }
-.pcard.us .who { top: 40%; }
-.pcard .lines { position: absolute; left: 6%; right: 6%; top: 60%; display: grid; gap: 7px; }
-.pcard .lines i { display: block; height: 7px; border-radius: 4px; background: #232427; }
-.pcard .lines i:nth-child(2) { width: 70%; } .pcard .lines i:nth-child(3) { width: 45%; }
 [dir="rtl"] .pcard .av { left: auto; right: 6%; }
+
+/* USSRO2: the picture fills the tile, the name sits in a pill in the corner */
+.tile { position: relative; aspect-ratio: 1.72; border: 1px solid var(--line-strong); border-radius: 12px; overflow: hidden; background: var(--img) 50% var(--pos, 50%) / cover no-repeat #0b0b0b; box-shadow: 0 8px 30px rgba(0, 0, 0, 0.55); }
+.tile .pill { position: absolute; left: 10px; bottom: 10px; padding: 5px 12px; border-radius: 10px; background: rgba(0, 0, 0, 0.62); color: #fff; font: italic 700 14px var(--sans); }
+[dir="rtl"] .tile .pill { left: auto; right: 10px; }
+
+/* nameplate: a row of Discord's member list with the picture behind the name */
+.np { position: relative; display: flex; align-items: center; gap: 10px; min-height: 36px; aspect-ratio: 6.4; padding: 0 12px; border-radius: 8px; background: #1e1f22; overflow: hidden; color: #23a559; font: 600 13px var(--sans); text-shadow: 0 1px 6px #000; }
+.np .art { position: absolute; inset: 0; background: var(--img) 50% var(--pos, 50%) / cover no-repeat; -webkit-mask-image: linear-gradient(90deg, transparent 4%, #000 60%); mask-image: linear-gradient(90deg, transparent 4%, #000 60%); }
+[dir="rtl"] .np .art { -webkit-mask-image: linear-gradient(270deg, transparent 4%, #000 60%); mask-image: linear-gradient(270deg, transparent 4%, #000 60%); }
+.np > * { position: relative; }
+.np .a { position: relative; flex: none; width: 26px; height: 26px; border-radius: 50%; background: #111 url(assets/logo.png) center / cover; }
+.np .a::after { content: ""; position: absolute; right: -2px; bottom: -2px; width: 10px; height: 10px; border: 2px solid #1e1f22; border-radius: 50%; background: #23a559; }
+.np .chip { display: inline-flex; align-items: center; gap: 4px; padding: 1px 8px; border-radius: 6px; background: rgba(255, 255, 255, 0.14); color: #e6e6e6; font: 600 11px var(--sans); text-shadow: none; }
+.np .chip svg { width: 10px; height: 10px; }
+.np .crown { margin-inline-start: auto; width: 16px; height: 16px; color: #f47fff; }
+
 .stage .navbtn { position: absolute; top: 50%; transform: translateY(-50%); width: 38px; height: 38px; border: 1px solid var(--line-strong); border-radius: 50%; background: rgba(0, 0, 0, 0.7); color: var(--text); font: 22px/1 var(--sans); cursor: pointer; opacity: 0; transition: opacity 0.2s; z-index: 2; }
 .stage:hover .navbtn, .stage:focus-within .navbtn { opacity: 1; }
 .navbtn.prev { left: 12px; } .navbtn.next { right: 12px; }
@@ -114,10 +126,15 @@ footer .row { display: flex; flex-wrap: wrap; gap: 8px 22px; }
     nav a:not(.keep) { display: none; }
     .two { grid-template-columns: minmax(0, 1fr); }
     .hero { padding-top: 56px; }
-    .stage { aspect-ratio: 5 / 4; }
-    .pcard { height: min(80cqh, 46cqw * 1.367); }
+    .stage { aspect-ratio: 1 / 1; }
+    .col { width: 52cqw; }
+    .pcard { height: min(78cqh, 38cqw * 1.367); }
+    .pcard .av { bottom: 25%; }
     .pcard .who b { font-size: 12px; }
     .pcard .who { font-size: 10px; }
+    .tile .pill { font-size: 11px; padding: 3px 8px; left: 6px; bottom: 6px; }
+    .np { font-size: 11px; padding: 0 8px; gap: 6px; }
+    .np .chip { display: none; }
     .stage .navbtn { display: none; }
 }
 </style>
@@ -179,7 +196,7 @@ footer .row { display: flex; flex-wrap: wrap; gap: 8px 22px; }
   <section id="gallery">
     <div class="wrap">
       <h2 data-en="Make it yours" data-ar="خله على كيفك">Make it yours</h2>
-      <p class="sub" data-en="The same profile with a profile theme, and with a USSRO2 banner - side by side." data-ar="نفس البروفايل بثيم بروفايل، وببانر USSRO2 - جنب بعض.">The same profile with a profile theme, and with a USSRO2 banner - side by side.</p>
+      <p class="sub" data-en="This is how a profile theme, a USSRO2 background and a nameplate look in Discord." data-ar="كذا يطلع ثيم البروفايل وخلفية USSRO2 والـ nameplate في ديسكورد.">This is how a profile theme, a USSRO2 background and a nameplate look in Discord.</p>
       <div class="stage" id="gstage">
         <div id="gslides"></div>
         <button class="navbtn prev" id="gprev" type="button" aria-label="Previous">&#8249;</button>
@@ -231,31 +248,36 @@ const MANIFEST = "https://raw.githubusercontent.com/2VTA/o2cord/main/update-pack
 let lang = "en";
 try { lang = localStorage.getItem("o2cord-site-lang") || ((navigator.language || "").startsWith("ar") ? "ar" : "en"); } catch { }
 
-// ---- gallery: add pairs here (put the files in assets/gallery/) ----
-// theme  = picture for the whole profile card (a tall picture works best)
-// banner = picture for the USSRO2 banner strip (a wide picture; pos = where to look, 0-100 % from the top)
+// ---- gallery: one "look" per slide (put the files in assets/gallery/) ----
+// theme  = picture behind the whole profile card (a tall picture works best); it is also cut into the nameplate strip (np = where to look, % from the top)
+// banner = picture for the USSRO2 tile (pos = where to look, % from the top)
 const SLIDES = [
-    { theme: "assets/gallery/t01.webp", banner: "assets/gallery/b01.webp", pos: 40 },
-    { theme: "assets/gallery/t02.webp", banner: "assets/gallery/b02.webp", pos: 38 },
-    { theme: "assets/gallery/t03.webp", banner: "assets/gallery/b03.webp", pos: 35 },
-    { theme: "assets/gallery/t04.webp", banner: "assets/gallery/b04.webp", pos: 50 },
-    { theme: "assets/gallery/t05.webp", banner: "assets/gallery/b05.webp", pos: 57 },
-    { theme: "assets/gallery/t06.webp", banner: "assets/gallery/b06.webp", pos: 62 },
-    { theme: "assets/gallery/t07.webp", banner: "assets/gallery/b07.webp", pos: 42 },
-    { theme: "assets/gallery/t08.webp", banner: "assets/gallery/b08.webp", pos: 30 }
+    { theme: "assets/gallery/t01.webp", banner: "assets/gallery/b01.webp", pos: 45, np: 43 },
+    { theme: "assets/gallery/t02.webp", banner: "assets/gallery/b02.webp", pos: 40, np: 30 },
+    { theme: "assets/gallery/t03.webp", banner: "assets/gallery/b03.webp", pos: 40, np: 39 },
+    { theme: "assets/gallery/t04.webp", banner: "assets/gallery/b04.webp", pos: 50, np: 36 },
+    { theme: "assets/gallery/t05.webp", banner: "assets/gallery/b05.webp", pos: 57, np: 42 },
+    { theme: "assets/gallery/t06.webp", banner: "assets/gallery/b06.webp", pos: 62, np: 24 },
+    { theme: "assets/gallery/t07.webp", banner: "assets/gallery/b07.webp", pos: 42, np: 62 },
+    { theme: "assets/gallery/t08.webp", banner: "assets/gallery/b08.webp", pos: 35, np: 20 }
 ];
 const INTERVAL = 4500;
 let cur = 0, timer = null, held = false;
 const $ = id => document.getElementById(id);
 const reduceMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
 
+const GEM = '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M6 3h12l4 6-10 12L2 9z"/></svg>';
+const CROWN = '<svg class="crown" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M3 8l4.5 4L12 5l4.5 7L21 8l-2 11H5z"/></svg>';
+
 function slideHtml(sl) {
     const ar = lang === "ar";
     const name = "o2cord user";
-    return `<div class="fig"><div class="pcard theme" style="--img:url('${sl.theme}')"><div class="art"></div><div class="shade"></div><div class="av"></div>`
+    return `<div class="fig"><div class="pcard" style="--img:url('${sl.theme}')"><div class="art"></div><div class="shade"></div><div class="av"></div>`
         + `<div class="who"><b>${name}</b>${ar ? "ثيم البروفايل" : "profile theme"}</div></div><div class="cap">${ar ? "ثيم بروفايل" : "Profile theme"}</div></div>`
-        + `<div class="fig"><div class="pcard us" style="--img:url('${sl.banner}');--pos:${sl.pos}%"><div class="body"></div><div class="banner"></div><div class="av"></div>`
-        + `<div class="who"><b>${name}</b>${ar ? "بانر USSRO2" : "USSRO2 banner"}</div><div class="lines"><i></i><i></i><i></i></div></div><div class="cap">USSRO2</div></div>`;
+        + `<div class="col">`
+        + `<div class="fig"><div class="tile" style="--img:url('${sl.banner}');--pos:${sl.pos}%"><span class="pill">${name}</span></div><div class="cap">USSRO2</div></div>`
+        + `<div class="fig"><div class="np" style="--img:url('${sl.theme}');--pos:${sl.np}%"><div class="art"></div><i class="a"></i>${name}<span class="chip">${GEM}o2cord</span>${CROWN}</div><div class="cap">${ar ? "Nameplate" : "Nameplate"}</div></div>`
+        + `</div>`;
 }
 
 function buildGallery() {
