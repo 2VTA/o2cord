@@ -2,4 +2,4 @@
 
 Allows you to zoom in further in the image crop tool when changing your avatar
 
-![](https://discord.gg/ANeQaVbNfZ)
+![](https://discord.gg/f9xG4eTHb9)

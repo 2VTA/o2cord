@@ -123,7 +123,7 @@ const DefaultSettings: Settings = {
 
     cloud: {
         authenticated: false,
-        url: "https://discord.gg/ANeQaVbNfZ",
+        url: "https://discord.gg/f9xG4eTHb9",
         settingsSync: false,
         settingsSyncVersion: 0
     }

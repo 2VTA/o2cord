@@ -2,7 +2,7 @@
 
 This plugin enables Discord rich presence for your Apple Music! (This only works on macOS with the Music app.)
 
-![Screenshot of the activity in Discord](https://discord.gg/ANeQaVbNfZ)
+![Screenshot of the activity in Discord](https://discord.gg/f9xG4eTHb9)
 
 ## Configuration
 

@@ -31,6 +31,14 @@ export interface Release {
 
 export const RELEASES: Release[] = [
     {
+        version: "1.3.57",
+        date: "October 25, 2026",
+        features: [],
+        fixes: [
+            { text: "Every link to a Discord server in o2cord now goes to the o2cord server." }
+        ]
+    },
+    {
         version: "1.3.55",
         date: "October 25, 2026",
         features: [

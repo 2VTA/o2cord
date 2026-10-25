@@ -2,4 +2,4 @@
 
 Makes YouTube embed titles and thumbnails less sensationalist, powered by [Dearrow](https://dearrow.ajay.app/)
 
-https://discord.gg/ANeQaVbNfZ
+https://discord.gg/f9xG4eTHb9
