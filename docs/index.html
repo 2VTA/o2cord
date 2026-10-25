@@ -1,0 +1,202 @@
+<!doctype html>
+<html lang="en" dir="ltr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>o2cord - Discord, your way</title>
+<meta name="description" content="o2cord is a free Discord client mod for Windows: themes, profile tools, Retro Terminal and more.">
+<meta property="og:title" content="o2cord">
+<meta property="og:description" content="Discord, your way. A free client mod for Windows.">
+<meta property="og:image" content="https://2vta.github.io/o2cord/assets/main.webp">
+<link rel="icon" href="assets/favicon.png">
+<style>
+:root {
+    --bg: #000;
+    --card: #0a0a0a;
+    --text: #ececec;
+    --muted: #8c8c8c;
+    --line: #222;
+    --line-strong: #3a3a3a;
+    --mono: ui-monospace, "Cascadia Mono", "SF Mono", Consolas, monospace;
+    --sans: system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans Arabic", sans-serif;
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.65 var(--sans); }
+a { color: inherit; }
+.wrap { width: min(1040px, 100% - 40px); margin: 0 auto; }
+
+/* top bar */
+header { position: sticky; top: 0; z-index: 10; background: rgba(0, 0, 0, 0.85); backdrop-filter: blur(8px); border-bottom: 1px solid var(--line); }
+.bar { display: flex; align-items: center; gap: 22px; height: 60px; }
+.brand { display: flex; align-items: center; gap: 10px; font: 700 18px var(--mono); text-decoration: none; }
+.brand img { width: 28px; height: 28px; border-radius: 6px; }
+nav { display: flex; gap: 20px; margin-inline-start: auto; font-size: 14px; color: var(--muted); }
+nav a { text-decoration: none; }
+nav a:hover { color: var(--text); }
+.lang { padding: 5px 12px; border: 1px solid var(--line-strong); border-radius: 8px; background: none; color: var(--text); font: 600 13px var(--mono); cursor: pointer; }
+.lang:hover { background: #151515; }
+
+/* hero */
+.hero { padding: 84px 0 56px; text-align: center; }
+.hero h1 { margin: 0 0 16px; font: 700 clamp(38px, 7vw, 68px)/1.08 var(--mono); letter-spacing: -0.02em; }
+.hero p.lead { max-width: 600px; margin: 0 auto 32px; color: var(--muted); font-size: 18px; }
+.actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; }
+.btn { display: inline-flex; align-items: center; gap: 8px; padding: 13px 24px; border: 1px solid var(--line-strong); border-radius: 10px; font: 600 15px var(--sans); text-decoration: none; transition: background 0.15s; }
+.btn:hover { background: #151515; }
+.btn.primary { background: #fff; border-color: #fff; color: #000; }
+.btn.primary:hover { background: #d9d9d9; }
+.meta { margin-top: 16px; color: var(--muted); font: 13px var(--mono); }
+.shot { margin: 56px auto 0; max-width: 560px; border: 1px solid var(--line-strong); border-radius: 14px; overflow: hidden; }
+.shot img { display: block; width: 100%; height: auto; }
+
+/* sections */
+section { padding: 64px 0; border-top: 1px solid var(--line); }
+h2 { margin: 0 0 8px; font: 700 28px var(--mono); }
+.sub { margin: 0 0 32px; color: var(--muted); }
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(290px, 1fr)); gap: 14px; }
+.card { padding: 20px; border: 1px solid var(--line); border-radius: 12px; background: var(--card); }
+.card h3 { margin: 0 0 6px; font: 600 16px var(--mono); }
+.card p { margin: 0; color: var(--muted); font-size: 15px; }
+.two { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 32px; align-items: center; }
+.two img { width: 100%; height: auto; border: 1px solid var(--line-strong); border-radius: 14px; }
+.steps { counter-reset: s; list-style: none; padding: 0; margin: 0; display: grid; gap: 14px; }
+.steps li { counter-increment: s; display: flex; gap: 14px; align-items: flex-start; padding: 16px 18px; border: 1px solid var(--line); border-radius: 12px; background: var(--card); }
+.steps li::before { content: counter(s); flex: none; display: grid; place-items: center; width: 28px; height: 28px; border: 1px solid var(--line-strong); border-radius: 50%; font: 600 13px var(--mono); }
+.note { margin-top: 18px; color: var(--muted); font-size: 14px; }
+details { border: 1px solid var(--line); border-radius: 12px; background: var(--card); padding: 14px 18px; }
+details + details { margin-top: 10px; }
+summary { cursor: pointer; font-weight: 600; }
+details p { margin: 10px 0 0; color: var(--muted); }
+
+footer { padding: 32px 0 48px; border-top: 1px solid var(--line); color: var(--muted); font-size: 14px; }
+footer .row { display: flex; flex-wrap: wrap; gap: 8px 22px; }
+
+[dir="rtl"] .steps li, [dir="rtl"] .card, [dir="rtl"] details { text-align: right; }
+
+@media (max-width: 760px) {
+    nav a:not(.keep) { display: none; }
+    .two { grid-template-columns: minmax(0, 1fr); }
+    .hero { padding-top: 56px; }
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap bar">
+    <a class="brand" href="#top"><img src="assets/logo.png" alt="">o2cord</a>
+    <nav>
+      <a href="#features" data-en="Features" data-ar="المميزات">Features</a>
+      <a href="#install" data-en="Install" data-ar="التثبيت">Install</a>
+      <a href="#faq" data-en="FAQ" data-ar="أسئلة">FAQ</a>
+      <a class="keep" href="https://discord.gg/f9xG4eTHb9" data-en="Discord" data-ar="الديسكورد">Discord</a>
+    </nav>
+    <button class="lang" id="lang" type="button" aria-label="Language">عربي</button>
+  </div>
+</header>
+
+<main id="top">
+  <div class="wrap hero">
+    <h1 data-en="Discord, your way." data-ar="ديسكورد على كيفك.">Discord, your way.</h1>
+    <p class="lead" data-en="o2cord is a free client mod for Discord on Windows. Pick a theme, dress up your profile, turn Discord into an old terminal screen, and switch off the parts you don't want."
+       data-ar="o2cord إضافة مجانية لديسكورد على ويندوز. اختر ثيم، جمّل بروفايلك، حوّل ديسكورد لشاشة تيرمنال قديمة، واطفي الأشياء اللي ما تبيها.">
+       o2cord is a free client mod for Discord on Windows. Pick a theme, dress up your profile, turn Discord into an old terminal screen, and switch off the parts you don't want.</p>
+    <div class="actions">
+      <a class="btn primary" id="download" href="https://github.com/2VTA/o2cord/releases/latest/download/o2cord-Installer-Public.exe" data-en="Download for Windows" data-ar="تحميل لويندوز">Download for Windows</a>
+      <a class="btn" href="https://discord.gg/f9xG4eTHb9" data-en="Join the Discord server" data-ar="ادخل السيرفر">Join the Discord server</a>
+    </div>
+    <div class="meta"><span id="version"></span><span data-en="Windows 10 / 11 · about 160 MB · Discord Stable, PTB or Canary" data-ar="ويندوز 10 / 11 · حوالي 160 ميجا · ديسكورد Stable أو PTB أو Canary">Windows 10 / 11 · about 160 MB · Discord Stable, PTB or Canary</span></div>
+    <div class="shot"><img src="assets/main.webp" alt="o2cord settings page"></div>
+  </div>
+
+  <section id="features">
+    <div class="wrap">
+      <h2 data-en="What you get" data-ar="وش تحصل">What you get</h2>
+      <p class="sub" data-en="Simple switches for everyday things, and plenty more when you want it." data-ar="مفاتيح بسيطة للأشياء اليومية، والكثير لما تبي زيادة.">Simple switches for everyday things, and plenty more when you want it.</p>
+      <div class="grid">
+        <div class="card"><h3>Retro Terminal</h3><p data-en="Turn Discord into an old CRT screen: phosphor colours, glow, scanlines, a boot screen. Double-click the card to tune it." data-ar="حوّل ديسكورد لشاشة CRT قديمة: ألوان فوسفور، توهج، خطوط، وشاشة إقلاع. دبل كليك على الكرت وعدّل عليه.">Turn Discord into an old CRT screen: phosphor colours, glow, scanlines, a boot screen. Double-click the card to tune it.</p></div>
+        <div class="card"><h3 data-en="Your profile" data-ar="بروفايلك">Your profile</h3><p data-en="Custom profile, profile themes, nameplates, a typing phrase and profile songs - and you can see other people's too." data-ar="بروفايل مخصص، ثيمات بروفايل، nameplates، جملة كتابة وأغاني بروفايل، وتشوف حق غيرك بعد.">Custom profile, profile themes, nameplates, a typing phrase and profile songs - and you can see other people's too.</p></div>
+        <div class="card"><h3 data-en="Quick switches" data-ar="مفاتيح سريعة">Quick switches</h3><p data-en="Hide the Shop, Quests and Nitro tab, hide the spectators list, cut blur and animations - one click each." data-ar="اخفي المتجر والكويستات وتاب النيترو وقائمة المشاهدين، وقلل التغبيش والحركات، بضغطة لكل واحد.">Hide the Shop, Quests and Nitro tab, hide the spectators list, cut blur and animations - one click each.</p></div>
+        <div class="card"><h3 data-en="Voice and streaming" data-ar="الصوت والبث">Voice and streaming</h3><p data-en="AntiMoveDeco puts you back in your voice channel if someone moves or disconnects you. A picture for your stream panel too." data-ar="AntiMoveDeco يرجعك لروم الصوت لو أحد نقلك أو فصلك. وصورة للوحة بثك.">AntiMoveDeco puts you back in your voice channel if someone moves or disconnects you. A picture for your stream panel too.</p></div>
+        <div class="card"><h3 data-en="Rich presence" data-ar="Rich Presence">Rich presence</h3><p data-en="Your own status window with saved presets, a live preview and your own pictures and buttons." data-ar="نافذة لحالتك مع إعدادات محفوظة، ومعاينة مباشرة، وصورك وأزرارك.">Your own status window with saved presets, a live preview and your own pictures and buttons.</p></div>
+        <div class="card"><h3 data-en="Plugins and themes" data-ar="بلقنات وثيمات">Plugins and themes</h3><p data-en="Hundreds of plugins and your own CSS themes, with search and a one-click on/off for each." data-ar="مئات البلقنات وثيمات CSS حقتك، مع بحث وتشغيل وإطفاء بضغطة.">Hundreds of plugins and your own CSS themes, with search and a one-click on/off for each.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="wrap two">
+      <div>
+        <h2 data-en="Simple on purpose" data-ar="بسيط عن قصد">Simple on purpose</h2>
+        <p class="sub" data-en="One clean page for the things you change most. Filter plugins with a click, find your themes straight away, and keep a backup of your settings." data-ar="صفحة وحدة نظيفة لأكثر الأشياء اللي تغيّرها. فلتر البلقنات بضغطة، ولقى ثيماتك على طول، واحفظ نسخة من إعداداتك.">One clean page for the things you change most. Filter plugins with a click, find your themes straight away, and keep a backup of your settings.</p>
+      </div>
+      <img src="assets/plugins.webp" alt="o2cord plugins page" loading="lazy">
+    </div>
+  </section>
+
+  <section id="install">
+    <div class="wrap">
+      <h2 data-en="Install in a minute" data-ar="ثبّت بدقيقة">Install in a minute</h2>
+      <p class="sub" data-en="You don't need to know anything technical." data-ar="ما تحتاج تفهم بالتقنية.">You don't need to know anything technical.</p>
+      <ol class="steps">
+        <li data-en="Download the installer with the button above." data-ar="نزّل المثبّت من الزر فوق.">Download the installer with the button above.</li>
+        <li data-en="Close Discord, then open the file you downloaded." data-ar="سكّر ديسكورد، وافتح الملف اللي نزّلته.">Close Discord, then open the file you downloaded.</li>
+        <li data-en="Choose your Discord (Stable, PTB or Canary) and press Install." data-ar="اختر ديسكوردك (Stable أو PTB أو Canary) واضغط Install.">Choose your Discord (Stable, PTB or Canary) and press Install.</li>
+        <li data-en="Open Discord, go to Settings and find the o2cord section." data-ar="افتح ديسكورد، وروح الإعدادات، ولقى قسم o2cord.">Open Discord, go to Settings and find the o2cord section.</li>
+      </ol>
+      <p class="note" data-en="Windows may show a blue 'Windows protected your PC' box because the installer isn't code-signed. Press More info, then Run anyway. o2cord updates itself after that." data-ar="ويندوز ممكن يطلع صندوق أزرق 'Windows protected your PC' لأن المثبّت غير موقّع. اضغط More info ثم Run anyway. وo2cord يحدّث نفسه بعدها.">Windows may show a blue "Windows protected your PC" box because the installer isn't code-signed. Press More info, then Run anyway. o2cord updates itself after that.</p>
+    </div>
+  </section>
+
+  <section id="faq">
+    <div class="wrap">
+      <h2 data-en="Questions" data-ar="أسئلة">Questions</h2>
+      <p class="sub"></p>
+      <details><summary data-en="Is it free?" data-ar="هو مجاني؟">Is it free?</summary><p data-en="Yes." data-ar="إيه.">Yes.</p></details>
+      <details><summary data-en="Can I check what it does?" data-ar="أقدر أشيّك وش يسوي؟">Can I check what it does?</summary><p data-en="The source code is public on GitHub, so you can read it yourself." data-ar="الكود مفتوح على GitHub، تقدر تقراه بنفسك.">The source code is public on GitHub, so you can read it yourself.</p></details>
+      <details><summary data-en="How do I remove it?" data-ar="كيف أشيله؟">How do I remove it?</summary><p data-en="Run the installer again and choose Uninstall." data-ar="شغّل المثبّت مرة ثانية واختر Uninstall.">Run the installer again and choose Uninstall.</p></details>
+      <details><summary data-en="Is this allowed by Discord?" data-ar="ديسكورد يسمح فيه؟">Is this allowed by Discord?</summary><p data-en="Client mods go against Discord's Terms of Service, so use o2cord at your own risk. We're not affiliated with Discord." data-ar="إضافات الكلاينت ضد شروط خدمة ديسكورد، فاستخدم o2cord على مسؤوليتك. وما لنا علاقة بديسكورد.">Client mods go against Discord's Terms of Service, so use o2cord at your own risk. We're not affiliated with Discord.</p></details>
+      <details><summary data-en="Something broke - where do I ask?" data-ar="صار شي خربان - وين أسأل؟">Something broke - where do I ask?</summary><p data-en="Join the Discord server and tell us what happened." data-ar="ادخل السيرفر وقولنا وش صار.">Join the Discord server and tell us what happened.</p></details>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap row">
+    <span>o2cord</span>
+    <a href="https://github.com/2VTA/o2cord">GitHub</a>
+    <a href="https://discord.gg/f9xG4eTHb9">Discord</a>
+    <span data-en="Not affiliated with Discord." data-ar="ما لنا علاقة بديسكورد.">Not affiliated with Discord.</span>
+  </div>
+</footer>
+
+<script>
+const MANIFEST = "https://raw.githubusercontent.com/2VTA/o2cord/main/update-package/public/manifest.json";
+let lang = "en";
+try { lang = localStorage.getItem("o2cord-site-lang") || ((navigator.language || "").startsWith("ar") ? "ar" : "en"); } catch { }
+
+function apply() {
+    document.documentElement.lang = lang;
+    document.documentElement.dir = lang === "ar" ? "rtl" : "ltr";
+    document.querySelectorAll("[data-en]").forEach(el => { el.textContent = el.dataset[lang]; });
+    document.getElementById("lang").textContent = lang === "ar" ? "EN" : "عربي";
+    const v = document.getElementById("version");
+    if (v.dataset.v) v.textContent = (lang === "ar" ? "النسخة " : "Version ") + v.dataset.v + " · ";
+}
+document.getElementById("lang").addEventListener("click", () => {
+    lang = lang === "ar" ? "en" : "ar";
+    try { localStorage.setItem("o2cord-site-lang", lang); } catch { }
+    apply();
+});
+apply();
+
+// show the current o2cord version next to the download button
+fetch(MANIFEST + "?t=" + Date.now()).then(r => r.json()).then(m => {
+    if (!m.version) return;
+    document.getElementById("version").dataset.v = m.version;
+    apply();
+}).catch(() => { });
+</script>
+</body>
+</html>
