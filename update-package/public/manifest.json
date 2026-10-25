@@ -1,8 +1,8 @@
 {
-    "version":  "1.3.55",
-    "hash":  "public-20261025080223",
+    "version":  "1.3.56",
+    "hash":  "public-20261025084623",
     "author":  "o2cord",
-    "message":  "Double-click Retro Terminal card for settings",
+    "message":  "O2AccessCheck",
     "notes":  [
                   "Public o2cord update package",
                   "ussro2 backgrounds are loaded from backgrounds.json beside this manifest",
