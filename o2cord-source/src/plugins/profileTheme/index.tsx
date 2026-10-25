@@ -1120,17 +1120,54 @@ async function pickLocalImage() {
     return readFileAsDataUrl(file);
 }
 
+const DEFAULT_BRIGHTNESS = 0.6;
+
 export function PublicProfileThemeSettings() {
-    const [brightness, setBrightness] = React.useState(settings.store.brightness ?? 0.6);
+    const [brightness, setBrightness] = React.useState(settings.store.brightness ?? DEFAULT_BRIGHTNESS);
+    // bumping this remounts the slider so "Reset" visibly moves it
+    const [sliderKey, setSliderKey] = React.useState(0);
+    const myId = UserStore.getCurrentUser()?.id ?? "";
+    const [myImage, setMyImage] = React.useState(() => (myId ? getImageUrlForUser(myId) : ""));
+
+    React.useEffect(() => {
+        if (!myId) return;
+        let cancelled = false;
+        void refreshProfileThemeRegistry(true).then(() => {
+            if (!cancelled) setMyImage(getImageUrlForUser(myId));
+        });
+        return () => { cancelled = true; };
+    }, [myId]);
+
+    const resetBrightness = () => {
+        setBrightness(DEFAULT_BRIGHTNESS);
+        settings.store.brightness = DEFAULT_BRIGHTNESS;
+        setSliderKey(k => k + 1);
+        refreshProfileThemeRegistry();
+        refreshProfileTheme();
+    };
 
     return (
         <Forms.FormSection className="o2-profile-theme-settings">
-            <Forms.FormTitle tag="h3">Profile Theme</Forms.FormTitle>
+            <Forms.FormTitle tag="h3">Profile images</Forms.FormTitle>
             <Forms.FormText>
-                Shows a decorative background image on selected profiles across o2cord.
+                A picture behind a profile card, for people the o2cord team set one up for. You see theirs, and they see yours.
             </Forms.FormText>
-            <Forms.FormTitle tag="h5">Brightness</Forms.FormTitle>
+
+            <Forms.FormTitle tag="h5" className={Margins.top16}>Your profile image</Forms.FormTitle>
+            {myImage ? (
+                <div className="o2-profile-theme-mine">
+                    <div className="o2-profile-theme-mine-picture" style={{ backgroundImage: `url("${cssString(myImage)}")` }} />
+                    <Forms.FormText>This is the picture shown behind your profile for everyone using o2cord.</Forms.FormText>
+                </div>
+            ) : (
+                <Forms.FormText>
+                    You don't have one yet. Use the Callie button at the top of Discord, pick "Profile theme" and send your picture.
+                </Forms.FormText>
+            )}
+
+            <Forms.FormTitle tag="h5" className={Margins.top16}>Brightness: {Math.round(brightness * 100)}%</Forms.FormTitle>
             <Slider
+                key={sliderKey}
                 initialValue={brightness}
                 minValue={0.1}
                 maxValue={1}
@@ -1143,6 +1180,9 @@ export function PublicProfileThemeSettings() {
                 }}
                 onValueRender={value => `${Math.round(value * 100)}%`}
             />
+            <Button size={Button.Sizes.SMALL} color={Button.Colors.PRIMARY} className={Margins.top8} onClick={resetBrightness}>
+                Reset brightness
+            </Button>
         </Forms.FormSection>
     );
 }

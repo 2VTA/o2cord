@@ -374,3 +374,19 @@ html.o2-profile-theme-active .o2-profile-theme-target [class*="fill_b83360"],
 html.o2-profile-theme-active [data-o2-profile-theme-target="true"] [class*="fill_b83360"] {
     background-color: transparent !important;
 }
+
+/* ProfileImages settings: a small preview of your own profile image */
+.o2-profile-theme-mine {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
+
+.o2-profile-theme-mine-picture {
+    flex: none;
+    width: 96px;
+    height: 132px;
+    border-radius: 10px;
+    border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.12));
+    background: #0b0b0b center / cover no-repeat;
+}

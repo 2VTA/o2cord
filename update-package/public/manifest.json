@@ -1,8 +1,8 @@
 {
-    "version":  "1.3.59",
-    "hash":  "public-20261025171454",
+    "version":  "1.3.60",
+    "hash":  "public-20261025180702",
     "author":  "o2cord",
-    "message":  "Screen share picture button with viewers",
+    "message":  "Profile Images preview + reset, Custom Profile badges fix, updates no longer force a restart",
     "notes":  [
                   "Public o2cord update package",
                   "ussro2 backgrounds are loaded from backgrounds.json beside this manifest",
