@@ -32,6 +32,11 @@ import {
     O2_LOCAL_BADGES_KEY,
     O2_LOCAL_BADGES_UPDATED_EVENT,
     O2_PRESET_BADGES,
+    O2_BUILTIN_RARITY_NUMBER,
+    O2_FIRST_CUSTOM_RARITY_NUMBER,
+    O2_FRIEND_RARITY_NUMBER,
+    O2BadgeRarity,
+    O2CustomRarity,
     O2LocalBadge
 } from "@utils/o2BadgePresets";
 import definePlugin from "@utils/types";
@@ -44,6 +49,8 @@ import o2CrownImage from "./o2CrownImage";
 let O2LocalBadges = [] as O2LocalBadge[];
 let O2HiddenBadgeIds = [] as string[];
 let O2RemoteBadges = [] as O2LocalBadge[];
+// badge categories made from Callie (badge-rarities.json); Friend is built in
+let O2CustomRarities = [] as O2CustomRarity[];
 let remoteBadgeRefreshPromise: Promise<void> | null = null;
 let remoteBadgeRefreshTimer: number | undefined;
 let lastRemoteBadgeRefresh = 0;
@@ -168,6 +175,64 @@ function normalizeBadgeLink(value: unknown) {
     }
 }
 
+function normalizeBadgeRarity(value: unknown, name: string): O2BadgeRarity {
+    const text = typeof value === "string" ? value.trim().toLowerCase().slice(0, 40) : "";
+    if (text === "legendary" || text === "mythic") return "mythic";
+    if (text) return text; // a built-in name, "friend", or the id of a Callie category (checked when it is used)
+    // no rarity saved: Friend badges get their own FRIEND label, everything else epic like before
+    return name.trim().toLowerCase() === "friend" ? "friend" : "epic";
+}
+
+const FRIEND_RARITY: O2CustomRarity = { id: "friend", name: "Friend", color: "#ff8a1f", icon: "" };
+
+// The made-up number for a category: friend is 100, Callie's categories follow in the file's order.
+function rarityNumberOf(id: string): number {
+    if (id in O2_BUILTIN_RARITY_NUMBER) return O2_BUILTIN_RARITY_NUMBER[id];
+    if (id === "friend") return O2_FRIEND_RARITY_NUMBER;
+    const index = O2CustomRarities.findIndex(r => r.id === id);
+    return index >= 0 ? O2_FIRST_CUSTOM_RARITY_NUMBER + index : O2_BUILTIN_RARITY_NUMBER.epic;
+}
+
+function customRarityByNumber(number: number): O2CustomRarity | undefined {
+    if (number === O2_FRIEND_RARITY_NUMBER) return FRIEND_RARITY;
+    return O2CustomRarities[number - O2_FIRST_CUSTOM_RARITY_NUMBER];
+}
+
+function normalizeCustomRarities(raw: unknown): O2CustomRarity[] {
+    const list = Array.isArray((raw as any)?.rarities) ? (raw as any).rarities : [];
+    const out: O2CustomRarity[] = [];
+    for (const item of list) {
+        const id = normalizeBadgeText(item?.id).toLowerCase();
+        const name = normalizeBadgeText(item?.name).slice(0, 24);
+        const color = normalizeBadgeText(item?.color);
+        const icon = normalizeBadgeLink(item?.icon);
+        if (!/^[a-z0-9-]{1,32}$/.test(id) || !name || !/^#[0-9a-f]{6}$/i.test(color) || !icon) continue;
+        if (id in O2_BUILTIN_RARITY_NUMBER || id === "friend" || id === "legendary" || out.some(r => r.id === id)) continue;
+        out.push({ id, name, color, icon });
+        if (out.length >= 90) break;
+    }
+    return out;
+}
+
+// Colours of the label pills: Discord only has its own four, so ours get a rule each
+// (picked by the picture inside the pill, which is unique per category).
+function updateRarityStyle() {
+    const css = [FRIEND_RARITY, ...O2CustomRarities].map(r => {
+        const sel = `[class*="rarity-"]:has(> .o2-rarity-icon-${r.id})`;
+        // the ring around the pill is a ::before painted with Discord's own mythic gradient
+        return `${sel}{color:${r.color}!important;border-color:${r.color}!important;background:color-mix(in srgb,${r.color} 16%,transparent)!important;box-shadow:0 0 8px color-mix(in srgb,${r.color} 40%,transparent)!important}`
+            + `${sel}::before{background-image:linear-gradient(-78deg,${r.color},color-mix(in srgb,${r.color} 55%,#fff))!important}`;
+    }).join("\n");
+
+    let style = document.getElementById("o2-badge-rarity-style") as HTMLStyleElement | null;
+    if (!style) {
+        style = document.createElement("style");
+        style.id = "o2-badge-rarity-style";
+        document.head.append(style);
+    }
+    if (style.textContent !== css) style.textContent = css;
+}
+
 function normalizeSharedBadge(rawBadge: unknown, fallbackUserId = "", fallbackIndex = 0): O2LocalBadge | null {
     if (!rawBadge || typeof rawBadge !== "object" || Array.isArray(rawBadge)) return null;
 
@@ -184,7 +249,8 @@ function normalizeSharedBadge(rawBadge: unknown, fallbackUserId = "", fallbackIn
         image,
         size: normalizeBadgeSize(badge.size),
         link: normalizeBadgeLink(badge.link),
-        enabled: badge.enabled !== false
+        enabled: badge.enabled !== false,
+        rarity: normalizeBadgeRarity(badge.rarity, name)
     };
 }
 
@@ -227,6 +293,29 @@ function cleanSharedBadges(raw: unknown): O2LocalBadge[] {
     return [...byId.values()];
 }
 
+function getRaritiesUrl() {
+    const manifestUrl = typeof O2CORD_UPDATE_MANIFEST === "string" ? O2CORD_UPDATE_MANIFEST.trim() : "";
+    if (!manifestUrl) return "";
+
+    try {
+        return new URL("badge-rarities.json", manifestUrl).href;
+    } catch {
+        return "";
+    }
+}
+
+async function refreshO2Rarities() {
+    const url = getRaritiesUrl();
+    if (!url) return;
+
+    try {
+        const res = await fetchWithGithubFallback(`${url}?t=${Date.now()}`, { cache: "no-store" });
+        if (!res.ok) return;
+        O2CustomRarities = normalizeCustomRarities(await res.json());
+        updateRarityStyle();
+    } catch { /* no categories yet - only Friend and Discord's own */ }
+}
+
 function getSharedBadgesUrl() {
     const manifestUrl = typeof O2CORD_UPDATE_MANIFEST === "string" ? O2CORD_UPDATE_MANIFEST.trim() : "";
     if (!manifestUrl) return "";
@@ -261,6 +350,7 @@ async function refreshO2RemoteBadges(force = false) {
         .then(async res => {
             if (!res.ok) throw new Error(`o2cord badges registry returned ${res.status}`);
 
+            void refreshO2Rarities();
             const nextBadges = cleanSharedBadges(await res.json());
             const previous = JSON.stringify(O2RemoteBadges);
             const next = JSON.stringify(nextBadges);
@@ -352,12 +442,81 @@ export function BadgeContextMenu({ badge }: { badge: Omit<ProfileBadge, "id"> & 
     );
 }
 
+// the picture in a category's label: the heart for Friend, the picture from Callie for the others
+const RarityIcon = ({ rarity, className }: { rarity: O2CustomRarity; className?: string; }) => rarity.id === "friend" ? (
+    <svg className={`${className ?? ""} o2-rarity-icon-friend`} width="12" height="12" viewBox="0 0 24 24" aria-hidden="true">
+        <path fill="#ff8a1f" d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" />
+    </svg>
+) : (
+    <img className={`${className ?? ""} o2-rarity-icon-${rarity.id}`} src={rarity.icon} width={12} height={12} alt="" aria-hidden="true" draggable={false} style={{ objectFit: "contain" }} />
+);
+
+// a stable number for each of our badges, far above the ids Discord uses for its own
+function directoryBadgeId(id: string) {
+    let hash = 0;
+    for (let i = 0; i < id.length; i++) hash = (hash * 31 + id.charCodeAt(i)) | 0;
+    return 1_000_000 + (Math.abs(hash) % 1_000_000_000);
+}
+
 export default definePlugin({
     name: "BadgeAPI",
     description: "API to add badges to users",
     authors: [Devs.Megu, Devs.Ven, Devs.TheSun],
     required: true,
+    // the rarity label of a badge in the "Your badges" panel, for our numbers (100 = Friend, 101+ = Callie's categories)
+    customRarityPill(number: number) {
+        const rarity = typeof number === "number" ? customRarityByNumber(number) : undefined;
+        if (!rarity) return null;
+
+        return {
+            type: { text: rarity.name.toUpperCase() },
+            variant: "rarity-mythic",
+            icon: (props: { className?: string; }) => <RarityIcon rarity={rarity} className={props?.className} />
+        };
+    },
+
+    // the small rarity icon in badge tooltips
+    customRarityIcon(number: number, className: string) {
+        const rarity = typeof number === "number" ? customRarityByNumber(number) : undefined;
+        if (!rarity) return null;
+
+        return {
+            Icon: (props: { className?: string; }) => <RarityIcon rarity={rarity} className={props?.className} />,
+            className,
+            label: rarity.name
+        };
+    },
+
     patches: [
+        {
+            find: 'variant:"rarity-mythic"',
+            replacement: {
+                match: /(switch\((\i)\)\{case \i\.\i\.COMMON:return\{type:.+?)default:return null/,
+                replace: "$1default:return $self.customRarityPill($2)"
+            }
+        },
+        {
+            find: "mini-premium-tooltip",
+            replacement: {
+                match: /(switch\((\i)\)\{case \i\.\i\.COMMON:return\{Icon:.+?MYTHIC:return\{Icon:\i\.\i,className:(\i\.\i),.+?)default:return null/,
+                replace: "$1default:return $self.customRarityIcon($2,$3)"
+            }
+        },
+        {
+            // Discord's "Your badges" panel reads its list from this store: add ours to it so
+            // the o2cord badges show there too, and can be selected for the details on the right
+            find: "BadgeDirectoryStore",
+            replacement: [
+                {
+                    match: /(getBadges\(\i\)\{let (\i)=.{0,120}?;return )(null!=\i\?Array\.from\(\i\.badges\.values\(\)\):\[\])/,
+                    replace: "$1$self.addDirectoryBadges($2,$3)"
+                },
+                {
+                    match: /(getBadgeById\(\i,\i\)\{let (\i)=.{0,60}?;return null!=\i\?)(\i\.get\(\i\)\?\.badges\.get\((\i)\))(?=:void 0\})/,
+                    replace: "$1($3??$self.getDirectoryBadgeById($2,$4))"
+                }
+            ]
+        },
         {
             find: "#{intl::PROFILE_USER_BADGES}",
             replacement: [
@@ -405,6 +564,7 @@ export default definePlugin({
         window.addEventListener(O2_LOCAL_BADGES_UPDATED_EVENT, onO2LocalBadgesUpdated);
         window.addEventListener(O2_HIDDEN_BADGES_UPDATED_EVENT, onO2HiddenBadgesUpdated);
 
+        updateRarityStyle();
         void refreshO2RemoteBadges(true);
         remoteBadgeRefreshTimer = window.setInterval(() => void refreshO2RemoteBadges(true), O2_SHARED_BADGES_REFRESH_MS);
         clearInterval(intervalId);
@@ -412,6 +572,7 @@ export default definePlugin({
     },
 
     async stop() {
+        document.getElementById("o2-badge-rarity-style")?.remove();
         clearInterval(intervalId);
         if (remoteBadgeRefreshTimer) window.clearInterval(remoteBadgeRefreshTimer);
         remoteBadgeRefreshTimer = undefined;
@@ -473,17 +634,57 @@ export default definePlugin({
         return [...custom, ...(nativeBadges ?? [])];
     },
 
+    // our badges as entries of Discord's own badge directory (what the "Your badges" panel lists)
+    getDirectoryBadges(userId: string) {
+        return this.getO2BadgeRecords(userId).map((badge, idx) => ({
+            badge_id: directoryBadgeId(`o2cord_local_badge_${badge.id || idx}`),
+            name: badge.name,
+            description: badge.name,
+            info_label: "o2cord badge",
+            rarity: rarityNumberOf(normalizeBadgeRarity(badge.rarity, badge.name)),
+            simple_icon_url: badge.image,
+            simple_icon_raster_url: badge.image,
+            complex_icon_static_url: badge.image,
+            is_earnable: false,
+            owned: true,
+            hidden: false
+        }));
+    },
+
+    addDirectoryBadges(userId: string, nativeBadges: any[]) {
+        try {
+            const custom = this.getDirectoryBadges(userId);
+            return custom.length ? [...nativeBadges, ...custom] : nativeBadges;
+        } catch (e) {
+            new Logger("BadgeAPI#addDirectoryBadges").error(e);
+            return nativeBadges;
+        }
+    },
+
+    getDirectoryBadgeById(userId: string, badgeId: number) {
+        try {
+            return this.getDirectoryBadges(userId).find(badge => badge.badge_id === badgeId);
+        } catch {
+            return undefined;
+        }
+    },
+
+    // every badge a user has (shared, published and local), in the order they show
+    getO2BadgeRecords(userId: string): O2LocalBadge[] {
+        void refreshO2RemoteBadges();
+
+        const badgesById = new Map<string, O2LocalBadge>();
+        for (const badge of O2SharedBadges) badgesById.set(badge.id, badge);
+        for (const badge of O2RemoteBadges) badgesById.set(badge.id, badge);
+        for (const badge of O2LocalBadges) badgesById.set(badge.id, badge);
+
+        return [...badgesById.values()]
+            .filter(badge => badge.userId === userId && badge.image && badge.name && badge.enabled !== false);
+    },
+
     getO2LocalBadges(userId: string): ProfileBadge[] {
         try {
-            void refreshO2RemoteBadges();
-
-            const badgesById = new Map<string, O2LocalBadge>();
-            for (const badge of O2SharedBadges) badgesById.set(badge.id, badge);
-            for (const badge of O2RemoteBadges) badgesById.set(badge.id, badge);
-            for (const badge of O2LocalBadges) badgesById.set(badge.id, badge);
-
-            return [...badgesById.values()]
-                .filter(badge => badge.userId === userId && badge.image && badge.name && badge.enabled !== false)
+            return this.getO2BadgeRecords(userId)
                 .map((badge, idx) => {
                     const badgeSize = getO2BadgeSize(badge.size);
                     const link = badge.link;

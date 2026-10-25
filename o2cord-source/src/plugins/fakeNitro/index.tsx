@@ -121,6 +121,12 @@ const settings = definePluginSettings({
         default: true,
         restartNeeded: true
     },
+    enableSoundboardBypass: {
+        description: "Open the Soundboard for everyone: sounds from other servers and your own join sound",
+        type: OptionType.BOOLEAN,
+        default: true,
+        restartNeeded: true
+    },
     useHyperLinks: {
         description: "Whether to use hyperlinks when sending fake emojis and stickers",
         type: OptionType.BOOLEAN,
@@ -207,6 +213,16 @@ export default definePlugin({
                     match: /(?<=canStreamQuality:function\(\i,\i\)\{)/,
                     replace: "return true;",
                     predicate: () => settings.store.enableStreamQualityBypass
+                },
+                {
+                    match: /(?<=canUseSoundboardEverywhere:function\(\i\)\{)/,
+                    replace: "return true;",
+                    predicate: () => settings.store.enableSoundboardBypass
+                },
+                {
+                    match: /(?<=canUseCustomCallSounds:function\(\i\)\{)/,
+                    replace: "return true;",
+                    predicate: () => settings.store.enableSoundboardBypass
                 },
                 {
                     match: /(?<=canUseClientThemes:function\(\i\)\{)/,

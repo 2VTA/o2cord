@@ -55,6 +55,7 @@ export const CspPolicies: PolicyMap = {
     // Function Specific
     "api.github.com": ConnectSrc, // used for update checks
     "ws.audioscrobbler.com": ConnectSrc, // Last.fm API
+    "translate-pa.googleapis.com": ConnectSrc, // Google Translate API (Translate plugin)
     "sponsor.ajay.app": ConnectSrc, // Dearrow API
     "dearrow-thumb.ajay.app": ImageSrc, // Dearrow Thumbnail CDN
     "usrbg.is-hardly.online": ImageSrc, // USRBG API

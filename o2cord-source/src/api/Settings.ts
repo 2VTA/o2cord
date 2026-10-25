@@ -38,6 +38,8 @@ export type SettingsPluginUiElements = {
 };
 
 export interface Settings {
+    /** show the Custom Profiles other o2cord users published (read by the CustomProfile plugin) */
+    seeAllCustomProfile: boolean;
     autoUpdate: boolean;
     autoUpdateNotification: boolean,
     useQuickCss: boolean;
@@ -93,6 +95,7 @@ export interface Settings {
 }
 
 const DefaultSettings: Settings = {
+    seeAllCustomProfile: true,
     autoUpdate: false,
     autoUpdateNotification: true,
     useQuickCss: true,

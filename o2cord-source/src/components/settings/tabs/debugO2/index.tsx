@@ -34,6 +34,7 @@ import {
     O2LocalUssro2Background
 } from "@utils/o2Ussro2";
 import { DEBUG_ACCESS_UPDATED_EVENT, getDebugAccessList, isRealDebugOwner } from "@utils/o2Debug";
+import { getOwnProfileFrame, PROFILE_FRAMES, type ProfileFrameId, setOwnProfileFrame } from "@utils/o2ProfileFrame";
 import { chooseFile, saveFile } from "@utils/web";
 import { Button, Forms, React, RestAPI, TextInput, UserStore, useState } from "@webpack/common";
 
@@ -845,6 +846,11 @@ function DebugO2Tab() {
     const [accessIds, setAccessIds] = useState(getDebugAccessList);
     const [accessInput, setAccessInput] = useState("");
     const [accessStatus, setAccessStatus] = useState("");
+    const [profileFrame, setProfileFrame] = useState<ProfileFrameId>(getOwnProfileFrame);
+    function chooseProfileFrame(id: ProfileFrameId) {
+        setOwnProfileFrame(id);
+        setProfileFrame(id);
+    }
     React.useEffect(() => {
         const onUpdate = () => setAccessIds(getDebugAccessList());
         window.addEventListener(DEBUG_ACCESS_UPDATED_EVENT, onUpdate);
@@ -929,6 +935,24 @@ function DebugO2Tab() {
                     </div>
                     {pluginStatus && <div className="o2-con-status">&gt; {pluginStatus}</div>}
                 </section>
+
+                {isRealDebugOwner() && (
+                    <section className="o2-con-section">
+                        <div className="o2-con-label">[ profile frame ] <span className="o2-con-dim">open your profile card to see it</span></div>
+                        <div className="o2-con-list">
+                            {PROFILE_FRAMES.map(frame => (
+                                <div key={frame.id} className="o2-con-row">
+                                    <span className="o2-con-prompt">$</span>
+                                    <span className="o2-con-row-main">
+                                        <span className="o2-con-row-title">{frame.name}</span>
+                                        <span className="o2-con-row-sub">{frame.hint}</span>
+                                    </span>
+                                    <OnOff on={profileFrame === frame.id} label={`Use the ${frame.name} profile frame`} onClick={() => chooseProfileFrame(frame.id)} />
+                                </div>
+                            ))}
+                        </div>
+                    </section>
+                )}
 
                 {isRealDebugOwner() && (
                     <section className="o2-con-section">

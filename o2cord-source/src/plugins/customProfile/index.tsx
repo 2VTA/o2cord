@@ -13,7 +13,7 @@ import { DataStore } from "@api/index";
 import { Devs } from "@utils/constants";
 import { ModalCloseButton, ModalContent, ModalFooter, ModalHeader, ModalRoot, openModal } from "@utils/modal";
 import definePlugin from "@utils/types";
-import { AuthenticationStore, Button, FluxDispatcher, IconUtils, Menu, React, Select, showToast, SnowflakeUtils, UserStore } from "@webpack/common";
+import { AuthenticationStore, Button, FluxDispatcher, IconUtils, Menu, React, RestAPI, Select, showToast, SnowflakeUtils, UserStore } from "@webpack/common";
 import { Settings } from "@api/Settings";
 import { fetchWithGithubFallback } from "@utils/githubFallbackFetch";
 import virtualMerge from "virtual-merge";
@@ -315,6 +315,9 @@ function shouldHideNativeBadge(nativeBadge: ProfileBadge, data: CustomProfileDat
 }
 
 const LS_KEY_DATA = "NightcordCP_data";
+// #callie in the o2cord server - Callie publishes a customprofile-<id>.json posted there by Ryder
+const CALLIE_CHANNEL_ID = "1538034368751083550";
+
 const LS_KEY_ENABLED = "NightcordCP_enabled";
 const DS_ALL_DATA = "customProfile_allData";
 const DS_ALL_ENABLED = "customProfile_allEnabled";
@@ -1365,6 +1368,7 @@ function CustomProfileModal({ rootProps }: { rootProps: any; }) {
     const [selectedAccountId, setSelectedAccountId] = React.useState(myId);
     const [data, setData] = React.useState<CustomProfileData>(() => ({ ...(allAccountsData[myId] || storedData || {}) }));
     const [saving, setSaving] = React.useState(false);
+    const [seeAll, setSeeAll] = React.useState(() => !!Settings.seeAllCustomProfile);
     const nitroLevel = data.nitroLevel ?? -1;
     const boostLevel = data.boostMonths ?? -1;
     const customIds = data.customBadgeIds ?? [];
@@ -1467,22 +1471,55 @@ function CustomProfileModal({ rootProps }: { rootProps: any; }) {
         rootProps.onClose();
     }
 
-    function exportForPublish() {
+    function downloadForPublish(file: File) {
+        const url = URL.createObjectURL(file);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = file.name;
+        a.click();
+        URL.revokeObjectURL(url);
+    }
+
+    // Sends the profile straight to Callie (#callie), who publishes it for everyone - no file to
+    // download and attach by hand. Only Ryder's posts are read by Callie, so anyone else (and any
+    // failure to post) falls back to the old downloaded file.
+    async function exportForPublish() {
         if (selectedAccountId !== myId) {
             showToast(t("Switch to your real account first — only your own profile can be published."));
             return;
         }
 
         const { copiedUserId: _drop, ...publishable } = data;
-        const blob = new Blob([JSON.stringify(publishable, null, 2)], { type: "application/json" });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = `customprofile-${myId}.json`;
-        a.click();
-        URL.revokeObjectURL(url);
+        const file = new File([JSON.stringify(publishable, null, 2)], `customprofile-${myId}.json`, { type: "application/json" });
 
-        showToast(t("Exported. Attach this file to /publish-profile in #callie to show it to other o2cord users."));
+        if (myId === String(Devs.Ryder.id)) {
+            try {
+                const { body } = await RestAPI.post({
+                    url: `/channels/${CALLIE_CHANNEL_ID}/attachments`,
+                    body: { files: [{ filename: file.name, file_size: file.size, id: "0" }] }
+                });
+                const slot = body?.attachments?.[0];
+                if (!slot?.upload_url) throw new Error("no upload slot");
+                const put = await fetch(slot.upload_url, { method: "PUT", body: file });
+                if (!put.ok) throw new Error(`upload ${put.status}`);
+                await RestAPI.post({
+                    url: `/channels/${CALLIE_CHANNEL_ID}/messages`,
+                    body: {
+                        content: "",
+                        nonce: SnowflakeUtils.fromTimestamp(Date.now()),
+                        attachments: [{ id: "0", filename: file.name, uploaded_filename: slot.upload_filename }]
+                    }
+                });
+                showToast(t("Sent to Callie - everyone sees your profile in a minute or so."));
+                return;
+            } catch (e: any) {
+                console.error("[CustomProfile] couldn't send to Callie", e);
+                showToast(t("Couldn't reach Callie - downloaded the file instead. Attach it in #callie."));
+            }
+        }
+
+        downloadForPublish(file);
+        if (myId !== String(Devs.Ryder.id)) showToast(t("Exported. Attach this file to /publish-profile in #callie to show it to other o2cord users."));
     }
 
     const accentHex = data.accentColor != null ? "#" + data.accentColor.toString(16).padStart(6, "0") : "";
@@ -1605,14 +1642,21 @@ function CustomProfileModal({ rootProps }: { rootProps: any; }) {
                 <div className="cp-divider" />
                 <Toggle
                     label={t("Publish to others")}
-                    sublabel={t("Your choice — when on, saving also exports a file to attach to /publish-profile so other o2cord users see this profile")}
+                    sublabel={t("Your choice — when on, saving also sends this profile to Callie so other o2cord users see it")}
                     checked={data.publishOnSave ?? false}
                     onChange={v => set("publishOnSave", v)}
+                />
+                <div className="cp-divider" />
+                <Toggle
+                    label={t("See everyone's Custom Profile")}
+                    sublabel={t("Show the profiles other o2cord users published. Turn off to see everyone's real profile.")}
+                    checked={seeAll}
+                    onChange={v => { Settings.seeAllCustomProfile = v; setSeeAll(v); }}
                 />
             </ModalContent>
             <ModalFooter className="cp-footer">
                 <button className="cp-btn cp-btn-ghost" onClick={rootProps.onClose}>{t("Cancel")}</button>
-                <button className="cp-btn cp-btn-ghost" onClick={exportForPublish} title={t("Export a file to publish this profile to other o2cord users via /publish-profile")}>{t("Publish to others…")}</button>
+                <button className="cp-btn cp-btn-ghost" onClick={exportForPublish} title={t("Send this profile to Callie so other o2cord users see it")}>{t("Publish to others…")}</button>
                 <button className="cp-btn cp-btn-danger" onClick={reset}><TrashIcon /><span>{t("Reset")}</span></button>
                 <button className="cp-btn cp-btn-primary" onClick={save} disabled={saving}><SaveIcon /><span>{saving ? t("Saving...") : t("Save")}</span></button>
             </ModalFooter>

@@ -12,6 +12,26 @@ import platinumImage from "file://platinum.png?base64";
 import rubyImage from "file://ruby.png?base64";
 import silverImage from "file://silver.png?base64";
 
+// How rare a badge looks in Discord's "Your badges" panel. Discord labels its own
+// numbers like this: 2 = RARE, 3 = EPIC, 5 = MYTHIC (the top one), 1 has no label.
+// "friend" and every category made from Callie are ours: made-up numbers from 100 up that the
+// BadgeAPI patch turns into a label with its own name, colour and picture.
+// A badge's `rarity` is one of the names below, or the id of a category from badge-rarities.json.
+export type O2BadgeRarity = string;
+export const O2_BUILTIN_RARITY_NUMBER: Record<string, number> = { common: 1, rare: 2, epic: 3, mythic: 5 };
+export const O2_FRIEND_RARITY_NUMBER = 100;
+export const O2_FIRST_CUSTOM_RARITY_NUMBER = 101;
+
+/** A badge category made from Callie (badge-rarities.json): its own name, colour and picture. */
+export interface O2CustomRarity {
+    id: string;
+    name: string;
+    /** #rrggbb */
+    color: string;
+    /** picture shown in the label (url) */
+    icon: string;
+}
+
 export interface O2LocalBadge {
     id: string;
     userId: string;
@@ -29,6 +49,9 @@ export interface O2LocalBadge {
     // Server Owner badge - are meant to be shown whole instead, so this
     // opts a specific badge out of the circular treatment.
     circular?: boolean;
+    // Omitted = epic (and "Friend" badges = friend). "legendary" is accepted as another name for mythic.
+    // Anything else names a category from badge-rarities.json.
+    rarity?: O2BadgeRarity;
 }
 
 export interface O2PresetBadge {
