@@ -70,6 +70,50 @@ details + details { margin-top: 10px; }
 summary { cursor: pointer; font-weight: 600; }
 details p { margin: 10px 0 0; color: var(--muted); }
 
+/* gallery */
+.tabs { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 18px; }
+.tab { padding: 7px 16px; border: 1px solid var(--line-strong); border-radius: 999px; background: none; color: var(--muted); font: 600 14px var(--sans); cursor: pointer; }
+.tab:hover { color: var(--text); }
+.tab.on { background: #fff; border-color: #fff; color: #000; }
+.stage { position: relative; aspect-ratio: 16 / 9; border: 1px solid var(--line-strong); border-radius: 14px; background: var(--card); overflow: hidden; }
+.slide { position: absolute; inset: 0; display: grid; place-items: center; opacity: 0; transition: opacity 0.7s ease; pointer-events: none; }
+.slide.on { opacity: 1; pointer-events: auto; }
+.slide img { width: 100%; height: 100%; object-fit: contain; }
+.slide .ph { text-align: center; color: var(--muted); font: 600 clamp(16px, 3vw, 26px) var(--mono); }
+.slide .ph small { display: block; margin-top: 6px; font: 13px var(--mono); opacity: 0.7; }
+.slide .tag { position: absolute; left: 14px; bottom: 14px; padding: 4px 12px; border: 1px solid var(--line-strong); border-radius: 999px; background: rgba(0, 0, 0, 0.7); font: 600 13px var(--mono); }
+[dir="rtl"] .slide .tag { left: auto; right: 14px; }
+.stage .navbtn { position: absolute; top: 50%; transform: translateY(-50%); width: 38px; height: 38px; border: 1px solid var(--line-strong); border-radius: 50%; background: rgba(0, 0, 0, 0.7); color: var(--text); font: 22px/1 var(--sans); cursor: pointer; opacity: 0; transition: opacity 0.2s; }
+.stage:hover .navbtn, .stage:focus-within .navbtn { opacity: 1; }
+.navbtn.prev { left: 12px; } .navbtn.next { right: 12px; }
+.progress { position: absolute; left: 0; bottom: 0; height: 3px; width: 100%; background: transparent; }
+.progress i { display: block; height: 100%; width: 0; background: #fff; }
+.progress i.run { animation: fill var(--dur, 4500ms) linear forwards; }
+.stage.paused .progress i { animation-play-state: paused; }
+@keyframes fill { to { width: 100%; } }
+.dots { display: flex; justify-content: center; gap: 8px; margin-top: 14px; }
+.dot { width: 9px; height: 9px; padding: 0; border: 1px solid var(--line-strong); border-radius: 50%; background: none; cursor: pointer; }
+.dot.on { background: #fff; border-color: #fff; }
+.mock { position: relative; }
+.mock-theme { height: 90%; aspect-ratio: 3 / 4.1; border: 1px solid var(--line-strong); border-radius: 14px; overflow: hidden; background: #000; box-shadow: 0 10px 40px rgba(0, 0, 0, 0.6); }
+.mock-theme .art { position: absolute; inset: 0; background: var(--img) center / cover no-repeat; }
+.mock-theme .shade { position: absolute; inset: 0; background: linear-gradient(180deg, rgba(0, 0, 0, 0.05) 30%, rgba(0, 0, 0, 0.88) 100%); }
+.mock-theme .av { position: absolute; left: 16px; bottom: 76px; width: 54px; height: 54px; border: 3px solid #000; border-radius: 50%; background: #111 url(assets/logo.png) center / cover; }
+.mock-theme .who { position: absolute; left: 16px; right: 16px; bottom: 14px; font-size: 13px; color: #cfcfcf; }
+.mock-theme .who b { display: block; margin-bottom: 1px; color: #fff; font: 700 16px var(--sans); }
+[dir="rtl"] .mock-theme .av { left: auto; right: 16px; }
+.mock-np { width: min(88%, 520px); display: grid; gap: 6px; }
+.np-row { position: relative; display: flex; align-items: center; gap: 12px; height: 58px; padding: 0 14px; border-radius: 10px; background: #0b0b0b; overflow: hidden; color: #9a9a9a; font: 600 15px var(--sans); }
+.np-row .dot-av { flex: none; width: 34px; height: 34px; border-radius: 50%; background: #1b1b1b; }
+.np-row.hero { border: 1px solid var(--line-strong); color: #fff; text-shadow: 0 1px 6px #000; }
+.np-row.hero .art { position: absolute; inset: 0; background: var(--img) center / cover no-repeat; -webkit-mask-image: linear-gradient(90deg, transparent 8%, #000 70%); mask-image: linear-gradient(90deg, transparent 8%, #000 70%); }
+[dir="rtl"] .np-row.hero .art { -webkit-mask-image: linear-gradient(270deg, transparent 8%, #000 70%); mask-image: linear-gradient(270deg, transparent 8%, #000 70%); }
+.np-row.hero > * { position: relative; }
+.np-row.hero .dot-av { background: #111 url(assets/logo.png) center / cover; }
+.np-row .st { margin-inline-start: auto; width: 9px; height: 9px; border-radius: 50%; background: #3a3a3a; }
+.np-row.hero .st { background: #fff; }
+@media (prefers-reduced-motion: reduce) { .slide { transition: none; } .progress { display: none; } }
+
 footer { padding: 32px 0 48px; border-top: 1px solid var(--line); color: var(--muted); font-size: 14px; }
 footer .row { display: flex; flex-wrap: wrap; gap: 8px 22px; }
 
@@ -79,6 +123,8 @@ footer .row { display: flex; flex-wrap: wrap; gap: 8px 22px; }
     nav a:not(.keep) { display: none; }
     .two { grid-template-columns: minmax(0, 1fr); }
     .hero { padding-top: 56px; }
+    .stage { aspect-ratio: 4 / 3; }
+    .stage .navbtn { opacity: 1; }
 }
 </style>
 </head>
@@ -136,6 +182,21 @@ footer .row { display: flex; flex-wrap: wrap; gap: 8px 22px; }
     </div>
   </section>
 
+  <section id="gallery">
+    <div class="wrap">
+      <h2 data-en="Make it yours" data-ar="خله على كيفك">Make it yours</h2>
+      <p class="sub" data-en="Profile themes, nameplates and custom profiles - see how people use them." data-ar="ثيمات بروفايل، وnameplates، وبروفايلات مخصصة - شوف كيف الناس تستخدمها.">Profile themes, nameplates and custom profiles - see how people use them.</p>
+      <div class="tabs" id="gtabs" role="tablist"></div>
+      <div class="stage" id="gstage">
+        <div id="gslides"></div>
+        <button class="navbtn prev" id="gprev" type="button" aria-label="Previous">&#8249;</button>
+        <button class="navbtn next" id="gnext" type="button" aria-label="Next">&#8250;</button>
+        <div class="progress"><i id="gbar"></i></div>
+      </div>
+      <div class="dots" id="gdots"></div>
+    </div>
+  </section>
+
   <section id="install">
     <div class="wrap">
       <h2 data-en="Install in a minute" data-ar="ثبّت بدقيقة">Install in a minute</h2>
@@ -177,6 +238,86 @@ const MANIFEST = "https://raw.githubusercontent.com/2VTA/o2cord/main/update-pack
 let lang = "en";
 try { lang = localStorage.getItem("o2cord-site-lang") || ((navigator.language || "").startsWith("ar") ? "ar" : "en"); } catch { }
 
+// ---- gallery: add pictures here (put the files in assets/gallery/) ----
+const CATS = {
+    theme: { en: "Profile themes", ar: "ثيمات البروفايل" },
+    nameplate: { en: "Nameplates", ar: "Nameplates" },
+    profile: { en: "Custom profiles", ar: "بروفايل مخصص" }
+};
+const SLIDES = [
+    { cat: "theme", src: "assets/gallery/g01.webp" },
+    { cat: "theme", src: "assets/gallery/g02.webp" },
+    { cat: "nameplate", src: "assets/gallery/g03.webp" },
+    { cat: "theme", src: "assets/gallery/g04.webp" },
+    { cat: "theme", src: "assets/gallery/g05.webp" },
+    { cat: "nameplate", src: "assets/gallery/g06.webp" },
+    { cat: "theme", src: "assets/gallery/g07.webp" },
+    { cat: "theme", src: "assets/gallery/g08.webp" },
+    { cat: "nameplate", src: "assets/gallery/g09.webp" },
+    { cat: "theme", src: "assets/gallery/g10.webp" },
+    { cat: "theme", src: "assets/gallery/g11.webp" },
+    { cat: "nameplate", src: "assets/gallery/g12.webp" },
+    { cat: "theme", src: "assets/gallery/g13.webp" },
+    { cat: "theme", src: "assets/gallery/g14.webp" },
+    { cat: "nameplate", src: "assets/gallery/g15.webp" },
+    { cat: "nameplate", src: "assets/gallery/g16.webp" }
+];
+
+// each picture is shown inside a small mock-up of where it appears in Discord
+function slideHtml(sl) {
+    if (!sl.src) return `<div class="ph">${catName(sl.cat)}<small>${lang === "ar" ? "الصورة تجي هنا" : "picture goes here"}</small></div>`;
+    if (sl.cat === "theme") {
+        return `<div class="mock mock-theme" style="--img:url('${sl.src}')"><div class="art"></div><div class="shade"></div><div class="av"></div>`
+            + `<div class="who"><b>o2cord user</b>${lang === "ar" ? "ثيم البروفايل حقك" : "your profile theme"}</div></div>`;
+    }
+    if (sl.cat === "nameplate") {
+        return `<div class="mock mock-np"><div class="np-row"><i class="dot-av"></i>friend<i class="st"></i></div>`
+            + `<div class="np-row hero" style="--img:url('${sl.src}')"><div class="art"></div><i class="dot-av"></i>o2cord user<i class="st"></i></div>`
+            + `<div class="np-row"><i class="dot-av"></i>another friend<i class="st"></i></div></div>`;
+    }
+    return `<img src="${sl.src}" alt="${catName(sl.cat)}" loading="lazy">`;
+}
+const INTERVAL = 4500;
+let cur = 0, timer = null, held = false;
+const $ = id => document.getElementById(id);
+const reduceMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+function catName(c) { return CATS[c][lang]; }
+
+function buildGallery() {
+    $("gslides").innerHTML = SLIDES.map((sl, i) => `<div class="slide" data-i="${i}">${slideHtml(sl)}<span class="tag">${catName(sl.cat)}</span></div>`).join("");
+    const cats = [...new Set(SLIDES.map(s => s.cat))];
+    $("gtabs").innerHTML = cats.map(c => `<button class="tab" type="button" role="tab" data-c="${c}">${catName(c)}</button>`).join("");
+    $("gdots").innerHTML = SLIDES.map((_, i) => `<button class="dot" type="button" aria-label="${i + 1}" data-i="${i}"></button>`).join("");
+    show(cur);
+}
+
+function show(i) {
+    cur = (i + SLIDES.length) % SLIDES.length;
+    document.querySelectorAll(".slide").forEach(el => el.classList.toggle("on", +el.dataset.i === cur));
+    document.querySelectorAll(".dot").forEach(el => el.classList.toggle("on", +el.dataset.i === cur));
+    document.querySelectorAll(".tab").forEach(el => el.classList.toggle("on", el.dataset.c === SLIDES[cur].cat));
+    restart();
+}
+
+function restart() {
+    clearTimeout(timer);
+    const bar = $("gbar");
+    bar.classList.remove("run");
+    void bar.offsetWidth; // restart the bar animation
+    if (reduceMotion || SLIDES.length < 2) return;
+    bar.style.setProperty("--dur", INTERVAL + "ms");
+    bar.classList.add("run");
+    timer = setTimeout(() => { if (held || document.hidden) restart(); else show(cur + 1); }, INTERVAL);
+}
+
+$("gprev").addEventListener("click", () => show(cur - 1));
+$("gnext").addEventListener("click", () => show(cur + 1));
+$("gtabs").addEventListener("click", e => { const b = e.target.closest(".tab"); if (b) show(SLIDES.findIndex(s => s.cat === b.dataset.c)); });
+$("gdots").addEventListener("click", e => { const b = e.target.closest(".dot"); if (b) show(+b.dataset.i); });
+$("gstage").addEventListener("mouseenter", () => { held = true; $("gstage").classList.add("paused"); });
+$("gstage").addEventListener("mouseleave", () => { held = false; $("gstage").classList.remove("paused"); });
+
 function apply() {
     document.documentElement.lang = lang;
     document.documentElement.dir = lang === "ar" ? "rtl" : "ltr";
@@ -184,6 +325,7 @@ function apply() {
     document.getElementById("lang").textContent = lang === "ar" ? "EN" : "عربي";
     const v = document.getElementById("version");
     if (v.dataset.v) v.textContent = (lang === "ar" ? "النسخة " : "Version ") + v.dataset.v + " · ";
+    buildGallery();
 }
 document.getElementById("lang").addEventListener("click", () => {
     lang = lang === "ar" ? "en" : "ar";
