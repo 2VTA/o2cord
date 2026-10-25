@@ -1,8 +1,8 @@
 {
-    "version":  "1.3.61",
-    "hash":  "public-20261025235636",
+    "version":  "1.3.62",
+    "hash":  "public-20261026001812",
     "author":  "o2cord",
-    "message":  "Badges in Your badges panel + rarity categories, platform icons in voice, soundboard for FakeNitro, Translate fix, new plugins",
+    "message":  "Custom Profile: one-click publish for everyone, banner crop editor, rotate fix",
     "notes":  [
                   "Public o2cord update package",
                   "ussro2 backgrounds are loaded from backgrounds.json beside this manifest",

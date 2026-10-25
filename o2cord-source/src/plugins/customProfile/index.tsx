@@ -18,6 +18,7 @@ import { Settings } from "@api/Settings";
 import { fetchWithGithubFallback } from "@utils/githubFallbackFetch";
 import virtualMerge from "virtual-merge";
 
+import { sendRequest as sendToCallie } from "../callieRequests";
 import { PROFILE_EFFECTS, CustomProfileEffect } from "./profileEffects";
 import { PROFILE_FRAMES, CustomProfileFrame } from "./profileFrames";
 
@@ -944,42 +945,62 @@ function Field({ label, value, placeholder, onChange, type = "text" }: {
     );
 }
 
-function cropImageToDataUrl(src: string, zoom: number, offsetX: number, offsetY: number, aspect = 1): Promise<string> {
+// Draws the picture the way the editor shows it. Offsets are in the editor's frame pixels
+// (frameWidth wide), so they are scaled to the output size; rotation is 0 / 90 / 180 / 270.
+function cropImageToDataUrl(src: string, zoom: number, offsetX: number, offsetY: number, aspect = 1, options: { frameWidth?: number; rotation?: number; outLong?: number; mime?: string; quality?: number; } = {}): Promise<string> {
     return new Promise((resolve, reject) => {
         const img = new Image();
         img.onload = () => {
-            const width = aspect >= 1 ? 512 : Math.round(512 * aspect);
-            const height = aspect >= 1 ? Math.round(512 / aspect) : 512;
+            const long = options.outLong ?? 512;
+            const width = aspect >= 1 ? long : Math.round(long * aspect);
+            const height = aspect >= 1 ? Math.round(long / aspect) : long;
             const canvas = document.createElement("canvas");
             canvas.width = width;
             canvas.height = height;
             const ctx = canvas.getContext("2d");
             if (!ctx) return reject(new Error("Canvas is unavailable"));
 
-            const baseScale = Math.max(width / img.width, height / img.height);
-            const scale = baseScale * zoom;
-            const drawWidth = img.width * scale;
-            const drawHeight = img.height * scale;
-            const drawX = (width - drawWidth) / 2 + offsetX;
-            const drawY = (height - drawHeight) / 2 + offsetY;
+            const rotation = ((options.rotation ?? 0) % 360 + 360) % 360;
+            const swap = rotation === 90 || rotation === 270;
+            const shownW = swap ? img.height : img.width;
+            const shownH = swap ? img.width : img.height;
+            const scale = Math.max(width / shownW, height / shownH) * zoom;
+            const k = options.frameWidth ? width / options.frameWidth : 1;
 
             ctx.clearRect(0, 0, width, height);
-            ctx.drawImage(img, drawX, drawY, drawWidth, drawHeight);
-            resolve(canvas.toDataURL("image/png"));
+            ctx.save();
+            ctx.translate(width / 2 + offsetX * k, height / 2 + offsetY * k);
+            ctx.rotate(rotation * Math.PI / 180);
+            ctx.drawImage(img, -img.width * scale / 2, -img.height * scale / 2, img.width * scale, img.height * scale);
+            ctx.restore();
+            resolve(options.mime && options.mime !== "image/png" ? canvas.toDataURL(options.mime, options.quality ?? 0.9) : canvas.toDataURL("image/png"));
         };
         img.onerror = () => reject(new Error("Failed to load image"));
         img.src = src;
     });
 }
 
-function EditImageModal({ rootProps, src, circular = true, onApply }: {
+function EditImageModal({ rootProps, src, circular = true, aspect = 1, onApply }: {
     rootProps: any;
     src: string;
     circular?: boolean;
+    /** width / height of the crop: 1 for a profile picture, 2.5 for a banner */
+    aspect?: number;
     onApply: (value: string) => void;
 }) {
     const [zoom, setZoom] = React.useState(1);
+    const [rotation, setRotation] = React.useState(0);
+    const [natural, setNatural] = React.useState<{ w: number; h: number; } | null>(null);
     const [offset, setOffset] = React.useState({ x: 0, y: 0 });
+    // the crop window, in editor pixels
+    const frameW = aspect > 1 ? 440 : 330;
+    const frameH = Math.round(frameW / aspect);
+
+    React.useEffect(() => {
+        const img = new Image();
+        img.onload = () => setNatural({ w: img.naturalWidth, h: img.naturalHeight });
+        img.src = src;
+    }, [src]);
     const [drag, setDrag] = React.useState<{ x: number; y: number; ox: number; oy: number; } | null>(null);
     const [applying, setApplying] = React.useState(false);
 
@@ -994,7 +1015,15 @@ function EditImageModal({ rootProps, src, circular = true, onApply }: {
     async function apply() {
         try {
             setApplying(true);
-            const cropped = await cropImageToDataUrl(src, zoom, offset.x, offset.y, 1);
+            const isBanner = aspect > 1;
+            const cropped = await cropImageToDataUrl(src, zoom, offset.x, offset.y, aspect, {
+                frameWidth: frameW,
+                rotation,
+                // a banner is wide, so it is saved smaller (webp) to keep the profile light
+                outLong: isBanner ? 960 : 512,
+                mime: isBanner ? "image/webp" : "image/png",
+                quality: 0.88
+            });
             onApply(cropped);
             rootProps.onClose();
         } finally {
@@ -1019,18 +1048,26 @@ function EditImageModal({ rootProps, src, circular = true, onApply }: {
                     onPointerUp={() => setDrag(null)}
                     onPointerCancel={() => setDrag(null)}
                 >
-                    <div className="cp-edit-image-crop-wrap">
+                    <div className="cp-edit-image-crop-wrap" style={{ width: frameW, height: frameH }}>
                         <div className={`cp-edit-image-crop ${circular ? "cp-edit-image-crop--circle" : ""}`}>
-                            <img
-                                src={src}
-                                alt=""
-                                className="cp-edit-image-preview"
-                                style={{
-                                    transform: `translate(${offset.x}px, ${offset.y}px) scale(${zoom})`
-                                }}
-                            />
+                            {natural && (() => {
+                                const swap = rotation % 180 !== 0;
+                                const base = Math.max(frameW / (swap ? natural.h : natural.w), frameH / (swap ? natural.w : natural.h));
+                                return (
+                                    <img
+                                        src={src}
+                                        alt=""
+                                        className="cp-edit-image-preview"
+                                        style={{
+                                            width: natural.w * base * zoom,
+                                            height: natural.h * base * zoom,
+                                            transform: `translate(-50%, -50%) translate(${offset.x}px, ${offset.y}px) rotate(${rotation}deg)`
+                                        }}
+                                    />
+                                );
+                            })()}
                         </div>
-                        {circular && <div className="cp-edit-image-mask" />}
+                        <div className={`cp-edit-image-mask ${circular ? "" : "cp-edit-image-mask--rect"}`} />
                     </div>
                 </div>
                 <div className="cp-edit-image-controls">
@@ -1045,11 +1082,11 @@ function EditImageModal({ rootProps, src, circular = true, onApply }: {
                         onChange={e => setZoom(Number(e.target.value))}
                     />
                     <span className="cp-edit-image-side-icon cp-edit-image-side-icon--large"><ImageSizeIcon size={18} /></span>
-                    <button className="cp-edit-image-rotate" onClick={() => setOffset({ x: 0, y: 0 })} title={t("Center image")}><RotateIcon /></button>
+                    <button className="cp-edit-image-rotate" onClick={() => setRotation(r => (r + 90) % 360)} title={t("Rotate")}><RotateIcon /></button>
                 </div>
             </ModalContent>
             <ModalFooter>
-                <button className="cp-edit-image-reset" onClick={() => { setZoom(1); setOffset({ x: 0, y: 0 }); }}>{t("Reset")}</button>
+                <button className="cp-edit-image-reset" onClick={() => { setZoom(1); setRotation(0); setOffset({ x: 0, y: 0 }); }}>{t("Reset")}</button>
                 <div className="cp-edit-image-footer-spacer" />
                 <button className="cp-btn cp-btn-ghost" onClick={rootProps.onClose}>{t("Cancel")}</button>
                 <button className="cp-btn cp-btn-primary" onClick={apply} disabled={applying}>{applying ? t("Applying...") : t("Apply")}</button>
@@ -1058,10 +1095,11 @@ function EditImageModal({ rootProps, src, circular = true, onApply }: {
     );
 }
 
-function ImageUpload({ label, value, onChange, editOnFile = false }: { label: string; value: string; onChange: (v: string) => void; editOnFile?: boolean; }) {
+function ImageUpload({ label, value, onChange, editOnFile = false, cropAspect }: { label: string; value: string; onChange: (v: string) => void; editOnFile?: boolean; /** width / height of the crop; leave out for a round profile picture */ cropAspect?: number; }) {
     const fileRef = React.useRef<HTMLInputElement>(null);
     function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
-        const file = e.target.files?.[0];
+        const input = e.currentTarget;
+        const file = input.files?.[0];
         if (!file) return;
         const reader = new FileReader();
         reader.onload = ev => {
@@ -1071,11 +1109,11 @@ function ImageUpload({ label, value, onChange, editOnFile = false }: { label: st
             // GIFs go straight through uncropped - the crop stage draws a single
             // canvas frame, which would flatten an animated GIF into a static image.
             if (editOnFile && file.type !== "image/gif") {
-                openModal(props => <EditImageModal rootProps={props} src={src} circular onApply={onChange} />);
+                openModal(props => <EditImageModal rootProps={props} src={src} circular={!cropAspect} aspect={cropAspect ?? 1} onApply={onChange} />);
             } else {
                 onChange(src);
             }
-            e.currentTarget.value = "";
+            input.value = "";
         };
         reader.readAsDataURL(file);
     }
@@ -1518,8 +1556,16 @@ function CustomProfileModal({ rootProps }: { rootProps: any; }) {
             }
         }
 
+        // Everyone else: a direct message to Callie from their own account (the same thing the Callie
+        // window does for pictures). Callie only ever publishes it under the sender's own id.
+        if (myId !== String(Devs.Ryder.id)) {
+            showToast(t("Sending your profile to Callie..."));
+            const result = await sendToCallie("custom-profile", { file });
+            showToast(result.ok ? result.text.replace(/\*\*|`/g, "").replace(/<@!?\d+>/g, "you") : result.text);
+            return;
+        }
+
         downloadForPublish(file);
-        if (myId !== String(Devs.Ryder.id)) showToast(t("Exported. Attach this file to /publish-profile in #callie to show it to other o2cord users."));
     }
 
     const accentHex = data.accentColor != null ? "#" + data.accentColor.toString(16).padStart(6, "0") : "";
@@ -1573,7 +1619,7 @@ function CustomProfileModal({ rootProps }: { rootProps: any; }) {
                 <Field label={t("Display name")} value={data.globalName ?? ""} placeholder="My Name" onChange={v => set("globalName", v)} />
                 <ImageUpload label={t("Profile picture")} value={data.avatar ?? ""} onChange={v => set("avatar", v)} editOnFile />
                 <Toggle label={t("I have Nitro!")} sublabel={t("Enables banner and profile color")} checked={data.nitro ?? false} onChange={v => set("nitro", v)} />
-                {data.nitro && <ImageUpload label={t("Banner")} value={data.banner ?? ""} onChange={v => set("banner", v)} />}
+                {data.nitro && <ImageUpload label={t("Banner")} value={data.banner ?? ""} onChange={v => set("banner", v)} editOnFile cropAspect={2.5} />}
                 <div className="cp-divider" />
                 <Field label={t("Bio")} value={data.bio ?? ""} placeholder={t("My description...")} onChange={v => set("bio", v)} />
                 <Field label={t("Pronouns")} value={data.pronouns ?? ""} placeholder={t("he/him")} onChange={v => set("pronouns", v)} />

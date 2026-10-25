@@ -511,6 +511,14 @@
     border-radius: 50%;
 }
 
+.cp-edit-image-mask.cp-edit-image-mask--rect {
+    border-radius: 10px;
+}
+
+.cp-edit-image-crop:not(.cp-edit-image-crop--circle) {
+    border-radius: 10px;
+}
+
 .cp-edit-image-mask {
     position: absolute;
     inset: 0;
@@ -523,10 +531,9 @@
 
 .cp-edit-image-preview {
     position: absolute;
-    inset: 0;
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
+    left: 50%;
+    top: 50%;
+    max-width: none;
     transform-origin: center;
     pointer-events: none;
 }
