@@ -31,6 +31,18 @@ export interface Release {
 
 export const RELEASES: Release[] = [
     {
+        version: "1.3.55",
+        date: "October 25, 2026",
+        features: [
+            {
+                plugin: "RetroTerminal",
+                title: "Double-click to edit Retro Terminal",
+                text: "On the o2cord settings page, double-click the Retro Terminal card to open all its settings - colours, your own colours, the boot picture, font and effects."
+            }
+        ],
+        fixes: []
+    },
+    {
         version: "1.3.54",
         name: "Bread Update",
         date: "October 24, 2026",

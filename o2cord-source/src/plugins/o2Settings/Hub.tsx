@@ -90,6 +90,9 @@ export function ThemeCards({ onChange }: { onChange(): void; }) {
                     role="radio"
                     aria-checked={theme === t.id}
                     onClick={() => { chooseTheme(t.id); onChange(); }}
+                    // Double-click the retro card to open its own settings.
+                    onDoubleClick={t.id === "retro" ? () => openPluginModal(plugins.RetroTerminal) : undefined}
+                    title={t.id === "retro" ? "Double-click for settings" : undefined}
                 >
                     <div className={`o2-hub-theme-preview o2-hub-theme-preview-${t.id}`} style={t.id === "retro" ? { color: profile.fg, background: profile.bg } : undefined}>
                         {t.id === "retro" ? "> _" : null}
