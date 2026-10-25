@@ -83,3 +83,99 @@
 .user-profile-popout:has(.o2-frame) [class*="profileFrameMask"] {
     display: none !important;
 }
+
+/* ---- Chibi ---- */
+.o2-chibi-edge {
+    filter: drop-shadow(0 0 5px rgb(255 120 80 / 70%));
+}
+
+.o2-chibi-run {
+    animation: o2-frame-run 4s linear infinite;
+    filter: drop-shadow(0 0 4px #ffd7a0);
+}
+
+.o2-chibi-spark {
+    position: absolute;
+    font-size: 15px;
+    line-height: 15px;
+    color: #ffe0b0;
+    text-shadow: 0 0 6px #ff8a3d, 0 0 10px #ff4f9a;
+    animation: o2-chibi-twinkle 2.2s ease-in-out infinite;
+}
+
+.o2-chibi-s1 { top: -8px; left: -7px; }
+.o2-chibi-s2 { top: -8px; right: -7px; animation-delay: 0.5s; }
+.o2-chibi-s3 { bottom: -8px; left: -7px; animation-delay: 1s; }
+.o2-chibi-s4 { bottom: -8px; right: -7px; animation-delay: 1.5s; }
+
+@keyframes o2-chibi-twinkle {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.35; transform: scale(0.7); }
+}
+
+/* the girl sits on the top edge, a little off to the side, and bobs gently */
+.o2-chibi-girl {
+    position: absolute;
+    top: -44px;
+    right: 22px;
+    width: 58px;
+    height: auto;
+    user-select: none;
+    filter: drop-shadow(0 2px 3px rgb(0 0 0 / 55%));
+    animation: o2-chibi-bob 2.6s ease-in-out infinite;
+}
+
+@keyframes o2-chibi-bob {
+    50% { transform: translateY(-3px) rotate(2deg); }
+}
+
+/* ---- Smoke ---- */
+.o2-smoke-cap {
+    position: absolute;
+    width: 26px;
+    height: 26px;
+    border: 0 solid #c9c9c9;
+    filter: drop-shadow(0 0 3px rgb(255 255 255 / 45%));
+}
+
+.o2-smoke-tl { top: -3px; left: -3px; border-top-width: 4px; border-left-width: 4px; border-top-left-radius: 11px; }
+.o2-smoke-tr { top: -3px; right: -3px; border-top-width: 4px; border-right-width: 4px; border-top-right-radius: 11px; }
+.o2-smoke-bl { bottom: -3px; left: -3px; border-bottom-width: 4px; border-left-width: 4px; border-bottom-left-radius: 11px; }
+.o2-smoke-br { bottom: -3px; right: -3px; border-bottom-width: 4px; border-right-width: 4px; border-bottom-right-radius: 11px; }
+
+.o2-smoke-puff {
+    position: absolute;
+    bottom: 2px;
+    width: 70px;
+    height: 70px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgb(255 255 255 / 38%), rgb(255 255 255 / 0%) 70%);
+    filter: blur(7px);
+    opacity: 0;
+    animation: o2-smoke-rise 5s ease-out infinite;
+}
+
+.o2-smoke-p1 { left: 8%; animation-delay: 0s; }
+.o2-smoke-p2 { left: 30%; animation-delay: 1.2s; }
+.o2-smoke-p3 { left: 55%; animation-delay: 2.4s; }
+.o2-smoke-p4 { left: 78%; animation-delay: 3.6s; }
+
+@keyframes o2-smoke-rise {
+    0% { transform: translateY(14px) scale(0.6); opacity: 0; }
+    25% { opacity: 0.8; }
+    100% { transform: translateY(-120px) scale(1.7); opacity: 0; }
+}
+
+.o2-smoke-tag {
+    position: absolute;
+    top: -10px;
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 1px 14px;
+    background: #050505;
+    border: 1px solid #c9c9c9;
+    border-radius: 3px;
+    color: #f2f2f2;
+    font: 700 11px/16px sans-serif;
+    letter-spacing: 3px;
+}

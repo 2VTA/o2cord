@@ -77,6 +77,8 @@ export let FriendsStore: t.FriendsStore;
 export let InstantInviteStore: t.InstantInviteStore;
 export let InviteStore: t.InviteStore;
 export let LocaleStore: t.LocaleStore;
+// not in @vencord/discord-types yet: just what GifProviderSwitcher reads
+export let GIFPickerViewStore: t.FluxStore & { getSelectedFormat(): string; };
 export let RTCConnectionStore: t.RTCConnectionStore;
 export let SoundboardStore: t.SoundboardStore;
 export let PopoutWindowStore: t.PopoutWindowStore;
@@ -134,6 +136,7 @@ waitForStore("FriendsStore", m => FriendsStore = m);
 waitForStore("InstantInviteStore", m => InstantInviteStore = m);
 waitForStore("InviteStore", m => InviteStore = m);
 waitForStore("LocaleStore", m => LocaleStore = m);
+waitForStore("GIFPickerViewStore", m => GIFPickerViewStore = m);
 waitForStore("RTCConnectionStore", m => RTCConnectionStore = m);
 waitForStore("SoundboardStore", m => SoundboardStore = m);
 waitForStore("PopoutWindowStore", m => PopoutWindowStore = m);

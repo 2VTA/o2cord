@@ -22,6 +22,7 @@ import { addProfileBadge, BadgePosition, BadgeUserArgs, ProfileBadge, removeProf
 import { addMemberListDecorator, removeMemberListDecorator } from "@api/MemberListDecorators";
 import { addMessageDecoration, removeMessageDecoration } from "@api/MessageDecorations";
 import { definePluginSettings } from "@api/Settings";
+import ErrorBoundary from "@components/ErrorBoundary";
 import { Devs } from "@utils/constants";
 import definePlugin, { OptionType } from "@utils/types";
 import { DiscordPlatform, OnlineStatus, User } from "@vencord/discord-types";
@@ -69,6 +70,12 @@ const indicatorLocations = {
         description: "In user profiles, as badges",
         onEnable: () => addProfileBadge(badge),
         onDisable: () => removeProfileBadge(badge)
+    },
+    voice: {
+        description: "Next to names in voice channels",
+        // drawn by the patch below, nothing to register here
+        onEnable: () => { },
+        onDisable: () => { }
     },
     messages: {
         description: "Inside messages",
@@ -215,6 +222,21 @@ const PlatformIndicator = ({ user, small = false }: { user: User; small?: boolea
     );
 };
 
+// the little platform icons after a name in the voice channel list
+const VoiceIndicator = ErrorBoundary.wrap(({ user }: { user?: User; }) =>
+    user && !user.bot ? <PlatformIndicator user={user} small={true} /> : null,
+{ noop: true });
+
+// a call tile's name label (the big tiles of a call, not the channel list): add the icons next to the name
+function addTileIndicator(children: any[], participantId: string | undefined, idle: boolean) {
+    if (idle || !participantId) return;
+
+    const user = UserStore.getUser(participantId);
+    if (!user || user.bot) return;
+
+    children.push(<VoiceIndicator key="o2-platform" user={user} />);
+}
+
 export default definePlugin({
     name: "PlatformIndicators",
     description: "Adds platform indicators (Desktop, Mobile, Web...) to users",
@@ -235,7 +257,28 @@ export default definePlugin({
         });
     },
 
+    VoiceIndicator,
+    addTileIndicator,
+
     patches: [
+        {
+            // call tiles: the name label at the bottom of each tile
+            find: '"CallTileOverlay"',
+            predicate: () => (settings.store as Record<string, any>).voice,
+            replacement: {
+                match: /(\i)\.push\(\(0,\i\.jsx\)\("span",\{className:\i\(\)\(\i\.\i,\i\),children:\i\},"title-text"\)\)(?<=\{idle:(\i),title:.{0,400}?participantId:(\i).+)/,
+                replace: "$&,$self.addTileIndicator($1,$3,$2)"
+            }
+        },
+        {
+            // voice channel list: the name's children end with the guest suffix, add the icons after it
+            find: "#{intl::GUEST_NAME_SUFFIX})]",
+            predicate: () => (settings.store as Record<string, any>).voice,
+            replacement: {
+                match: /(#{intl::GUEST_NAME_SUFFIX}.{0,50}?"")(?=\])(?<=user:(\i).+?)/,
+                replace: "$1,$self.VoiceIndicator({user:$2})"
+            }
+        },
         {
             find: ".Masks.STATUS_ONLINE_MOBILE",
             predicate: () => settings.store.colorMobileIndicator,

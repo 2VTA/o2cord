@@ -31,6 +31,51 @@ export interface Release {
 
 export const RELEASES: Release[] = [
     {
+        version: "1.3.61",
+        date: "October 25, 2026",
+        features: [
+            {
+                plugin: "BadgeAPI",
+                title: "o2cord badges in \"Your badges\"",
+                text: "The badges you get from o2cord now show in Discord's \"Your badges\" panel, with a rarity label. Friend badges have their own orange-heart FRIEND label, and we can now make new categories with their own name, colour and picture."
+            },
+            {
+                plugin: "PlatformIndicators",
+                title: "Platform icons in voice",
+                text: "The Desktop / Mobile / Web / Console icon now shows next to names in voice channels and on the call tiles."
+            },
+            {
+                plugin: "FakeNitro",
+                title: "Soundboard for everyone",
+                text: "FakeNitro can now open the Soundboard: sounds from other servers and your own join sound work without Nitro. There is a switch for it in the plugin's settings."
+            },
+            {
+                plugin: "JumpToTop",
+                title: "New plugin: Jump To Top",
+                text: "A button in the channel header that jumps to the first message in the channel."
+            },
+            {
+                plugin: "DirectFileDownload",
+                title: "New plugin: Direct File Download",
+                text: "Download Discord files directly instead of opening them in the browser."
+            },
+            {
+                plugin: "GifProviderSwitcher",
+                title: "New plugin: GIF Provider Switcher",
+                text: "Use Tenor or Giphy for GIF search instead of Klipy."
+            },
+            {
+                plugin: "CustomProfile",
+                title: "See everyone's Custom Profile",
+                text: "A new switch in the Custom Profile window shows the profiles other o2cord users published (on by default), and Save can now send your own profile straight to Callie."
+            }
+        ],
+        fixes: [
+            { plugin: "Translate", text: "Google Translate works again." },
+            { plugin: "CustomProfile", text: "Profiles other people published now actually show up for everyone." }
+        ]
+    },
+    {
         version: "1.3.60",
         date: "October 25, 2026",
         features: [
