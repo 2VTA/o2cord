@@ -1,8 +1,8 @@
 {
-    "version":  "1.3.58",
-    "hash":  "public-20261025160318",
+    "version":  "1.3.59",
+    "hash":  "public-20261025171454",
     "author":  "o2cord",
-    "message":  "Blacklisted accounts lose the o2cord settings section",
+    "message":  "Screen share picture button with viewers",
     "notes":  [
                   "Public o2cord update package",
                   "ussro2 backgrounds are loaded from backgrounds.json beside this manifest",
