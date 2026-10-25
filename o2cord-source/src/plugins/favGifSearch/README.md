@@ -2,4 +2,4 @@
 
 Adds a search bar to favorite gifs.
 
-![Screenshot](https://discord.gg/ANeQaVbNfZ)
+![Screenshot](https://discord.gg/f9xG4eTHb9)

@@ -6,4 +6,4 @@ Read more about summaries in the [official Discord help article](https://support
 
 Note that this plugin can't fetch old summaries, it can only display ones created while your Discord is running with the plugin enabled.
 
-![](https://discord.gg/ANeQaVbNfZ)
+![](https://discord.gg/f9xG4eTHb9)

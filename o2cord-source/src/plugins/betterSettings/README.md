@@ -5,5 +5,5 @@ Improves Discord's Settings via multiple (toggleable) changes:
 - removes the scuffed transition animation
 - organises the settings cog context menu into categories
 
-![](https://discord.gg/ANeQaVbNfZ)
+![](https://discord.gg/f9xG4eTHb9)
 

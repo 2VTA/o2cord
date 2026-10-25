@@ -2,7 +2,7 @@
 
 Makes username colors in chat unique, like in IRC clients
 
-![Chat with IrcColors and Compact++ enabled](https://discord.gg/ANeQaVbNfZ)
+![Chat with IrcColors and Compact++ enabled](https://discord.gg/f9xG4eTHb9)
 
 Improves chat readability by assigning every user an unique nickname color,
 making distinguishing between different users easier. Inspired by the feature

@@ -10,7 +10,7 @@ This allows themes to more easily theme those elements or even do things that ot
 
 `data-tab-id` contains the id of that tab
 
-![image](https://discord.gg/ANeQaVbNfZ)
+![image](https://discord.gg/f9xG4eTHb9)
 
 ### Chat Messages
 
@@ -18,7 +18,7 @@ This allows themes to more easily theme those elements or even do things that ot
 - `data-author-username` contains the username of the author
 - `data-is-self` is a boolean indicating whether this is the current user's message
 
-![image](https://discord.gg/ANeQaVbNfZ)
+![image](https://discord.gg/f9xG4eTHb9)
 
 ## CSS Variables
 
@@ -26,4 +26,4 @@ This allows themes to more easily theme those elements or even do things that ot
 
 `--avatar-url-<resolution>` contains a URL for the users avatar with the size attribute adjusted for the resolutions `128, 256, 512, 1024, 2048, 4096`.
 
-![image](https://discord.gg/ANeQaVbNfZ)
+![image](https://discord.gg/f9xG4eTHb9)

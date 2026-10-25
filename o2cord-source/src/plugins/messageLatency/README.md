@@ -12,20 +12,20 @@ Displays an indicator for messages that took ≥n seconds to send.
 
 ### Chat View
 
-![chat-view](https://discord.gg/ANeQaVbNfZ)
+![chat-view](https://discord.gg/f9xG4eTHb9)
 
 ### Clock -ve Drift
 
-![pissbot-on-top](https://discord.gg/ANeQaVbNfZ)
+![pissbot-on-top](https://discord.gg/f9xG4eTHb9)
 
 ### Clock +ve Drift
 
-![dumb-ai](https://discord.gg/ANeQaVbNfZ)
+![dumb-ai](https://discord.gg/f9xG4eTHb9)
 
 ### Connection Delay
 
-![who-this](https://discord.gg/ANeQaVbNfZ)
+![who-this](https://discord.gg/f9xG4eTHb9)
 
 ### Icons
 
-![icons](https://discord.gg/ANeQaVbNfZ)
+![icons](https://discord.gg/f9xG4eTHb9)
