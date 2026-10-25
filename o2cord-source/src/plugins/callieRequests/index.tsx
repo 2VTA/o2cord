@@ -160,7 +160,7 @@ async function stageUpload(file: File, channelId: string) {
     return { id: "0", filename: file.name, uploaded_filename: slot.upload_filename as string };
 }
 
-async function sendRequest(kind: Kind | "clear-typing-phrase", payload: { file?: File; phrase?: string; }): Promise<RequestResult> {
+export async function sendRequest(kind: Kind | "clear-typing-phrase" | "custom-profile", payload: { file?: File; phrase?: string; }): Promise<RequestResult> {
     try {
         const channelId = await getCallieDm();
         if (!channelId) return { ok: false, text: NO_SHARED_SERVER, joinUrl: O2CORD_INVITE };

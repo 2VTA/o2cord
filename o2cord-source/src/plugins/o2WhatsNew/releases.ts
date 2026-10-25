@@ -31,6 +31,25 @@ export interface Release {
 
 export const RELEASES: Release[] = [
     {
+        version: "1.3.62",
+        date: "October 26, 2026",
+        features: [
+            {
+                plugin: "CustomProfile",
+                title: "Share your Custom Profile with one click",
+                text: "Press Save with \"Publish to others\" on (or the Publish to others button) and your profile goes straight to Callie - no command, no file. Everyone using o2cord sees it within a minute."
+            },
+            {
+                plugin: "CustomProfile",
+                title: "Crop your banner like Discord",
+                text: "Choosing a banner now opens the same Edit Image window as your profile picture, with a wide crop, zoom and rotate."
+            }
+        ],
+        fixes: [
+            { plugin: "CustomProfile", text: "The rotate button in Edit Image now rotates the picture, and what you see in the preview is exactly what gets saved." }
+        ]
+    },
+    {
         version: "1.3.61",
         date: "October 25, 2026",
         features: [
