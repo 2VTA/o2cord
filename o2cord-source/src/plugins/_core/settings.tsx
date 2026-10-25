@@ -19,6 +19,7 @@
 import { definePluginSettings } from "@api/Settings";
 import { BackupRestoreIcon, LogIcon, MainSettingsIcon, PaintbrushIcon, PlaceholderIcon, PluginsIcon, UpdaterIcon, VesktopSettingsIcon } from "@components/Icons";
 import { BackupAndRestoreTab, ChangelogTab, PluginsTab, ThemesTab, UpdaterTab, VencordTab } from "@components/settings/tabs";
+import { isRevoked } from "@plugins/_core/o2AccessCheck";
 import { Devs } from "@utils/constants";
 import { isTruthy } from "@utils/guards";
 import definePlugin, { IconProps, OptionType } from "@utils/types";
@@ -165,6 +166,9 @@ export default definePlugin({
         if (!Array.isArray(layout)) return layout;
 
         if (layout.some(s => s?.key === "o2cord_section")) return layout;
+
+        // An account that was removed from o2cord (see o2AccessCheck) gets no o2cord settings at all.
+        if (isRevoked()) return layout;
 
         const { buildEntry } = this;
 
