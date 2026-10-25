@@ -273,7 +273,8 @@ export default definePlugin({
                     <HeadingSecondary className={cl("spectating-header")}>
                         {getIntlMessage("SPECTATORS", { numViewers: userIds.length })}
                     </HeadingSecondary>
-                    {settings.store.shareAvatarImage && <ShareAvatarSlot />}
+                    {/* the picture (or the "+" to add one) is shown whether or not someone is watching */}
+                    <ShareAvatarSlot />
                     {users.length > 0 &&
                         <div className={cl("spectating-users")}>
                             <UserSummaryItem
@@ -300,7 +301,6 @@ export default definePlugin({
                             />
                         </div>
                     }
-                    {!settings.store.shareAvatarImage && !users.length && <ShareAvatarSlot />}
                 </div>
             </div>
         );

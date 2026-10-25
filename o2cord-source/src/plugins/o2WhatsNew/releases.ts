@@ -31,6 +31,14 @@ export interface Release {
 
 export const RELEASES: Release[] = [
     {
+        version: "1.3.59",
+        date: "October 25, 2026",
+        features: [],
+        fixes: [
+            { plugin: "WhosWatching", text: "Screen share panel: the picture button now shows even when someone is watching." }
+        ]
+    },
+    {
         version: "1.3.57",
         date: "October 25, 2026",
         features: [],
