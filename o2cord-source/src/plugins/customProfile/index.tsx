@@ -1894,7 +1894,8 @@ export default definePlugin({
         applyProfileFramePatch(clone, storedData.profileFrameId);
 
         // Override flags/nitro/boost so Discord doesn't show real native badges
-        const wantedFlags = (isEnabled && storedData.badgeFlags != null) ? storedData.badgeFlags : realUser.publicFlags;
+        // Badges you pick are ADDED to your real ones - never instead of them.
+        const wantedFlags = isEnabled ? ((realUser.publicFlags ?? 0) | (storedData.badgeFlags ?? 0)) : realUser.publicFlags;
         clone.publicFlags = wantedFlags;
         clone.flags = wantedFlags;
 
@@ -1968,7 +1969,7 @@ export default definePlugin({
         applyProfileEffectPatch(clone, data.profileEffectId);
         applyProfileFramePatch(clone, data.profileFrameId);
 
-        const wantedFlags = data.badgeFlags != null ? data.badgeFlags : realUser.publicFlags;
+        const wantedFlags = (realUser.publicFlags ?? 0) | (data.badgeFlags ?? 0);
         clone.publicFlags = wantedFlags;
         clone.flags = wantedFlags;
 
@@ -2011,7 +2012,7 @@ export default definePlugin({
             applyProfileEffectPatch(merged, data.profileEffectId);
             applyProfileFramePatch(merged, data.profileFrameId);
 
-            if (data.nitro || data.badgeFlags != null) {
+            if (data.nitro) {
                 merged.premiumType = data.nitro ? 2 : 0;
 
                 if (data.nitro) {
@@ -2037,8 +2038,7 @@ export default definePlugin({
                     merged.premiumGuildSince = null;
                 }
 
-                merged.publicFlags = (data.badgeFlags != null) ? data.badgeFlags : profile.publicFlags;
-                merged.badges = [];
+                merged.publicFlags = (profile.publicFlags ?? 0) | (data.badgeFlags ?? 0);
             } else if (data.nitro === false) {
                 merged.premiumType = profile.premiumType ?? 0;
                 merged.premiumSince = null;
@@ -2082,7 +2082,7 @@ export default definePlugin({
             applyProfileEffectPatch(merged, storedData.profileEffectId);
             applyProfileFramePatch(merged, storedData.profileFrameId);
 
-            if (isEnabled && (storedData.nitro || storedData.badgeFlags != null)) {
+            if (isEnabled && storedData.nitro) {
                 merged.premiumType = storedData.nitro ? 2 : 0;
 
                 if (storedData.nitro) {
@@ -2108,9 +2108,8 @@ export default definePlugin({
                     merged.premiumGuildSince = null;
                 }
 
-                // On s'assure que les badges originaux sont écrasés dans le profil
-                merged.publicFlags = (storedData.badgeFlags != null) ? storedData.badgeFlags : profile.publicFlags;
-                merged.badges = []; // Force Discord à recalculer la liste à partir de publicFlags et premiumType
+                // Your real badges stay; the ones you picked are added on top.
+                merged.publicFlags = (profile.publicFlags ?? 0) | (storedData.badgeFlags ?? 0);
             } else if (isEnabled && storedData.nitro === false) {
                 // Si Nitro simulation est OFF, on force la suppression des badges simulés
                 merged.premiumType = profile.premiumType ?? 0;

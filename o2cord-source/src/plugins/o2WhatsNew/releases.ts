@@ -31,6 +31,21 @@ export interface Release {
 
 export const RELEASES: Release[] = [
     {
+        version: "1.3.60",
+        date: "October 25, 2026",
+        features: [
+            {
+                plugin: "ProfileImages",
+                title: "See your own profile image",
+                text: "The Profile Images settings now show the picture set for your profile, and a button puts the brightness back to its default."
+            }
+        ],
+        fixes: [
+            { text: "Updates no longer restart Discord on you. o2cord still downloads them by itself, and the new version starts the next time you restart Discord yourself." },
+            { plugin: "CustomProfile", text: "Picking a badge no longer hides your real badges - they show together." }
+        ]
+    },
+    {
         version: "1.3.59",
         date: "October 25, 2026",
         features: [],

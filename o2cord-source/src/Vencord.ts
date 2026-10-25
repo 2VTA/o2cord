@@ -102,16 +102,14 @@ function ensureO2UpdateNoticeStyle() {
     `;
 }
 
-const FORCED_RELAUNCH_DELAY_MS = 10_000;
-
-function showO2ForcedRelaunchNotice() {
+function showO2UpdateInstalledNotice() {
     ensureO2UpdateNoticeStyle();
 
     showNotice(
         React.createElement(
             "span",
             { className: "o2-update-notice-message" },
-            "o2cord update installed. Discord is restarting to finish..."
+            "o2cord update installed. It takes effect the next time you restart Discord."
         ),
         "Relaunch Now",
         () => {
@@ -120,10 +118,8 @@ function showO2ForcedRelaunchNotice() {
         }
     );
 
-    // This update is mandatory - don't leave it up to the user to remember
-    // to click relaunch, since that's exactly how clients end up stranded
-    // on old versions for a long time.
-    setTimeout(relaunch, FORCED_RELAUNCH_DELAY_MS);
+    // No forced relaunch: the new files are already on disk, so whenever the
+    // user restarts Discord themselves they come up on the new version.
 }
 
 function showO2UpdateNotice() {
@@ -192,10 +188,10 @@ async function runUpdateCheck() {
         if (applied) {
             if (!shouldShowO2UpdateNotice(updateKey)) return;
 
-            showO2ForcedRelaunchNotice();
+            showO2UpdateInstalledNotice();
             notify({
                 title: "o2cord updated!",
-                body: "Discord is restarting automatically to finish",
+                body: "Restart Discord whenever you like to finish. Click here to restart now",
                 onClick: relaunch
             });
             return;

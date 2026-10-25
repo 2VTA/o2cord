@@ -535,9 +535,12 @@ function DebugO2Tab() {
         let dataUrl = await fileToDataUrl(file);
         let status = "Selected. Press Save to preview it, or download it to publish for everyone.";
 
-        // Only static (non-animated) images go through the crop - videos
-        // render through our own fixed-aspect CSS overlay instead, and GIF
-        // frames can't be canvas-cropped without losing the animation.
+        // Only static (non-animated) images go through the crop here - videos
+        // render through our own fixed-aspect CSS overlay instead, and a GIF's
+        // frames can't be canvas-cropped without losing the animation. A GIF
+        // is cropped + faded by Callie when it is published instead.
+        if (file.type === "image/gif")
+            status = "GIF selected. This preview shows it as it is - Callie crops and fades it into a nameplate (still animated) when you publish it.";
         if (file.type === "image/png" || file.type === "image/jpeg" || file.type === "image/webp") {
             try {
                 dataUrl = await cropImageToNameplateAspect(dataUrl);
