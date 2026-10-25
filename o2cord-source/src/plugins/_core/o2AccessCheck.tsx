@@ -5,8 +5,9 @@
  *
  * The o2cord blacklist (managed from Callie's menu > Blacklist). Each time an
  * account logs in, this reads update-package/public/blacklist.json from the
- * o2cord repo. If the account is on it, o2cord says so in a window and turns
- * its plugins off for that session. It's out in the open: listed in the
+ * o2cord repo. If the account is on it, o2cord says so in a window, turns
+ * its plugins off for that session and drops its "o2cord Settings" section
+ * from Discord's settings, as if it were uninstalled. It's out in the open: listed in the
  * plugin list, shows a message, and only ever looks at the account's public
  * Discord id - no token, nothing is written to the PC, nothing is sent.
  * Ryder's own account is never affected.
@@ -25,6 +26,9 @@ const SELF = "O2AccessCheck";
 
 let revoked = false;
 let timer: ReturnType<typeof setInterval> | undefined;
+
+/** True once this account was found on the blacklist - the settings page then drops the whole o2cord section. */
+export const isRevoked = () => revoked;
 
 /** True when `id` is on the list. Ryder is never on it, whatever the file says. */
 export function isListed(id: string | undefined, users: unknown): boolean {
@@ -69,9 +73,10 @@ function revoke() {
     }
 }
 
-async function check() {
+// `asId` is only for testing the whole path with another account's id.
+async function check(asId?: string) {
     if (revoked) return;
-    const id = UserStore.getCurrentUser?.()?.id;
+    const id = asId ?? UserStore.getCurrentUser?.()?.id;
     if (!id) return;
     if (isListed(id, await fetchList())) revoke();
 }
@@ -84,6 +89,7 @@ export default definePlugin({
 
     isListed,
     revoke,
+    check,
 
     flux: {
         CONNECTION_OPEN: () => { void check(); }
