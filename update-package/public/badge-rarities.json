@@ -1,12 +1,6 @@
 {
     "rarities": [
         {
-            "id": "zot",
-            "name": "zot",
-            "color": "#030303",
-            "icon": "https://raw.githubusercontent.com/2VTA/o2cord/main/update-package/public/assets/rarities/zot.png"
-        },
-        {
             "id": "bread",
             "name": "Bread",
             "color": "#020201",
