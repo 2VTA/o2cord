@@ -1,8 +1,8 @@
 {
-    "version":  "1.3.62",
-    "hash":  "public-20261026001812",
+    "version":  "1.3.63",
+    "hash":  "public-20261026092550",
     "author":  "o2cord",
-    "message":  "Custom Profile: one-click publish for everyone, banner crop editor, rotate fix",
+    "message":  "Badge category labels: dark colours stay readable",
     "notes":  [
                   "Public o2cord update package",
                   "ussro2 backgrounds are loaded from backgrounds.json beside this manifest",
