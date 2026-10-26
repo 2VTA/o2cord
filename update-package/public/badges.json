@@ -133,6 +133,15 @@
             "image": "https://raw.githubusercontent.com/2VTA/o2cord/main/update-package/public/assets/badges/badge-mvk0bhbp.png",
             "size": 25,
             "enabled": true
+        },
+        {
+            "id": "badge-mvos04hxa7xz",
+            "userId": "719085334989897750",
+            "name": "ZOT",
+            "image": "https://raw.githubusercontent.com/2VTA/o2cord/main/update-package/public/assets/badges/badge-mvos04hxa7xz.png",
+            "size": 23,
+            "enabled": true,
+            "rarity": "bread"
         }
     ]
 }
