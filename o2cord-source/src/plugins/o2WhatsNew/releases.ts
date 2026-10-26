@@ -31,6 +31,14 @@ export interface Release {
 
 export const RELEASES: Release[] = [
     {
+        version: "1.3.63",
+        date: "October 26, 2026",
+        features: [],
+        fixes: [
+            { plugin: "BadgeAPI", text: "Badge category labels in dark colours are readable now: the name and ring are lightened so they don't vanish on the dark panel." }
+        ]
+    },
+    {
         version: "1.3.62",
         date: "October 26, 2026",
         features: [

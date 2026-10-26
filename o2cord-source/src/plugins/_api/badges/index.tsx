@@ -216,8 +216,20 @@ function normalizeCustomRarities(raw: unknown): O2CustomRarity[] {
 
 // Colours of the label pills: Discord only has its own four, so ours get a rule each
 // (picked by the picture inside the pill, which is unique per category).
+// A dark colour (like #020201) would make the label invisible on Discord's dark panel, so the
+// text and ring use a lightened version of it; the tint behind keeps the colour as chosen.
+function legibleColor(hex: string) {
+    const [r, g, b] = [1, 3, 5].map(i => parseInt(hex.slice(i, i + 2), 16));
+    const luminance = (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
+    if (luminance >= 0.35) return hex;
+
+    const lift = (c: number) => Math.round(c + (255 - c) * 0.72);
+    return "#" + [r, g, b].map(c => lift(c).toString(16).padStart(2, "0")).join("");
+}
+
 function updateRarityStyle() {
-    const css = [FRIEND_RARITY, ...O2CustomRarities].map(r => {
+    const css = [FRIEND_RARITY, ...O2CustomRarities].map(rarity => {
+        const r = { ...rarity, color: legibleColor(rarity.color) };
         const sel = `[class*="rarity-"]:has(> .o2-rarity-icon-${r.id})`;
         // the ring around the pill is a ::before painted with Discord's own mythic gradient
         return `${sel}{color:${r.color}!important;border-color:${r.color}!important;background:color-mix(in srgb,${r.color} 16%,transparent)!important;box-shadow:0 0 8px color-mix(in srgb,${r.color} 40%,transparent)!important}`
