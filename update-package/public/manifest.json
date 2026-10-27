@@ -1,8 +1,8 @@
 {
-    "version":  "1.3.63",
-    "hash":  "public-20261026092550",
+    "version":  "1.3.64",
+    "hash":  "public-20261027215521",
     "author":  "o2cord",
-    "message":  "Badge category labels: dark colours stay readable",
+    "message":  "GifCollections: add-to-collection menu + mp4 fix; shared profile frames",
     "notes":  [
                   "Public o2cord update package",
                   "ussro2 backgrounds are loaded from backgrounds.json beside this manifest",

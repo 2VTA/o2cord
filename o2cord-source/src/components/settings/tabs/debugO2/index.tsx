@@ -847,9 +847,17 @@ function DebugO2Tab() {
     const [accessInput, setAccessInput] = useState("");
     const [accessStatus, setAccessStatus] = useState("");
     const [profileFrame, setProfileFrame] = useState<ProfileFrameId>(getOwnProfileFrame);
-    function chooseProfileFrame(id: ProfileFrameId) {
+    const [frameStatus, setFrameStatus] = useState("");
+    async function chooseProfileFrame(id: ProfileFrameId) {
         setOwnProfileFrame(id);
         setProfileFrame(id);
+        // and publish it, so everyone using o2cord sees the same frame on your card
+        try {
+            await RestAPI.post({ url: `/channels/${CALLIE_CHANNEL_ID}/messages`, body: { content: `-profile-frame ${id}` } });
+            setFrameStatus(`Sent to Callie: ${id}. Everyone sees it within a minute.`);
+        } catch {
+            setFrameStatus(`Changed here, but couldn't reach #callie. Send it yourself: -profile-frame ${id}`);
+        }
     }
     React.useEffect(() => {
         const onUpdate = () => setAccessIds(getDebugAccessList());
@@ -938,7 +946,7 @@ function DebugO2Tab() {
 
                 {isRealDebugOwner() && (
                     <section className="o2-con-section">
-                        <div className="o2-con-label">[ profile frame ] <span className="o2-con-dim">open your profile card to see it</span></div>
+                        <div className="o2-con-label">[ profile frame ] <span className="o2-con-dim">everyone sees it · open your profile card to check</span></div>
                         <div className="o2-con-list">
                             {PROFILE_FRAMES.map(frame => (
                                 <div key={frame.id} className="o2-con-row">
@@ -951,6 +959,7 @@ function DebugO2Tab() {
                                 </div>
                             ))}
                         </div>
+                        {frameStatus && <div className="o2-con-status">&gt; {frameStatus}</div>}
                     </section>
                 )}
 

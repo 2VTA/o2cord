@@ -38,8 +38,8 @@ export function removeGifPickerContextMenuPatch(id: string) {
 }
 
 /** @internal Called by ExtraContextMenusAPI to render the merged context menu. */
-export function _openGifPickerContextMenu(e: React.MouseEvent, instance) {
-    if (!handlers.size) return;
+export function _openGifPickerContextMenu(e: React.MouseEvent, instance): boolean {
+    if (!handlers.size) return false;
 
     const items: React.ReactNode[] = [];
     for (const [id, { render }] of Array.from(handlers).sort(([, a], [, b]) => a.priority - b.priority)) {
@@ -51,8 +51,9 @@ export function _openGifPickerContextMenu(e: React.MouseEvent, instance) {
         }
     }
 
-    if (!items.length) return;
+    if (!items.length) return false;
     ContextMenuApi.openContextMenu(e, () => <GifPickerContextMenuRoot items={items} />);
+    return true;
 }
 
 function GifPickerContextMenuRoot({ items }: { items: React.ReactNode[]; }) {

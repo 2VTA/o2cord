@@ -16,16 +16,18 @@ export default definePlugin({
 
     patches: [
         {
+            // a GIF (or collection tile) in the picker: our menu if some plugin has items for it,
+            // otherwise Discord's own one
             find: "renderEmptyFavorite",
             replacement: {
-                match: /render\(\){.{1,500}onClick:this\.handleClick,/,
-                replace: "$&onContextMenu: (e) => $self.openContextMenu(e, this),"
+                match: /handleContextMenu=(\i)=>\{(?=let\{onContextMenu:\i,item:\i\}=this\.props;)/,
+                replace: "handleContextMenu=$1=>{if($self.openContextMenu($1,this))return;"
             }
         }
     ],
 
     openContextMenu(e: React.MouseEvent, instance) {
-        if (!instance) return;
-        _openGifPickerContextMenu(e, instance);
+        if (!instance) return false;
+        return _openGifPickerContextMenu(e, instance);
     },
 });
