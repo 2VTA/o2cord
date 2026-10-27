@@ -5,6 +5,12 @@
             "name": "Bread",
             "color": "#020201",
             "icon": "https://raw.githubusercontent.com/2VTA/o2cord/main/update-package/public/assets/rarities/bread.gif"
+        },
+        {
+            "id": "uzi",
+            "name": "uzi",
+            "color": "#9634e6",
+            "icon": "https://raw.githubusercontent.com/2VTA/o2cord/main/update-package/public/assets/rarities/uzi.png"
         }
     ]
 }
