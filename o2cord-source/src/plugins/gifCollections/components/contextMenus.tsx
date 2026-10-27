@@ -186,17 +186,16 @@ export function getGifPickerContextMenuItems(src: string, url: string, height: n
     const gif: Gif = { id: uuidv4(settings.store.itemPrefix), src, url, height, width };
     return (
         <Menu.MenuGroup key="gif-collections-group">
-            {settings.store.showCopyImageLink && (
-                <Menu.MenuItem
-                    label="Copy Image Link"
-                    key="copy-image-link"
-                    id="copy-image-link"
-                    action={() => {
-                        copyToClipboard(url);
-                        showToast("Image link copied to clipboard", Toasts.Type.SUCCESS);
-                    }}
-                />
-            )}
+            {/* our menu replaces Discord's, so its "Copy Link" is always kept here */}
+            <Menu.MenuItem
+                label="Copy Link"
+                key="copy-link"
+                id="copy-link"
+                action={() => {
+                    copyToClipboard(url);
+                    showToast("Link copied to clipboard", Toasts.Type.SUCCESS);
+                }}
+            />
             {AddToCollectionMenu(gif)}
         </Menu.MenuGroup>
     );

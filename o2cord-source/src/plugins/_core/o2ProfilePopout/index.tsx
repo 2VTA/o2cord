@@ -14,18 +14,18 @@ import "./styles.css";
 import ErrorBoundary from "@components/ErrorBoundary";
 import { SongTrigger } from "@plugins/profileSong";
 import { Devs } from "@utils/constants";
-import { getOwnProfileFrame, loadOwnProfileFrame, PROFILE_FRAME_CHANGED_EVENT, PROFILE_FRAME_OWNER_ID, type ProfileFrameId } from "@utils/o2ProfileFrame";
+import { getOwnProfileFrame, getPublishedProfileFrame, loadOwnProfileFrame, PROFILE_FRAME_CHANGED_EVENT, PROFILE_FRAME_OWNER_ID, type ProfileFrameId, startPublishedFrames, stopPublishedFrames } from "@utils/o2ProfileFrame";
 import definePlugin from "@utils/types";
 import { User } from "@vencord/discord-types";
 import { createRoot, useEffect, UserStore, useState } from "@webpack/common";
 
 import { CHIBI_ART } from "./art";
 
-// who wears which frame (only Ryder for now): on his own client it is whatever he
-// picked in the debug o2 tab, everywhere else the default one
+// who wears which frame (only Ryder for now): on his own client it is what he just picked in the
+// debug o2 tab, everywhere else what Callie published for him (the default until then)
 function frameFor(userId: string): Exclude<ProfileFrameId, "none"> | undefined {
     if (userId !== PROFILE_FRAME_OWNER_ID) return undefined;
-    const choice = UserStore.getCurrentUser()?.id === userId ? getOwnProfileFrame() : "terminal";
+    const choice = UserStore.getCurrentUser()?.id === userId ? getOwnProfileFrame() : getPublishedProfileFrame(userId) ?? "terminal";
     return choice === "none" ? undefined : choice;
 }
 
@@ -213,12 +213,14 @@ export default definePlugin({
         observer.observe(document.body, { childList: true, subtree: true });
         window.addEventListener(PROFILE_FRAME_CHANGED_EVENT, redraw);
         void loadOwnProfileFrame();
+        startPublishedFrames();
         queueScan();
     },
 
     stop() {
         observer?.disconnect();
         window.removeEventListener(PROFILE_FRAME_CHANGED_EVENT, redraw);
+        stopPublishedFrames();
         for (const { root, holder } of mounted.values()) { root.unmount(); holder.remove(); }
         mounted.clear();
     }

@@ -70,7 +70,9 @@ function getGifByMessageAndUrl(url: string, message: Message): Gif | null {
                 height: embed.video.height,
                 width: embed.video.width,
                 src: embed.video.proxyURL,
-                url: embed.provider?.name === "Tenor" ? embed.url ?? embed.video.url : embed.video.url,
+                // A gif posted as a link comes as a "gifv" embed whose video is a converted mp4: sending
+                // that mp4 posts a video instead of the gif, so keep the link it came from.
+                url: (embed.provider?.name === "Tenor" || embed.type === "gifv") ? embed.url ?? embed.video.url : embed.video.url,
             };
         }
         if (embed.thumbnail?.proxyURL) {

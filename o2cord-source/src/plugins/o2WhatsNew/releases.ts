@@ -31,6 +31,20 @@ export interface Release {
 
 export const RELEASES: Release[] = [
     {
+        version: "1.3.64",
+        date: "October 27, 2026",
+        features: [
+            {
+                plugin: "GifCollections",
+                title: "Add to collection from the GIF picker",
+                text: "Right-click a GIF in the GIF picker to add it to one of your collections (the menu is back: Copy Link, Add To Collection, Edit GIF)."
+            }
+        ],
+        fixes: [
+            { plugin: "GifCollections", text: "GIFs saved from a link are sent as GIFs again, not as an mp4 video. (Ones saved before need to be saved again.)" }
+        ]
+    },
+    {
         version: "1.3.63",
         date: "October 26, 2026",
         features: [],
