@@ -142,6 +142,15 @@
             "size": 23,
             "enabled": true,
             "rarity": "bread"
+        },
+        {
+            "id": "badge-mvr4o61a0hbj",
+            "userId": "1542531988727140477",
+            "name": "uzi",
+            "image": "https://raw.githubusercontent.com/2VTA/o2cord/main/update-package/public/assets/badges/badge-mvr4o61a0hbj.png",
+            "size": 23,
+            "enabled": true,
+            "rarity": "uzi"
         }
     ]
 }
