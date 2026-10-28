@@ -6,6 +6,7 @@
 
 import "./styles.css";
 
+import * as DataStore from "@api/DataStore";
 import { definePluginSettings } from "@api/Settings";
 import ErrorBoundary from "@components/ErrorBoundary";
 import { Flex } from "@components/Flex";
@@ -19,7 +20,7 @@ import { classes } from "@utils/misc";
 import definePlugin, { OptionType } from "@utils/types";
 import { User } from "@vencord/discord-types";
 import { findComponentByCodeLazy, findCssClassesLazy, findStoreLazy } from "@webpack";
-import { Clickable, RelationshipStore, Tooltip, UserStore, useRef, useState, useStateFromStores } from "@webpack/common";
+import { Clickable, RelationshipStore, Tooltip, UserStore, useEffect, useRef, useState, useStateFromStores } from "@webpack/common";
 import { JSX } from "react";
 
 interface WatchingProps {
@@ -78,15 +79,19 @@ const settings = definePluginSettings({
         default: true,
         restartNeeded: true
     },
+    // Old home of the share image (a data URL inside settings.json - ~5 MB that was kept in memory and
+    // rewritten to disk on every settings change). Moved to DataStore on start; kept only to migrate.
     shareAvatarImage: {
-        description: "Custom image/gif shown in the empty spectators space (data URL)",
+        description: "Legacy storage of the share image (moved to DataStore)",
         type: OptionType.STRING,
-        default: ""
+        default: "",
+        hidden: true
     },
     shareAvatarStaticFrame: {
-        description: "First frame of shareAvatarImage, extracted at upload time - shown paused while not talking, if the image is a gif",
+        description: "Legacy storage of the share image's first frame (moved to DataStore)",
         type: OptionType.STRING,
-        default: ""
+        default: "",
+        hidden: true
     },
     shareAvatarMode: {
         description: "When to show the custom share avatar image",
@@ -98,10 +103,10 @@ const settings = definePluginSettings({
     }
 });
 
-// Draws the gif's first frame to a canvas and returns it as a PNG data URL -
+// Draws the gif's first frame to a canvas and returns it as a PNG -
 // used as the "paused" look, since CSS can't pause a gif and swapping an
 // <img src> to itself just restarts it rather than freezing it.
-function extractFirstFrame(dataUrl: string): Promise<string> {
+function extractFirstFrame(url: string): Promise<Blob | undefined> {
     return new Promise(resolve => {
         const img = new Image();
         img.onload = () => {
@@ -109,13 +114,56 @@ function extractFirstFrame(dataUrl: string): Promise<string> {
             canvas.width = img.naturalWidth;
             canvas.height = img.naturalHeight;
             const ctx = canvas.getContext("2d");
-            if (!ctx) return resolve("");
+            if (!ctx) return resolve(undefined);
             ctx.drawImage(img, 0, 0);
-            resolve(canvas.toDataURL("image/png"));
+            canvas.toBlob(b => resolve(b ?? undefined), "image/png");
         };
-        img.onerror = () => resolve("");
-        img.src = dataUrl;
+        img.onerror = () => resolve(undefined);
+        img.src = url;
     });
+}
+
+// ---- the share image lives in DataStore (IndexedDB) as binary blobs and is shown through object URLs,
+// so it isn't a multi-MB string in settings.json, in memory twice, and rewritten on every settings change.
+
+const SHARE_KEY = "WhosWatching_shareAvatar";
+interface StoredShare { image: Blob; frame?: Blob; }
+
+const share = { image: "", frame: "", isGif: false };
+const shareListeners = new Set<() => void>();
+
+function applyShare(stored: StoredShare | undefined) {
+    if (share.image) URL.revokeObjectURL(share.image);
+    if (share.frame) URL.revokeObjectURL(share.frame);
+    share.image = stored?.image ? URL.createObjectURL(stored.image) : "";
+    share.frame = stored?.frame ? URL.createObjectURL(stored.frame) : "";
+    share.isGif = stored?.image?.type === "image/gif";
+    shareListeners.forEach(l => l());
+}
+
+async function saveShare(stored: StoredShare | undefined) {
+    if (stored) await DataStore.set(SHARE_KEY, stored);
+    else await DataStore.del(SHARE_KEY);
+    applyShare(stored);
+}
+
+async function loadShare() {
+    let stored = await DataStore.get<StoredShare>(SHARE_KEY).catch(() => undefined);
+    const legacy = settings.store.shareAvatarImage;
+    if (!stored && legacy) {
+        // one-time move out of settings.json
+        const toBlob = async (url: string) => url ? (await fetch(url)).blob() : undefined;
+        const image = await toBlob(legacy);
+        if (image) {
+            stored = { image, frame: await toBlob(settings.store.shareAvatarStaticFrame) };
+            await DataStore.set(SHARE_KEY, stored);
+        }
+    }
+    if (legacy || settings.store.shareAvatarStaticFrame) {
+        settings.store.shareAvatarImage = "";
+        settings.store.shareAvatarStaticFrame = "";
+    }
+    applyShare(stored);
 }
 
 // Ryder's own add-on: when nobody's watching the stream, that space is
@@ -124,11 +172,16 @@ function extractFirstFrame(dataUrl: string): Promise<string> {
 function ShareAvatarSlot() {
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [, forceUpdate] = useState(0);
-    const image = settings.store.shareAvatarImage;
-    const staticFrame = settings.store.shareAvatarStaticFrame;
+    useEffect(() => {
+        const l = () => forceUpdate(n => n + 1);
+        shareListeners.add(l);
+        return () => void shareListeners.delete(l);
+    }, []);
+    const image = share.image;
+    const staticFrame = share.frame;
     const mode = settings.store.shareAvatarMode || "talking";
     const isSpeaking = useStateFromStores([SpeakingStore], () => SpeakingStore.isCurrentUserSpeaking());
-    const isGif = image.startsWith("data:image/gif");
+    const { isGif } = share;
     // A gif only actually plays while talking - paused on its first frame
     // otherwise. Non-gif images have nothing to pause, always show as-is.
     const animating = mode === "always" || isSpeaking;
@@ -136,17 +189,13 @@ function ShareAvatarSlot() {
     async function onFileChosen(e: React.ChangeEvent<HTMLInputElement>) {
         const file = e.target.files?.[0];
         if (!file) return;
-        const reader = new FileReader();
-        reader.onload = async () => {
-            const dataUrl = String(reader.result);
-            const frame = file.type === "image/gif" ? await extractFirstFrame(dataUrl) : "";
-            // Mutating settings.store alone doesn't re-render this component -
-            // it's not React state, nothing here subscribes to it. Force one.
-            settings.store.shareAvatarImage = dataUrl;
-            settings.store.shareAvatarStaticFrame = frame;
-            forceUpdate(n => n + 1);
-        };
-        reader.readAsDataURL(file);
+        let frame: Blob | undefined;
+        if (file.type === "image/gif") {
+            const url = URL.createObjectURL(file);
+            frame = await extractFirstFrame(url);
+            URL.revokeObjectURL(url);
+        }
+        await saveShare({ image: file, frame });
     }
 
     if (!image) {
@@ -205,11 +254,7 @@ function ShareAvatarSlot() {
                 </Clickable>
                 <Clickable
                     className={cl("share-avatar-control-btn")}
-                    onClick={() => {
-                        settings.store.shareAvatarImage = "";
-                        settings.store.shareAvatarStaticFrame = "";
-                        forceUpdate(n => n + 1);
-                    }}
+                    onClick={() => void saveShare(undefined)}
                 >
                     Remove
                 </Clickable>
@@ -225,6 +270,9 @@ export default definePlugin({
     tags: ["Activity"],
     authors: [Devs.Ryder, Devs.thororen],
     settings,
+    start() {
+        void loadShare();
+    },
     patches: [
         {
             find: ".Masks.STATUS_SCREENSHARE,width:32",
