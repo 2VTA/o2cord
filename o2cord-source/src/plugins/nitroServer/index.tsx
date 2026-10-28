@@ -43,6 +43,7 @@
  */
 
 import { addContextMenuPatch, removeContextMenuPatch } from "@api/ContextMenu";
+import * as DataStore from "@api/DataStore";
 import { definePluginSettings } from "@api/Settings";
 import { Devs } from "@utils/constants";
 import definePlugin, { OptionType } from "@utils/types";
@@ -87,17 +88,46 @@ function readFileAsDataUrl(file: File) {
     });
 }
 
-function getJsonMap(key: "roleIcons" | "guildBanners"): Record<string, string> {
+// The uploaded role icons and banners used to be JSON strings inside settings.json (~1.3 MB), and
+// getRoleIcons()/getGuildBanners() parsed that JSON on every render of a role or a server. They now live
+// in DataStore (IndexedDB), loaded once at start into this object and read from memory.
+type ImageKey = "roleIcons" | "guildBanners";
+const IMAGES_KEY = "NitroServer_images";
+let images: Record<ImageKey, Record<string, string>> = { roleIcons: {}, guildBanners: {} };
+
+function parseLegacy(raw: string | undefined): Record<string, string> {
     try {
-        const raw = settings.store[key];
         return raw ? JSON.parse(raw) : {};
     } catch {
         return {};
     }
 }
 
-function setJsonMap(key: "roleIcons" | "guildBanners", next: Record<string, string>) {
-    settings.store[key] = JSON.stringify(next);
+async function loadImages() {
+    const stored = await DataStore.get<typeof images>(IMAGES_KEY).catch(() => undefined);
+    if (stored) images = { roleIcons: stored.roleIcons ?? {}, guildBanners: stored.guildBanners ?? {} };
+
+    // one-time move out of settings.json
+    const legacyRoles = parseLegacy(settings.store.roleIcons);
+    const legacyBanners = parseLegacy(settings.store.guildBanners);
+    if (Object.keys(legacyRoles).length || Object.keys(legacyBanners).length) {
+        images = {
+            roleIcons: { ...legacyRoles, ...images.roleIcons },
+            guildBanners: { ...legacyBanners, ...images.guildBanners }
+        };
+        await DataStore.set(IMAGES_KEY, images);
+        settings.store.roleIcons = "{}";
+        settings.store.guildBanners = "{}";
+    }
+}
+
+function getJsonMap(key: ImageKey): Record<string, string> {
+    return images[key];
+}
+
+function setJsonMap(key: ImageKey, next: Record<string, string>) {
+    images = { ...images, [key]: next };
+    void DataStore.set(IMAGES_KEY, images);
 }
 
 function getRoleIcons() {
@@ -362,6 +392,7 @@ export default definePlugin({
     settings,
 
     start() {
+        void loadImages();
         originalGetGuild = GuildStore.getGuild.bind(GuildStore);
         GuildStore.getGuild = (id: string) => wrapGuild(originalGetGuild!(id));
 
