@@ -89,6 +89,7 @@ const O2_PLUGIN_NAMES = new Set([
     "ProfileImages",
     "Widget",
     "RetroTerminal",
+    "VHS",
     "o2Settings",
     "O2WhatsNew",
     "O2WindowControls",

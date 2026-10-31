@@ -17,11 +17,12 @@ import { UserStore } from "@webpack/common";
 export function syncOwnerThemeClass() {
     // Owner-only: o2Settings' "Enable Custom Theme" switch is visible to
     // everyone and calls this too, so check here rather than trusting callers.
-    // Also off while RetroTerminal is on - the glass would fight the CRT look.
+    // Also off while RetroTerminal or VHS is on - the glass would fight their look.
     const isOwner = UserStore?.getCurrentUser?.()?.id === String(Devs.Ryder.id);
     const enabled = isOwner
         && Settings.plugins.o2Settings?.enableTheme !== false
-        && !Settings.plugins.RetroTerminal?.enabled;
+        && !Settings.plugins.RetroTerminal?.enabled
+        && !Settings.plugins.VHS?.enabled;
     const has = document.documentElement.classList.contains("o2-owner-theme");
     if (enabled && !has) document.documentElement.classList.add("o2-owner-theme");
     if (!enabled && has) document.documentElement.classList.remove("o2-owner-theme");
