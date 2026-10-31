@@ -30,6 +30,7 @@ import { relaunch } from "@utils/native";
 import { DEBUG_ONLY_PLUGINS } from "@utils/o2Debug";
 import { Clickable, TextInput, UserStore, useState } from "@webpack/common";
 
+import { GRADES as VHS_GRADES } from "@plugins/vhs";
 import { chooseTheme, currentTheme, isOwner, settings, ThemeChoice, TOGGLES } from "./index";
 
 // The legacy modal parts are typed `never` in @utils/modal.
@@ -59,7 +60,8 @@ const GROUPS: { title: string; names: string[]; }[] = [
 const THEMES: { id: ThemeChoice; title: string; sub: string; }[] = [
     { id: "none", title: "Normal", sub: "Discord's own look" },
     { id: "glass", title: "Liquid Glass", sub: "Frosted glass panels" },
-    { id: "retro", title: "Retro Terminal", sub: "Old CRT screen" }
+    { id: "retro", title: "Retro Terminal", sub: "Old CRT screen" },
+    { id: "vhs", title: "VHS", sub: "Old video tape" }
 ];
 
 const available = (name: string) => !!plugins[name] && !plugins[name].hidden && !DEBUG_ONLY_PLUGINS.has(name);
@@ -80,7 +82,10 @@ export function Switch({ on, label, onToggle }: { on: boolean; label: string; on
 export function ThemeCards({ onChange }: { onChange(): void; }) {
     const theme = currentTheme();
     const profile = RETRO_PROFILES[Settings.plugins.RetroTerminal?.profile ?? "amber"] ?? RETRO_PROFILES.amber;
-    const options = THEMES.filter(t => t.id !== "glass" || isOwner()).filter(t => t.id !== "retro" || canUseRetro());
+    const options = THEMES
+        .filter(t => t.id !== "glass" || isOwner())
+        .filter(t => t.id !== "retro" || canUseRetro())
+        .filter(t => t.id !== "vhs" || !!plugins.VHS);
     return (
         <div className="o2-hub-themes">
             {options.map(t => (
@@ -90,12 +95,12 @@ export function ThemeCards({ onChange }: { onChange(): void; }) {
                     role="radio"
                     aria-checked={theme === t.id}
                     onClick={() => { chooseTheme(t.id); onChange(); }}
-                    // Double-click the retro card to open its own settings.
-                    onDoubleClick={t.id === "retro" ? () => openPluginModal(plugins.RetroTerminal) : undefined}
-                    title={t.id === "retro" ? "Double-click for settings" : undefined}
+                    // Double-click the retro / VHS card to open its own settings.
+                    onDoubleClick={t.id === "retro" ? () => openPluginModal(plugins.RetroTerminal) : t.id === "vhs" ? () => openPluginModal(plugins.VHS) : undefined}
+                    title={t.id === "retro" || t.id === "vhs" ? "Double-click for settings" : undefined}
                 >
                     <div className={`o2-hub-theme-preview o2-hub-theme-preview-${t.id}`} style={t.id === "retro" ? { color: profile.fg, background: profile.bg } : undefined}>
-                        {t.id === "retro" ? "> _" : null}
+                        {t.id === "retro" ? "> _" : t.id === "vhs" ? "PLAY ►" : null}
                     </div>
                     <div className="o2-hub-theme-title">{t.title}{theme === t.id && <span className="o2-hub-muted"> · on</span>}</div>
                     <div className="o2-hub-muted">{t.sub}</div>
@@ -148,6 +153,8 @@ function HomePage({ go, refresh }: { go(page: Page): void; refresh(): void; }) {
 
 function ThemesPage({ refresh }: { refresh(): void; }) {
     const retroOn = currentTheme() === "retro";
+    const vhsOn = currentTheme() === "vhs";
+    const grade = Settings.plugins.VHS?.grade ?? "tape";
     const profile = Settings.plugins.RetroTerminal?.profile ?? "amber";
     return (
         <>
@@ -168,6 +175,23 @@ function ThemesPage({ refresh }: { refresh(): void; }) {
                         ))}
                     </div>
                     <Clickable className="o2-hub-link" onClick={() => openPluginModal(plugins.RetroTerminal)}>More retro settings →</Clickable>
+                </section>
+            )}
+            {vhsOn && (
+                <section>
+                    <div className="o2-hub-label">Tape colours</div>
+                    <div className="o2-hub-swatches">
+                        {Object.entries(VHS_GRADES).map(([key, g]) => (
+                            <Clickable
+                                key={key}
+                                className={classes("o2-hub-swatch", grade === key && "o2-hub-swatch-on")}
+                                onClick={() => { Settings.plugins.VHS.grade = key; refresh(); }}
+                            >
+                                <span className="o2-hub-dot" style={{ background: g.shadow, boxShadow: `inset 0 0 0 3px ${g.highlight}` }} />{g.short}
+                            </Clickable>
+                        ))}
+                    </div>
+                    <Clickable className="o2-hub-link" onClick={() => openPluginModal(plugins.VHS)}>More VHS settings (background picture, effects) →</Clickable>
                 </section>
             )}
         </>

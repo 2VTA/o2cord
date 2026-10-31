@@ -194,6 +194,15 @@
     background: linear-gradient(135deg, rgba(255, 255, 255, 0.18), rgba(255, 255, 255, 0.04));
 }
 
+/* the VCR's blue PLAY screen, with interlace lines */
+.o2-hub-theme-preview-vhs {
+    color: #fff;
+    text-shadow: -1px 0 rgba(255, 40, 90, 0.6), 1px 0 rgba(40, 210, 255, 0.6);
+    background:
+        repeating-linear-gradient(to bottom, rgba(0, 0, 0, 0) 0px, rgba(0, 0, 0, 0) 2px, rgba(0, 0, 0, 0.22) 3px, rgba(0, 0, 0, 0) 4px),
+        radial-gradient(ellipse at 50% 45%, #1730d0 0%, #0b1fae 60%, #06107a 100%);
+}
+
 .o2-hub-theme-title {
     margin-bottom: 2px;
     font-weight: 600;

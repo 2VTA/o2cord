@@ -33,6 +33,8 @@ import { BackgroundPictureSetting, getBackgroundUrl, loadBackground, onBackgroun
 
 interface Grade {
     label: string;
+    /** name on the o2cord Themes page */
+    short: string;
     /** what the darkest colours lean towards */
     shadow: string;
     /** what the brightest colours lean towards */
@@ -46,9 +48,9 @@ interface Grade {
 }
 
 export const GRADES: Record<string, Grade> = {
-    tape: { label: "Home tape - warm, faded colours", shadow: "#22102a", highlight: "#fff2dc", tone: 0.42, desat: 0.3, lift: 0.06 },
-    night: { label: "Night tape - deep blue with neon pink", shadow: "#0a1030", highlight: "#ffd8f1", tone: 0.5, desat: 0.25, lift: 0.04 },
-    bluescreen: { label: "VCR blue screen", shadow: "#0b1fae", highlight: "#f4f6ff", tone: 0.82, desat: 0.6, lift: 0 }
+    tape: { label: "Home tape - warm, faded colours", short: "Home tape", shadow: "#22102a", highlight: "#fff2dc", tone: 0.42, desat: 0.3, lift: 0.06 },
+    night: { label: "Night tape - deep blue with neon pink", short: "Night tape", shadow: "#0a1030", highlight: "#ffd8f1", tone: 0.5, desat: 0.25, lift: 0.04 },
+    bluescreen: { label: "VCR blue screen", short: "Blue screen", shadow: "#0b1fae", highlight: "#f4f6ff", tone: 0.82, desat: 0.6, lift: 0 }
 };
 
 // The VCR's own blue, for the loading screen.
