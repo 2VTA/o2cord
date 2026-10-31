@@ -26,7 +26,8 @@
  */
 
 import * as DataStore from "@api/DataStore";
-import { definePluginSettings, SettingsStore } from "@api/Settings";
+import { isPluginEnabled, plugins, stopPlugin } from "@api/PluginManager";
+import { definePluginSettings, Settings, SettingsStore } from "@api/Settings";
 import { Devs } from "@utils/constants";
 import { syncOwnerThemeClass } from "@utils/o2OwnerTheme";
 import definePlugin, { makeRange, OptionType, StartAt } from "@utils/types";
@@ -1062,6 +1063,12 @@ export default definePlugin({
     startAt: StartAt.DOMContentLoaded,
 
     start() {
+        // VHS owns the whole screen too - they don't mix
+        const vhs = plugins.VHS;
+        if (vhs && isPluginEnabled("VHS")) {
+            if (vhs.started) stopPlugin(vhs);
+            Settings.plugins.VHS.enabled = false;
+        }
         pluginRunning = true;
         void activateEarly();
         void onceReady.then(() => {
