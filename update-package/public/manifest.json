@@ -1,8 +1,8 @@
 {
-    "version":  "1.3.65",
-    "hash":  "public-20261031194215",
+    "version":  "1.3.66",
+    "hash":  "public-20261031200526",
     "author":  "o2cord",
-    "message":  "1.3.65: faster startup, lighter RetroTerminal, smaller settings file",
+    "message":  "1.3.66: VHS theme with background picture and updater window, fewer black screens when sharing",
     "notes":  [
                   "Public o2cord update package",
                   "ussro2 backgrounds are loaded from backgrounds.json beside this manifest",
