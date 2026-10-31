@@ -14,50 +14,17 @@
  */
 
 import { DATA_DIR } from "@main/utils/constants";
-import { app, BrowserWindow, IpcMainInvokeEvent } from "electron";
+import { app, IpcMainInvokeEvent } from "electron";
 import { readFileSync, rmSync, writeFileSync } from "fs";
 import { join } from "path";
 
 const SPLASH_CSS = join(DATA_DIR, "o2-retro-splash.css");
 const MAX_BYTES = 256 * 1024;
 
-// Ryder wanted the retro updater window up for ~5s instead of the usual
-// blink. Discord destroys it the moment the main window is ready and shows
-// the main window right after, so both are held until this long after the
-// updater window opened. Only while the retro stylesheet is in place.
-const SPLASH_MIN_MS = 5000;
-
-let splash: BrowserWindow | null = null;
-let splashUntil = 0;
-
-const splashHeld = () => !!splash && !splash.isDestroyed() && Date.now() < splashUntil;
-
-// Decided when the call happens, not when the window was made - the main
-// window can exist before the updater window is recognised as ours.
-function hold<T extends (...args: any[]) => any>(win: BrowserWindow, fn: T, extraMs = 0) {
-    return ((...args: Parameters<T>) => {
-        const wait = splashHeld() ? splashUntil - Date.now() + extraMs : 0;
-        if (wait <= 0) return fn(...args);
-        setTimeout(() => { if (!win.isDestroyed()) fn(...args); }, wait);
-    }) as T;
-}
-
-const startedAt = Date.now();
-
+// The retro look on Discord's updater window. It used to keep that window
+// (and the main window behind it) up for at least 5s, which made startup
+// feel slow - now Discord opens the main window the moment it's ready.
 app.on("browser-window-created", (_, win) => {
-    const openedAt = Date.now();
-
-    // Windows from the first seconds of startup (the main window): showing
-    // them waits for a held retro updater window, so it isn't covered early.
-    // A no-op whenever no updater window is being held.
-    if (openedAt - startedAt < 15_000) {
-        const show = win.show.bind(win), showInactive = win.showInactive.bind(win);
-        const heldShow = hold(win, show, 50), heldShowInactive = hold(win, showInactive, 50);
-        // ...but never the updater window's own show.
-        win.show = () => (win === splash ? show() : heldShow());
-        win.showInactive = () => (win === splash ? showInactive() : heldShowInactive());
-    }
-
     const wc = win.webContents;
     wc.on("dom-ready", () => {
         // Only Discord's updater window - resources/_app.asar/splash/index.html.
@@ -70,13 +37,6 @@ app.on("browser-window-created", (_, win) => {
         }
         if (!css || css.length > MAX_BYTES) return;
         wc.insertCSS(css).catch(() => { });
-
-        if (splash !== win) {
-            splash = win;
-            splashUntil = openedAt + SPLASH_MIN_MS;
-            win.close = hold(win, win.close.bind(win));
-            win.destroy = hold(win, win.destroy.bind(win));
-        }
     });
 });
 

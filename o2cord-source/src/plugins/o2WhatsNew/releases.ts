@@ -31,6 +31,16 @@ export interface Release {
 
 export const RELEASES: Release[] = [
     {
+        version: "1.3.65",
+        date: "October 31, 2026",
+        features: [],
+        fixes: [
+            { plugin: "RetroTerminal", text: "Discord opens faster: the retro updater window no longer holds Discord back for 5 seconds on startup." },
+            { plugin: "RetroTerminal", text: "Lighter on your PC: the grain is still by default, moving effects hide while a video or stream plays and pause when Discord isn't focused." },
+            { text: "Big saved pictures (Who's Watching, NitroServer) moved out of o2cord's settings file, so o2cord loads and saves settings much faster." }
+        ]
+    },
+    {
         version: "1.3.64",
         date: "October 27, 2026",
         features: [
