@@ -5,7 +5,8 @@
  *
  * Discord as an old VHS tape: faded tape colours, red/blue colour fringing on
  * text, interlace lines, grain, a tracking band that rolls up now and then,
- * head-switching noise at the bottom edge and a blue "PLAY" loading screen.
+ * head-switching noise at the bottom edge, and the VCR's blue "PLAY" screen on
+ * Discord's updater window and loading screen.
  *
  * Nothing here moves Discord's layout - no font, size, padding, border or
  * radius is touched, and nothing is drawn over Discord's boxes except the
@@ -387,6 +388,131 @@ ${LOADER}::after {
 }`;
 }
 
+/*
+ * Discord's small updater window ("Checking for updates...", 300x350) opens
+ * before this renderer exists, so it's styled from the main process. That
+ * part is RetroTerminal's native helper (it only puts a saved stylesheet into
+ * that window) - the two themes never run together, so they share it. DOM of
+ * that window: #splash > .splash-inner > img + .splash-text > .splash-status,
+ * and while downloading .progress > .progress-bar > .complete.
+ */
+function splashCss() {
+    const fringe = "-2px 0 rgba(255, 40, 90, 0.6), 2px 0 rgba(40, 210, 255, 0.6)";
+    return `@import url("https://fonts.googleapis.com/css2?family=VT323&display=swap");
+
+html, body { background: #06107a !important; }
+
+#splash {
+    position: fixed !important;
+    inset: 0 !important;
+    overflow: hidden;
+    background: radial-gradient(ellipse at 50% 45%, #1730d0 0%, ${VCR_BLUE} 60%, #06107a 100%) !important;
+    font-family: "VT323", Consolas, monospace !important;
+}
+
+/* interlace lines, darker edges, and the head-switching strip along the bottom */
+#splash::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: 5;
+    pointer-events: none;
+    background:
+        linear-gradient(to top, rgba(255, 255, 255, 0.35) 0px, rgba(255, 255, 255, 0.08) 4px, rgba(255, 255, 255, 0) 5px),
+        repeating-linear-gradient(to bottom, rgba(0, 0, 0, 0) 0px, rgba(0, 0, 0, 0) 2px, rgba(0, 0, 0, 0.22) 3px, rgba(0, 0, 0, 0) 4px),
+        radial-gradient(ellipse at center, rgba(0, 0, 0, 0) 60%, rgba(0, 0, 0, 0.45) 100%);
+}
+
+#splash::before {
+    content: "PLAY \\25BA";
+    position: absolute;
+    top: 22px;
+    left: 24px;
+    font-size: 34px;
+    line-height: 1;
+    color: #fff;
+    text-shadow: ${fringe};
+    animation: o2-vhs-splash-play 1s steps(1) infinite;
+}
+
+@keyframes o2-vhs-splash-play {
+    0%, 74% { opacity: 1; }
+    75%, 100% { opacity: 0.35; }
+}
+
+.splash-inner img { display: none !important; }
+
+/* the tape counter where Discord's logo was (not the date - this sheet is
+   written during the previous session, so a clock would be stale) */
+.splash-inner::before {
+    content: "SP\\A 0:00:00";
+    display: block;
+    white-space: pre;
+    font-size: 30px;
+    line-height: 1.1;
+    text-align: center;
+    color: #fff;
+    text-shadow: ${fringe};
+    margin: 0 auto 24px;
+}
+
+/* Discord's own status text, in the corner like a VCR's on-screen display */
+.splash-status {
+    position: fixed !important;
+    left: 24px;
+    bottom: 26px;
+    max-width: calc(100vw - 48px);
+    text-align: left !important;
+    font-family: "VT323", Consolas, monospace !important;
+    font-size: 20px !important;
+    line-height: 1.1 !important;
+    text-transform: uppercase;
+    color: #fff !important;
+    text-shadow: ${fringe};
+}
+
+.progress {
+    background: transparent !important;
+    border: 2px solid #fff !important;
+    border-radius: 0 !important;
+}
+
+.progress .progress-bar {
+    background: transparent !important;
+    border-radius: 0 !important;
+}
+
+.progress .complete {
+    background: repeating-linear-gradient(90deg, #fff 0px, #fff 8px, rgba(255, 255, 255, 0) 8px, rgba(255, 255, 255, 0) 11px) !important;
+    border-radius: 0 !important;
+}
+
+.splash-build-override {
+    font-family: "VT323", Consolas, monospace !important;
+    color: #fff !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    #splash::before { animation: none; }
+}
+`;
+}
+
+let splashTimer: ReturnType<typeof setTimeout> | undefined;
+
+function pushSplashCss() {
+    clearTimeout(splashTimer);
+    // after RetroTerminal's own clear, if it was just switched off for this
+    splashTimer = setTimeout(() => {
+        void VencordNative.pluginHelpers.RetroTerminal?.setSplashCss(splashCss()).catch(() => { });
+    }, 400);
+}
+
+function clearSplashCss() {
+    clearTimeout(splashTimer);
+    void VencordNative.pluginHelpers.RetroTerminal?.setSplashCss(null).catch(() => { });
+}
+
 let style: HTMLStyleElement | null = null;
 let varsStyle: HTMLStyleElement | null = null;
 let active = false;
@@ -521,6 +647,7 @@ function activate() {
     addLayers();
     watchFx();
     stopBackgroundWatch = onBackgroundChange(applyBackground);
+    pushSplashCss();
     void loadBackground();
     SettingsStore.addPrefixChangeListener(SETTINGS_PREFIX, onSettingsChange);
     // Discord adds some stylesheets a little after startup - read the colours once more then
@@ -546,6 +673,8 @@ function deactivate() {
     stopBackgroundWatch?.();
     stopBackgroundWatch = undefined;
     unloadBackground();
+    // next launch's updater window goes back to Discord's own look
+    clearSplashCss();
     document.getElementById("o2-vhs-bg")?.remove();
     setTimeout(syncOwnerThemeClass, 0);
 }
