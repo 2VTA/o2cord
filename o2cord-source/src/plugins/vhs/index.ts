@@ -27,7 +27,7 @@ import { localStorage } from "@utils/localStorage";
 import { syncOwnerThemeClass } from "@utils/o2OwnerTheme";
 import definePlugin, { makeRange, OptionType, StartAt } from "@utils/types";
 import { onceReady } from "@webpack";
-import { FluxDispatcher } from "@webpack/common";
+import { FluxDispatcher, UserStore } from "@webpack/common";
 
 import { BackgroundPictureSetting, getBackgroundUrl, loadBackground, onBackgroundChange, unloadBackground } from "./BackgroundPicture";
 
@@ -101,18 +101,10 @@ const settings = definePluginSettings({
     },
     backgroundStrength: {
         type: OptionType.SLIDER,
-        description: "How strongly the background picture shows through.",
+        description: "How strongly the background picture shows through Discord's panels.",
         markers: makeRange(0, 100, 10),
-        default: 30,
+        default: 40,
         stickToMarkers: false
-    },
-    backgroundBlend: {
-        type: OptionType.SELECT,
-        description: "How the background picture mixes with Discord.",
-        options: [
-            { label: "Glow - the picture lights up the dark parts, text stays bright", value: "screen", default: true },
-            { label: "Fade - the picture laid over Discord, see-through", value: "normal" }
-        ]
     },
     tracking: {
         type: OptionType.BOOLEAN,
@@ -215,12 +207,28 @@ export function gradeColor(r: number, g: number, b: number, grade: Grade): [numb
     }) as [number, number, number];
 }
 
+/*
+ * With a background picture, Discord's panel backgrounds become see-through so
+ * the picture shows behind them - and only behind them: pictures, videos,
+ * avatars and text are drawn on top as usual. Popouts, menus and modals keep
+ * their own solid colours (they use the surface/floating variables, not these).
+ */
+const PANEL_VAR = /^--(background-base-|background-(primary|secondary|secondary-alt|tertiary)$|bg-base-|background-gradient-|chat-background)/;
+// each nested panel only adds a light shade, so the chat (3 panels deep) still shows the picture
+const PANEL_ALPHA = 0.16;
+
+// The picture waits for Discord to be loaded, so the blue PLAY screen comes first.
+let appReady = false;
+const hasBackground = () => appReady && !!getBackgroundUrl();
+
 function buildVarsCss() {
     const grade = getGrade();
-    if (!grade || !harvested.length) return "";
+    const see = hasBackground();
+    if ((!grade && !see) || !harvested.length) return "";
     const lines = harvested.map(([name, r, g, b, a]) => {
-        const [R, G, B] = gradeColor(r, g, b, grade);
-        return `    ${name}: rgba(${R}, ${G}, ${B}, ${+a.toFixed(3)}) !important;`;
+        const [R, G, B] = grade ? gradeColor(r, g, b, grade) : [r, g, b];
+        const alpha = see && PANEL_VAR.test(name) ? Math.min(a, PANEL_ALPHA) : a;
+        return `    ${name}: rgba(${R}, ${G}, ${B}, ${+alpha.toFixed(3)}) !important;`;
     });
     return `:root, :root [class*="theme-"] {\n${lines.join("\n")}\n}`;
 }
@@ -245,6 +253,9 @@ function buildCss() {
     const off = (0.3 + bleed * 0.18).toFixed(2);
     const fringe = (0.25 + bleed * 0.04).toFixed(3);
     const osdShadow = "-2px 0 rgba(255, 40, 90, 0.6), 2px 0 rgba(40, 210, 255, 0.6)";
+    const strength = clamp(s.backgroundStrength, 0, 100, 40) / 100;
+    const [dr, dg, db] = hexToRgb(getGrade()?.shadow ?? "#000000");
+    const dim = `rgba(${dr}, ${dg}, ${db}, ${(0.85 - strength * 0.75).toFixed(3)})`;
 
     return `@import url("https://fonts.googleapis.com/css2?family=VT323&display=swap");
 
@@ -290,21 +301,29 @@ ${LOADER}::after {
     font-size: 34px;
 }
 
-/* The background picture: under the tape effects (so the lines, grain and
-   tracking run over it too), over Discord, never catching clicks. */
+/* The background picture: behind all of Discord (z-index -1 under the page),
+   showing through the see-through panels only. Darkened towards the tape's
+   shadow colour so text on it stays readable; the slider sets how much. */
 #o2-vhs-bg {
     position: fixed;
     inset: 0;
-    z-index: 2147483644;
+    z-index: -1;
     pointer-events: none;
-    background: center / cover no-repeat;
-    opacity: ${(clamp(s.backgroundStrength, 0, 100, 30) / 100 * (s.backgroundBlend === "normal" ? 0.6 : 1)).toFixed(3)};
-    mix-blend-mode: ${s.backgroundBlend === "normal" ? "normal" : "screen"};
+    background-image: linear-gradient(${dim}, ${dim}), var(--o2-vhs-picture);
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    animation: o2-vhs-bg-in 0.8s ease both;
 }
 
-#o2-vhs-bg.o2-vhs-video {
-    display: none;
+@keyframes o2-vhs-bg-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
 }
+
+${hasBackground() ? `html, body, #app-mount {
+    background: transparent !important;
+}` : ""}
 
 #o2-vhs-fx {
     position: fixed;
@@ -520,17 +539,23 @@ let varsStyle: HTMLStyleElement | null = null;
 let active = false;
 
 function applyBackground() {
-    const url = active ? getBackgroundUrl() : null;
+    const url = active && appReady ? getBackgroundUrl() : null;
     let bg = document.getElementById("o2-vhs-bg");
-    if (!url) return void bg?.remove();
+    if (!url) {
+        bg?.remove();
+        update();
+        return;
+    }
     if (!bg) {
         bg = document.createElement("div");
         bg.id = "o2-vhs-bg";
         bg.setAttribute("aria-hidden", "true");
         document.body.appendChild(bg);
     }
-    bg.style.backgroundImage = `url("${url}")`;
-    refreshFxState();
+    bg.style.setProperty("--o2-vhs-picture", `url("${url}")`);
+    // the panels turn see-through (or solid again) with the picture
+    if (!harvested.length) regradeWhenIdle();
+    update();
 }
 
 function addLayers() {
@@ -558,10 +583,7 @@ function refreshFxState() {
     const fx = document.getElementById("o2-vhs-fx");
     if (!fx) return;
     const s = settings.store;
-    const video = s.pauseEffectsDuringVideo !== false && videoPlaying();
-    fx.classList.toggle("o2-vhs-video", video);
-    // a picture over a stream would cover it, and re-blend every frame
-    document.getElementById("o2-vhs-bg")?.classList.toggle("o2-vhs-video", video);
+    fx.classList.toggle("o2-vhs-video", s.pauseEffectsDuringVideo !== false && videoPlaying());
     fx.classList.toggle("o2-vhs-unfocused", s.pauseEffectsWhenUnfocused !== false && !document.hasFocus());
 }
 
@@ -594,7 +616,7 @@ const VARS_CACHE_KEY = "o2cord-vhs-vars";
 function readCachedVars() {
     try {
         const cached = JSON.parse(localStorage.getItem(VARS_CACHE_KEY) ?? "null");
-        return cached?.grade === settings.store.grade && typeof cached.css === "string" ? cached.css as string : "";
+        return cached?.grade === settings.store.grade && cached.see === hasBackground() && typeof cached.css === "string" ? cached.css as string : "";
     } catch {
         return "";
     }
@@ -606,9 +628,9 @@ function update() {
     const vars = buildVarsCss();
     if (harvested.length) {
         varsStyle.textContent = vars;
-        try { localStorage.setItem(VARS_CACHE_KEY, JSON.stringify({ grade: settings.store.grade, css: vars })); } catch { /* cache is optional */ }
+        try { localStorage.setItem(VARS_CACHE_KEY, JSON.stringify({ grade: settings.store.grade, see: hasBackground(), css: vars })); } catch { /* cache is optional */ }
     } else {
-        varsStyle.textContent = getGrade() ? readCachedVars() : "";
+        varsStyle.textContent = getGrade() || hasBackground() ? readCachedVars() : "";
     }
     refreshFxState();
 }
@@ -620,7 +642,7 @@ function regradeWhenIdle() {
     if (idleHandle != null || !active) return;
     idleHandle = requestIdleCallback(() => {
         idleHandle = undefined;
-        if (!active || !getGrade()) return;
+        if (!active || (!getGrade() && !hasBackground())) return;
         harvestColorVars();
         update();
     }, { timeout: 1500 });
@@ -632,7 +654,7 @@ let stopBackgroundWatch: (() => void) | undefined;
 
 function onSettingsChange() {
     // a grade picked after "off" needs the colours read first
-    if (getGrade() && !harvested.length) regradeWhenIdle();
+    if ((getGrade() || hasBackground()) && !harvested.length) regradeWhenIdle();
     update();
 }
 
@@ -663,6 +685,9 @@ function deactivate() {
     if (!active) return;
     active = false;
     clearTimeout(regradeTimer);
+    clearInterval(readyTimer);
+    readyTimer = undefined;
+    appReady = false;
     if (idleHandle != null) cancelIdleCallback(idleHandle);
     idleHandle = undefined;
     SettingsStore.removePrefixChangeListener(SETTINGS_PREFIX, onSettingsChange);
@@ -683,6 +708,21 @@ function deactivate() {
 
 function onConnectionOpen() {
     regradeWhenIdle();
+    showBackgroundWhenLoaded();
+}
+
+// After the loading screen is gone (checked a few times - it fades out after CONNECTION_OPEN).
+let readyTimer: ReturnType<typeof setInterval> | undefined;
+function showBackgroundWhenLoaded() {
+    if (appReady || readyTimer) return;
+    const started = Date.now();
+    readyTimer = setInterval(() => {
+        if (document.querySelector(LOADER) && Date.now() - started < 15_000) return;
+        clearInterval(readyTimer);
+        readyTimer = undefined;
+        appReady = true;
+        applyBackground();
+    }, 200);
 }
 
 /** RetroTerminal and VHS both own the whole screen - turning one on turns the other off. */
@@ -715,6 +755,8 @@ export default definePlugin({
             subscribed = true;
             FluxDispatcher.subscribe("CONNECTION_OPEN", onConnectionOpen);
             regradeWhenIdle();
+            // switched on while Discord was already open - no CONNECTION_OPEN coming
+            if (UserStore.getCurrentUser()) showBackgroundWhenLoaded();
         });
     },
 

@@ -31,6 +31,21 @@ export interface Release {
 
 export const RELEASES: Release[] = [
     {
+        version: "1.3.67",
+        date: "October 31, 2026",
+        features: [
+            {
+                plugin: "VHS",
+                title: "VHS in the theme picker",
+                text: "VHS is now a card next to Normal, Liquid Glass and Retro Terminal. Double-click it for its settings; the Themes page also has quick buttons for the tape colours."
+            }
+        ],
+        fixes: [
+            { plugin: "VHS", text: "The background picture now sits behind Discord: it shows through the panels, while pictures, videos and text stay on top of it." },
+            { plugin: "VHS", text: "The background picture waits for the blue PLAY screen to finish, then fades in." }
+        ]
+    },
+    {
         version: "1.3.66",
         date: "October 31, 2026",
         features: [

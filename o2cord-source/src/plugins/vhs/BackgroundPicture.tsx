@@ -68,7 +68,7 @@ export function BackgroundPictureSetting() {
     return (
         <section>
             <Forms.FormTitle>Background picture</Forms.FormTitle>
-            <Forms.FormText>A picture (or GIF) behind the tape effects, faded into the screen like an old recording. Clicks still go to Discord as normal.</Forms.FormText>
+            <Forms.FormText>A picture (or GIF) behind Discord: it shows through the panels, while pictures, videos and text stay on top of it.</Forms.FormText>
             <div style={{
                 margin: "10px 0",
                 height: 120,
