@@ -31,6 +31,25 @@ export interface Release {
 
 export const RELEASES: Release[] = [
     {
+        version: "1.3.66",
+        date: "October 31, 2026",
+        features: [
+            {
+                plugin: "VHS",
+                title: "VHS theme",
+                text: "Discord as an old VHS tape: faded tape colours (Home tape, Night tape or the VCR's blue screen), red and blue colour fringing on text, interlace lines, grain, tracking noise and a blue PLAY loading screen. Pictures keep their real colours and nothing in Discord's layout moves."
+            },
+            {
+                plugin: "VHS",
+                title: "Your own background picture",
+                text: "Pick any picture or GIF in the VHS settings and it shows behind the tape effects, like an old recording. Clicks still go to Discord as normal."
+            }
+        ],
+        fixes: [
+            { plugin: "StreamingCodecDisabler", text: "Fewer black screens when you share your screen: Discord no longer switches your stream in and out of H265 while people join and leave (now on for everyone, you can change it in the plugin)." }
+        ]
+    },
+    {
         version: "1.3.65",
         date: "October 31, 2026",
         features: [],

@@ -255,7 +255,20 @@ async function init() {
     }
 }
 
+// 1.3.66: once per install, StreamingCodecDisabler on with H265 off - Discord
+// switching a running stream in and out of H265 left viewers on a black
+// picture. Before the plugin manager starts, so its patch applies right away.
+// Afterwards it's the user's own choice again.
+function migrateStreamsOffH265() {
+    const codecs = Settings.plugins.StreamingCodecDisabler;
+    if (!codecs || codecs.o2H265Migrated) return;
+    codecs.enabled = true;
+    codecs.disableH265Codec = true;
+    codecs.o2H265Migrated = true;
+}
+
 loadO2ExtraPlugins();
+migrateStreamsOffH265();
 initPluginManager();
 initStyles();
 startAllPlugins(StartAt.Init);
