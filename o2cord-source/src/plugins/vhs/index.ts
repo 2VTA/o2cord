@@ -28,6 +28,8 @@ import definePlugin, { makeRange, OptionType, StartAt } from "@utils/types";
 import { onceReady } from "@webpack";
 import { FluxDispatcher } from "@webpack/common";
 
+import { BackgroundPictureSetting, getBackgroundUrl, loadBackground, onBackgroundChange, unloadBackground } from "./BackgroundPicture";
+
 interface Grade {
     label: string;
     /** what the darkest colours lean towards */
@@ -89,6 +91,25 @@ const settings = definePluginSettings({
         markers: makeRange(0, 100, 10),
         default: 40,
         stickToMarkers: false
+    },
+    backgroundPicture: {
+        type: OptionType.COMPONENT,
+        component: BackgroundPictureSetting
+    },
+    backgroundStrength: {
+        type: OptionType.SLIDER,
+        description: "How strongly the background picture shows through.",
+        markers: makeRange(0, 100, 10),
+        default: 30,
+        stickToMarkers: false
+    },
+    backgroundBlend: {
+        type: OptionType.SELECT,
+        description: "How the background picture mixes with Discord.",
+        options: [
+            { label: "Glow - the picture lights up the dark parts, text stays bright", value: "screen", default: true },
+            { label: "Fade - the picture laid over Discord, see-through", value: "normal" }
+        ]
     },
     tracking: {
         type: OptionType.BOOLEAN,
@@ -266,6 +287,22 @@ ${LOADER}::after {
     font-size: 34px;
 }
 
+/* The background picture: under the tape effects (so the lines, grain and
+   tracking run over it too), over Discord, never catching clicks. */
+#o2-vhs-bg {
+    position: fixed;
+    inset: 0;
+    z-index: 2147483644;
+    pointer-events: none;
+    background: center / cover no-repeat;
+    opacity: ${(clamp(s.backgroundStrength, 0, 100, 30) / 100 * (s.backgroundBlend === "normal" ? 0.6 : 1)).toFixed(3)};
+    mix-blend-mode: ${s.backgroundBlend === "normal" ? "normal" : "screen"};
+}
+
+#o2-vhs-bg.o2-vhs-video {
+    display: none;
+}
+
 #o2-vhs-fx {
     position: fixed;
     inset: 0;
@@ -354,6 +391,20 @@ let style: HTMLStyleElement | null = null;
 let varsStyle: HTMLStyleElement | null = null;
 let active = false;
 
+function applyBackground() {
+    const url = active ? getBackgroundUrl() : null;
+    let bg = document.getElementById("o2-vhs-bg");
+    if (!url) return void bg?.remove();
+    if (!bg) {
+        bg = document.createElement("div");
+        bg.id = "o2-vhs-bg";
+        bg.setAttribute("aria-hidden", "true");
+        document.body.appendChild(bg);
+    }
+    bg.style.backgroundImage = `url("${url}")`;
+    refreshFxState();
+}
+
 function addLayers() {
     if (document.getElementById("o2-vhs-fx")) return;
     const fx = document.createElement("div");
@@ -379,7 +430,10 @@ function refreshFxState() {
     const fx = document.getElementById("o2-vhs-fx");
     if (!fx) return;
     const s = settings.store;
-    fx.classList.toggle("o2-vhs-video", s.pauseEffectsDuringVideo !== false && videoPlaying());
+    const video = s.pauseEffectsDuringVideo !== false && videoPlaying();
+    fx.classList.toggle("o2-vhs-video", video);
+    // a picture over a stream would cover it, and re-blend every frame
+    document.getElementById("o2-vhs-bg")?.classList.toggle("o2-vhs-video", video);
     fx.classList.toggle("o2-vhs-unfocused", s.pauseEffectsWhenUnfocused !== false && !document.hasFocus());
 }
 
@@ -446,6 +500,7 @@ function regradeWhenIdle() {
 
 const SETTINGS_PREFIX = "plugins.VHS";
 let regradeTimer: ReturnType<typeof setTimeout> | undefined;
+let stopBackgroundWatch: (() => void) | undefined;
 
 function onSettingsChange() {
     // a grade picked after "off" needs the colours read first
@@ -465,6 +520,8 @@ function activate() {
     update();
     addLayers();
     watchFx();
+    stopBackgroundWatch = onBackgroundChange(applyBackground);
+    void loadBackground();
     SettingsStore.addPrefixChangeListener(SETTINGS_PREFIX, onSettingsChange);
     // Discord adds some stylesheets a little after startup - read the colours once more then
     regradeTimer = setTimeout(regradeWhenIdle, 8000);
@@ -486,6 +543,10 @@ function deactivate() {
     style = varsStyle = null;
     harvested = [];
     document.getElementById("o2-vhs-fx")?.remove();
+    stopBackgroundWatch?.();
+    stopBackgroundWatch = undefined;
+    unloadBackground();
+    document.getElementById("o2-vhs-bg")?.remove();
     setTimeout(syncOwnerThemeClass, 0);
 }
 
