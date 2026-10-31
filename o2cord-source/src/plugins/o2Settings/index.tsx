@@ -75,11 +75,12 @@ function applyAllFromSettings() {
     }
 }
 
-export type ThemeChoice = "none" | "glass" | "retro";
+export type ThemeChoice = "none" | "glass" | "retro" | "vhs";
 
 export const isOwner = () => UserStore.getCurrentUser()?.id === String(Devs.Ryder.id);
 
 export function currentTheme(): ThemeChoice {
+    if (Settings.plugins.VHS?.enabled) return "vhs";
     if (canUseRetro() && Settings.plugins.RetroTerminal?.enabled) return "retro";
     if (isOwner() && settings.store.enableTheme !== false) return "glass";
     return "none";
@@ -101,11 +102,13 @@ function setPluginEnabled(name: string, on: boolean) {
 }
 
 export function chooseTheme(choice: ThemeChoice) {
-    if (choice === "retro") {
-        setPluginEnabled("RetroTerminal", true);
+    // VHS and RetroTerminal each switch the other off when they start
+    if (choice === "retro" || choice === "vhs") {
+        setPluginEnabled(choice === "retro" ? "RetroTerminal" : "VHS", true);
         return;
     }
     setPluginEnabled("RetroTerminal", false);
+    setPluginEnabled("VHS", false);
     settings.store.enableTheme = choice === "glass";
     syncOwnerThemeClass();
 }
