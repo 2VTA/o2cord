@@ -825,6 +825,13 @@
     font-weight: 400;
 }
 
+/* not published yet - inverted so it stands out in the list */
+.o2-con-tag-testing {
+    border-color: var(--con-fg);
+    background: var(--con-fg);
+    color: var(--con-bg);
+}
+
 .o2-con-thumb {
     display: grid;
     place-items: center;

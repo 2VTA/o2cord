@@ -37,6 +37,7 @@ import { Devs, IS_WINDOWS } from "@utils/constants";
 import { createAndAppendStyle } from "@utils/css";
 import { relaunch } from "@utils/native";
 import { syncOwnerThemeClass } from "@utils/o2OwnerTheme";
+import { loadO2ExtraPlugins, syncPublishedPlugins } from "@utils/o2TestPlugins";
 import { StartAt } from "@utils/types";
 import { React, UserStore } from "@webpack/common";
 
@@ -231,6 +232,9 @@ async function init() {
 
     syncSettings();
 
+    // published debug o2 plugins - a new or changed one loads on the next restart
+    syncPublishedPlugins().catch(e => PMLogger.warn("Couldn't check published plugins", e));
+
     if (!IS_WEB && !IS_UPDATER_DISABLED) {
         runUpdateCheck();
 
@@ -251,6 +255,7 @@ async function init() {
     }
 }
 
+loadO2ExtraPlugins();
 initPluginManager();
 initStyles();
 startAllPlugins(StartAt.Init);

@@ -63,6 +63,8 @@
     line-height: 16px;
     color: var(--white-500);
     text-align: center;
+    white-space: nowrap;
+    flex-shrink: 0;
 }
 
 .vc-plugins-dep-name {

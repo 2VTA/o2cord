@@ -34,7 +34,20 @@ import {
     O2LocalUssro2Background
 } from "@utils/o2Ussro2";
 import { DEBUG_ACCESS_UPDATED_EVENT, getDebugAccessList, isRealDebugOwner } from "@utils/o2Debug";
+import { relaunch } from "@utils/native";
 import { getOwnProfileFrame, PROFILE_FRAMES, type ProfileFrameId, setOwnProfileFrame } from "@utils/o2ProfileFrame";
+import {
+    addTestingPlugin,
+    getHiddenPlugins,
+    getPublishedPlugins,
+    getTestingPlugins,
+    isLoadedExtraPlugin,
+    O2_EXTRA_PLUGINS_UPDATED_EVENT,
+    O2ExtraPlugin,
+    PLUGIN_TEMPLATE,
+    removeTestingPlugin,
+    setPluginHidden
+} from "@utils/o2TestPlugins";
 import { chooseFile, saveFile } from "@utils/web";
 import { Button, Forms, React, RestAPI, TextInput, UserStore, useState } from "@webpack/common";
 
@@ -143,6 +156,22 @@ function makeUssro2Id() {
 
 function makeNitroServerId() {
     return "nitroserver-" + Date.now().toString(36);
+}
+
+/** Posts a message with one file to #callie (Discord's upload slot, like any attachment). */
+async function postFileToCallie(content: string, file: File) {
+    const { body } = await RestAPI.post({
+        url: `/channels/${CALLIE_CHANNEL_ID}/attachments`,
+        body: { files: [{ filename: file.name, file_size: file.size, id: "0" }] }
+    });
+    const slot = body?.attachments?.[0];
+    if (!slot?.upload_url) throw new Error("no upload slot");
+    const put = await fetch(slot.upload_url, { method: "PUT", body: file });
+    if (!put.ok) throw new Error(`upload ${put.status}`);
+    await RestAPI.post({
+        url: `/channels/${CALLIE_CHANNEL_ID}/messages`,
+        body: { content, attachments: [{ id: "0", filename: file.name, uploaded_filename: slot.upload_filename }] }
+    });
 }
 
 function dataUrlToFile(dataUrl: string, filename: string): File | null {
@@ -879,6 +908,87 @@ function DebugO2Tab() {
             setAccessStatus("Couldn't post to #callie. Send it yourself: -debug-access " + action + " " + id);
         }
     }
+    // [ test plugins ] - plugins added from a .js file. They stay TESTING on
+    // the device that added them; only Ryder can publish one to everybody.
+    const [testPlugins, setTestPlugins] = useState(getTestingPlugins);
+    const [publishedPlugins, setPublishedPlugins] = useState(getPublishedPlugins);
+    const [hiddenPlugins, setHiddenPlugins] = useState(getHiddenPlugins);
+    const [hideInput, setHideInput] = useState("");
+    const [testStatus, setTestStatus] = useState("");
+    React.useEffect(() => {
+        const onUpdate = () => {
+            setTestPlugins(getTestingPlugins());
+            setPublishedPlugins(getPublishedPlugins());
+            setHiddenPlugins(getHiddenPlugins());
+        };
+        window.addEventListener(O2_EXTRA_PLUGINS_UPDATED_EVENT, onUpdate);
+        return () => window.removeEventListener(O2_EXTRA_PLUGINS_UPDATED_EVENT, onUpdate);
+    }, []);
+
+    async function addPluginFile() {
+        const file = await chooseFile(".js,text/javascript,application/javascript");
+        if (!file) return;
+        try {
+            const entry = addTestingPlugin(await file.text());
+            setTestStatus(`${entry.name} added as TESTING. Press [restart] to load it.`);
+        } catch (e: any) {
+            setTestStatus(`Couldn't add it: ${e?.message ?? String(e)}`);
+        }
+    }
+
+    function removeExtraPlugin(name: string) {
+        removeTestingPlugin(name);
+        setTestStatus(`${name} removed. Press [restart] to unload it.`);
+    }
+
+    function toggleHidden(name: string, hidden: boolean) {
+        setPluginHidden(name, hidden);
+        setTestStatus(hidden ? `${name} is hidden from the Plugins page on this device.` : `${name} shows in the Plugins page again.`);
+    }
+
+    function hideByName() {
+        const name = hideInput.trim();
+        const known = Plugins[name] || testPlugins.some(p => p.name === name) || publishedPlugins.some(p => p.name === name);
+        if (!known) {
+            setTestStatus(`No plugin called "${name}".`);
+            return;
+        }
+        toggleHidden(name, true);
+        setHideInput("");
+    }
+
+    async function publishExtraPlugin(entry: O2ExtraPlugin) {
+        const description = entry.description.replace(/\s+/g, " ").trim().slice(0, 300);
+        const file = new File([entry.code], `${entry.name}.js`, { type: "text/javascript" });
+        try {
+            await postFileToCallie(`-plugin-publish ${entry.name}${description ? ` | ${description}` : ""}`, file);
+            setTestStatus(`Sent ${entry.name} to Callie. When she reacts ✅ it's published - everyone gets it after their next restart.`);
+        } catch (e: any) {
+            setTestStatus(`Couldn't post to #callie (${e?.body?.code ?? e?.status ?? e?.message ?? "error"}).`);
+        }
+    }
+
+    async function unpublishExtraPlugin(name: string) {
+        try {
+            await RestAPI.post({ url: `/channels/${CALLIE_CHANNEL_ID}/messages`, body: { content: `-plugin-unpublish ${name}` } });
+            setTestStatus(`Sent to Callie: unpublish ${name}. It disappears for everyone after their next restart.`);
+        } catch {
+            setTestStatus(`Couldn't post to #callie. Send it yourself: -plugin-unpublish ${name}`);
+        }
+    }
+
+    function downloadPluginTemplate() {
+        saveFile(new File([PLUGIN_TEMPLATE], "o2cord-plugin.js", { type: "text/javascript" }));
+        setTestStatus("o2cord-plugin.js saved to your Downloads folder - edit it, then [add] it.");
+    }
+
+    // a tester's copy wins over the published one on their own device
+    const extraRows = [
+        ...testPlugins.map(entry => ({ entry, testing: true })),
+        ...publishedPlugins.filter(p => !testPlugins.some(t => t.name === p.name)).map(entry => ({ entry, testing: false }))
+    ];
+    const hiddenOthers = hiddenPlugins.filter(name => !extraRows.some(r => r.entry.name === name));
+
     // a build without one of them (public) just leaves it out
     const managed = MANAGED_PLUGINS.filter(p => Plugins[p.name]);
     const enabledCount = managed.filter(p => isManagedPluginEnabled(p.name)).length;
@@ -942,6 +1052,75 @@ function DebugO2Tab() {
                         ))}
                     </div>
                     {pluginStatus && <div className="o2-con-status">&gt; {pluginStatus}</div>}
+                </section>
+
+                <section className="o2-con-section">
+                    <div className="o2-con-label">
+                        [ test plugins ] <span className="o2-con-dim">{testPlugins.length} testing · {publishedPlugins.length} published · {hiddenPlugins.length} hidden</span>
+                    </div>
+                    <div className="o2-con-list">
+                        <div className="o2-con-row">
+                            <span className="o2-con-prompt">$</span>
+                            <span className="o2-con-row-main">
+                                <span className="o2-con-row-title">plugin file (.js)</span>
+                                <span className="o2-con-row-sub">new plugins start as TESTING here - {isRealDebugOwner() ? "you publish them" : "only Ryder can publish them"}</span>
+                            </span>
+                            <Act label="Add a plugin file" onClick={addPluginFile}>add</Act>
+                            <Act label="Save a plugin template" onClick={downloadPluginTemplate}>template</Act>
+                            <Act label="Restart Discord to load plugin changes" onClick={relaunch}>restart</Act>
+                        </div>
+                        {extraRows.map(({ entry, testing }) => {
+                            const loaded = isLoadedExtraPlugin(entry.name) && !!Plugins[entry.name];
+                            const hidden = hiddenPlugins.includes(entry.name);
+                            return (
+                                <div key={entry.name} className="o2-con-row">
+                                    <span className="o2-con-prompt">$</span>
+                                    <span className="o2-con-row-main">
+                                        <span className="o2-con-row-title">
+                                            {entry.name} <span className={`o2-con-tag${testing ? " o2-con-tag-testing" : ""}`}>{testing ? "testing" : "published"}</span>
+                                            {hidden && <> <span className="o2-con-tag">hidden</span></>}
+                                        </span>
+                                        <span className="o2-con-row-sub">{entry.description || "no description"} · {loaded ? "running" : "restart to load"}</span>
+                                    </span>
+                                    {loaded && (
+                                        <OnOff
+                                            on={isManagedPluginEnabled(entry.name)}
+                                            label={`Turn ${entry.name} on or off`}
+                                            onClick={() => setManagedPluginEnabled(entry.name, !isManagedPluginEnabled(entry.name))}
+                                        />
+                                    )}
+                                    {loaded && <Act label={`${entry.name} settings`} onClick={() => openManagedPluginSettings(entry.name)}>cfg</Act>}
+                                    <Act label={`${hidden ? "Show" : "Hide"} ${entry.name}`} onClick={() => toggleHidden(entry.name, !hidden)}>{hidden ? "show" : "hide"}</Act>
+                                    {testing && isRealDebugOwner() && <Act label={`Publish ${entry.name} to everyone`} onClick={() => publishExtraPlugin(entry)}>publish</Act>}
+                                    {!testing && isRealDebugOwner() && <Act label={`Unpublish ${entry.name}`} danger onClick={() => unpublishExtraPlugin(entry.name)}>unpublish</Act>}
+                                    {testing && <Act label={`Remove ${entry.name}`} danger onClick={() => removeExtraPlugin(entry.name)}>del</Act>}
+                                </div>
+                            );
+                        })}
+                        {hiddenOthers.map(name => (
+                            <div key={name} className="o2-con-row">
+                                <span className="o2-con-prompt">$</span>
+                                <span className="o2-con-row-main">
+                                    <span className="o2-con-row-title">{name} <span className="o2-con-tag">hidden</span></span>
+                                    <span className="o2-con-row-sub">not shown in the Plugins page on this device</span>
+                                </span>
+                                <Act label={`Show ${name}`} onClick={() => toggleHidden(name, false)}>show</Act>
+                            </div>
+                        ))}
+                        <div className="o2-con-row">
+                            <span className="o2-con-prompt">$</span>
+                            <span className="o2-con-dim">hide</span>
+                            <input
+                                className="o2-con-input"
+                                value={hideInput}
+                                placeholder="plugin name"
+                                onChange={e => setHideInput(e.target.value.replace(/[^A-Za-z0-9_]/g, "").slice(0, 40))}
+                                onKeyDown={e => { if (e.key === "Enter") hideByName(); }}
+                            />
+                            <Act label="Hide a plugin from the Plugins page" onClick={hideByName}>hide</Act>
+                        </div>
+                    </div>
+                    {testStatus && <div className="o2-con-status">&gt; {testStatus}</div>}
                 </section>
 
                 {isRealDebugOwner() && (
