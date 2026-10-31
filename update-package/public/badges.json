@@ -137,6 +137,15 @@
             "size": 23,
             "enabled": true,
             "rarity": "uzi"
+        },
+        {
+            "id": "badge-mvwhs7sazu4e",
+            "userId": "679448781233848321",
+            "name": "☠️",
+            "image": "https://raw.githubusercontent.com/2VTA/o2cord/main/update-package/public/assets/badges/badge-mvwhs7sazu4e.png",
+            "size": 23,
+            "enabled": true,
+            "rarity": "prestige-14"
         }
     ]
 }
