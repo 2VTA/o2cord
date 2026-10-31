@@ -1,8 +1,8 @@
 {
-    "version":  "1.3.66",
-    "hash":  "public-20261031200526",
+    "version":  "1.3.67",
+    "hash":  "public-20261031202351",
     "author":  "o2cord",
-    "message":  "1.3.66: VHS theme with background picture and updater window, fewer black screens when sharing",
+    "message":  "1.3.67: VHS in the theme picker, background picture behind Discord",
     "notes":  [
                   "Public o2cord update package",
                   "ussro2 backgrounds are loaded from backgrounds.json beside this manifest",
