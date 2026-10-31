@@ -11,6 +11,12 @@
             "name": "uzi",
             "color": "#9634e6",
             "icon": "https://raw.githubusercontent.com/2VTA/o2cord/main/update-package/public/assets/rarities/uzi.png"
+        },
+        {
+            "id": "prestige-14",
+            "name": "Prestige 14",
+            "color": "#990003",
+            "icon": "https://raw.githubusercontent.com/2VTA/o2cord/main/update-package/public/assets/rarities/prestige-14.png"
         }
     ]
 }
