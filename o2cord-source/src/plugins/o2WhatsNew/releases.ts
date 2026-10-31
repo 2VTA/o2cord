@@ -37,7 +37,7 @@ export const RELEASES: Release[] = [
             {
                 plugin: "VHS",
                 title: "VHS theme",
-                text: "Discord as an old VHS tape: faded tape colours (Home tape, Night tape or the VCR's blue screen), red and blue colour fringing on text, interlace lines, grain, tracking noise and a blue PLAY loading screen. Pictures keep their real colours and nothing in Discord's layout moves."
+                text: "Discord as an old VHS tape: faded tape colours (Home tape, Night tape or the VCR's blue screen), red and blue colour fringing on text, interlace lines, grain and tracking noise - and Discord's small updater window and loading screen become the VCR's blue PLAY screen. Pictures keep their real colours and nothing in Discord's layout moves."
             },
             {
                 plugin: "VHS",
