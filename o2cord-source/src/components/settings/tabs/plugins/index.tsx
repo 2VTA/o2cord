@@ -32,6 +32,7 @@ import { Logger } from "@utils/Logger";
 import { Margins } from "@utils/margins";
 import { classes } from "@utils/misc";
 import { DEBUG_ONLY_PLUGINS } from "@utils/o2Debug";
+import { isLoadedExtraPlugin, isPluginHidden } from "@utils/o2TestPlugins";
 import { useAwaiter, useCleanupEffect } from "@utils/react";
 import { PluginTag, PluginTags } from "@utils/types";
 import { Clickable, ConfirmModal, lodash, openModal, Parser, React, SearchableSelect, TextInput, Tooltip, useMemo, useRef, useState } from "@webpack/common";
@@ -187,8 +188,8 @@ function PluginSettings() {
     const pluginFilter = (plugin: typeof Plugins[keyof typeof Plugins]) => {
         const { status, tags } = searchValue;
 
-        // managed only from debug o2
-        if (DEBUG_ONLY_PLUGINS.has(plugin.name)) return false;
+        // managed only from debug o2 / hidden there on this device
+        if (DEBUG_ONLY_PLUGINS.has(plugin.name) || isPluginHidden(plugin.name)) return false;
 
         switch (status) {
             case SearchStatus.DISABLED:
@@ -207,7 +208,7 @@ function PluginSettings() {
                 if (!plugin.name.endsWith("API")) return false;
                 break;
             case SearchStatus.O2_PLUGINS:
-                if (!O2_PLUGIN_NAMES.has(plugin.name)) return false;
+                if (!O2_PLUGIN_NAMES.has(plugin.name) && !isLoadedExtraPlugin(plugin.name)) return false;
                 break;
         }
 
@@ -284,7 +285,7 @@ function PluginSettings() {
         }
     }
 
-    const visible = sortedPlugins.filter(p => !p.hidden && !DEBUG_ONLY_PLUGINS.has(p.name) && !(p.name.endsWith("API") && !p.settings));
+    const visible = sortedPlugins.filter(p => !p.hidden && !DEBUG_ONLY_PLUGINS.has(p.name) && !isPluginHidden(p.name) && !(p.name.endsWith("API") && !p.settings));
     const onCount = visible.filter(p => isPluginEnabled(p.name)).length;
     const chips = [
         { label: "All", value: SearchStatus.ALL },
