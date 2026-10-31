@@ -7,5 +7,15 @@
         "nitroLevel": 8,
         "profileEffectId": "1212582317986545694",
         "profileFrameId": "1524191647854891039"
+    },
+    "619494728622407704": {
+        "avatar": "",
+        "accentColor": 0,
+        "accentColor2": 0,
+        "badgeFlags": 0,
+        "nitro": true,
+        "nitroLevel": -1,
+        "boostMonths": -1,
+        "decorationAsset": "1144307957425778779"
     }
 }
