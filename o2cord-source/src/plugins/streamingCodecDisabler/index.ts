@@ -27,10 +27,15 @@ const settings = definePluginSettings({
         type: OptionType.BOOLEAN,
         default: false
     },
+    // On by default: Discord switches a running stream between H265 and H264
+    // as viewers who can or can't decode H265 come and go (seen in Ryder's
+    // webrtc log: VP8 -> H265 -> H264 within a second), and every switch
+    // leaves viewers on a black picture until the next keyframe. H264 is
+    // decoded everywhere, so the stream stays on it.
     disableH265Codec: {
-        description: "Make Discord not consider using H265 for streaming.",
+        description: "Make Discord not consider using H265 for streaming. On by default - Discord switching a stream in and out of H265 is a common cause of a black screen for viewers.",
         type: OptionType.BOOLEAN,
-        default: false
+        default: true
     },
     disableH264Codec: {
         description: "Make Discord not consider using H264 for streaming.",
