@@ -1,8 +1,8 @@
 {
-    "version":  "1.3.64",
-    "hash":  "public-20261027215521",
+    "version":  "1.3.65",
+    "hash":  "public-20261031194215",
     "author":  "o2cord",
-    "message":  "GifCollections: add-to-collection menu + mp4 fix; shared profile frames",
+    "message":  "1.3.65: faster startup, lighter RetroTerminal, smaller settings file",
     "notes":  [
                   "Public o2cord update package",
                   "ussro2 backgrounds are loaded from backgrounds.json beside this manifest",
