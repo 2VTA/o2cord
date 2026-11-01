@@ -1,8 +1,8 @@
 {
-    "version":  "1.3.67",
-    "hash":  "public-20261031202351",
+    "version":  "1.3.68",
+    "hash":  "public-20261102025748",
     "author":  "o2cord",
-    "message":  "1.3.67: VHS in the theme picker, background picture behind Discord",
+    "message":  "O2 Voice - a voice changer for voice channels",
     "notes":  [
                   "Public o2cord update package",
                   "ussro2 backgrounds are loaded from backgrounds.json beside this manifest",
