@@ -1,0 +1,149 @@
+/* ---- o2cord "O2 Voice" window (VoiceModal) ---- */
+.o2-vc {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    padding-bottom: 16px;
+}
+
+.o2-vc-top {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px 24px;
+}
+
+.o2-vc-top > * {
+    flex: 1 1 260px;
+}
+
+.o2-vc-card {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 16px;
+    border-radius: 12px;
+    background: var(--background-mod-subtle, rgba(255, 255, 255, 0.04));
+}
+
+.o2-vc-muted {
+    color: var(--text-muted, #949ba4);
+    font-size: 13px;
+}
+
+.o2-vc-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+}
+
+.o2-vc-steps {
+    margin: 0;
+    padding-left: 20px;
+    color: var(--text-default, #dbdee1);
+    font-size: 14px;
+    line-height: 1.6;
+    list-style: decimal;
+}
+
+/* voice cards */
+.o2-vc-voices {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 10px;
+}
+
+.o2-vc-voice {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
+    padding: 12px;
+    border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.08));
+    border-radius: 10px;
+    background: var(--background-mod-subtle, rgba(255, 255, 255, 0.04));
+    color: var(--text-default, #dbdee1);
+    text-align: left;
+    cursor: pointer;
+}
+
+.o2-vc-voice:hover {
+    background: var(--background-mod-normal, rgba(255, 255, 255, 0.08));
+}
+
+/* the chosen card keeps the same size: the border only changes colour */
+.o2-vc-voice-on {
+    border-color: var(--text-strong, #fff);
+    box-shadow: inset 0 0 0 1px var(--text-strong, #fff);
+}
+
+.o2-vc-emoji {
+    font-size: 24px;
+    line-height: 1.2;
+}
+
+.o2-vc-name {
+    font-weight: 600;
+    color: var(--text-strong, #fff);
+}
+
+/* sliders */
+.o2-vc-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 12px 20px;
+}
+
+.o2-vc-range {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.o2-vc-range-label {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    color: var(--text-default, #dbdee1);
+    font-size: 14px;
+}
+
+.o2-vc-range input[type="range"] {
+    width: 100%;
+    accent-color: var(--brand-500, #5865f2);
+}
+
+.o2-vc-select {
+    box-sizing: border-box;
+    width: 100%;
+    padding: 8px 10px;
+    border: none;
+    border-radius: 6px;
+    background: var(--input-background-default, rgba(0, 0, 0, 0.25));
+    color: var(--text-default, #dbdee1);
+    font-size: 14px;
+    color-scheme: dark;
+}
+
+/* hold-to-record button */
+.o2-vc-hold {
+    min-width: 230px;
+    padding: 12px 18px;
+    border: none;
+    border-radius: 10px;
+    background: var(--brand-500, #5865f2);
+    color: #fff;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    user-select: none;
+    touch-action: none;
+}
+
+.o2-vc-hold-recording {
+    background: var(--status-danger, #da373c);
+}
+
+.o2-vc-hold-playing {
+    background: var(--status-positive, #23a55a);
+}

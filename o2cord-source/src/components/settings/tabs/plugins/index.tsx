@@ -90,6 +90,7 @@ const O2_PLUGIN_NAMES = new Set([
     "Widget",
     "RetroTerminal",
     "VHS",
+    "O2Voice",
     "o2Settings",
     "O2WhatsNew",
     "O2WindowControls",

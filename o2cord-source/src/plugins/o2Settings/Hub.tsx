@@ -52,7 +52,7 @@ const PAGES: { id: Page; label: string; icon: string; }[] = [
 const GROUPS: { title: string; names: string[]; }[] = [
     { title: "Your profile", names: ["ProfileTheme", "CustomProfile", "Nameplate", "ProfileImages", "ussro2Public", "ProfileSong", "Widget", "CustomTyping", "CallieRequests"] },
     { title: "Status and activity", names: ["O2Presence", "FakePlaying", "NitroServer"] },
-    { title: "Voice and streaming", names: ["AntiMoveDeco", "WhosWatching", "LimitlessScreenshare", "InstantScreenshare"] },
+    { title: "Voice and streaming", names: ["O2Voice", "AntiMoveDeco", "WhosWatching", "LimitlessScreenshare", "InstantScreenshare"] },
     { title: "Look and feel", names: ["RetroTerminal", "VHS", "AppIcon", "O2WindowControls", "BannersEverywhere", "HideServers", "PartyMode"] },
     { title: "Handy extras", names: ["FrequentQuickSwitcher", "ProfileSets", "O2WhatsNew"] }
 ];
