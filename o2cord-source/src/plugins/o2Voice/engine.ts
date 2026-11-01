@@ -79,6 +79,22 @@ export async function listMics() {
     return devices.filter(d => d.kind === "audioinput" && d.deviceId !== "default" && d.deviceId !== "communications" && !CABLE_MIC.test(d.label));
 }
 
+// Discord lists Windows' default as "Default (Headset Microphone (...))" - the real name is inside
+const realName = (name: string) => /^Default \((.*)\)$/.exec(name)?.[1] ?? name;
+const isCable = (label: string) => CABLE_MIC.test(label) || CABLE_SPEAKER.test(label) || /VB-Audio/i.test(label);
+
+/**
+ * The browser-side id of a device Discord knows by name. Installing VB-CABLE
+ * makes it Windows' default mic and speaker, so "default" is no good here -
+ * Discord's own choice is what the user actually talks into and listens on.
+ */
+function matchByName(devices: MediaDeviceInfo[], discordName: string | undefined) {
+    if (!discordName) return undefined;
+    const name = realName(discordName);
+    if (isCable(name)) return undefined;
+    return devices.find(d => d.label === name || d.label.startsWith(name + " ("))?.deviceId;
+}
+
 async function pickMicId(): Promise<string | undefined> {
     const mics = await listMics();
     const wanted = settings.store.micLabel;
@@ -86,11 +102,40 @@ async function pickMicId(): Promise<string | undefined> {
         const m = mics.find(d => d.label === wanted);
         if (m) return m.deviceId;
     }
-    // Windows' default mic, unless that's the cable itself
+    // the mic Discord used before it was switched to the cable
+    const inputs = discordInputs();
+    const saved = inputs.find(d => d.id === settings.store.savedInputId)?.name;
+    const current = inputs.find(d => d.id === MediaEngineStore.getInputDeviceId())?.name;
+    const byName = matchByName(mics, saved) ?? matchByName(mics, current) ?? matchByName(mics, inputs.find(d => d.id === "default")?.name);
+    if (byName) return byName;
+    // Windows' default / communications mic, unless that's the cable itself
     const all = await navigator.mediaDevices.enumerateDevices().catch(() => []);
-    const def = all.find(d => d.kind === "audioinput" && d.deviceId === "default");
-    if (def && !CABLE_MIC.test(def.label)) return "default";
+    for (const id of ["communications", "default"]) {
+        const d = all.find(x => x.kind === "audioinput" && x.deviceId === id);
+        if (d && !isCable(d.label)) return id;
+    }
     return mics[0]?.deviceId;
+}
+
+/** Where you hear Discord - for Test. Never the cable (that would send the test to Discord). */
+async function headphonesId(): Promise<string> {
+    const all = await navigator.mediaDevices.enumerateDevices().catch(() => []);
+    const outs = all.filter(d => d.kind === "audiooutput");
+    const outputs = Object.values(MediaEngineStore.getOutputDevices?.() ?? {}) as DiscordDevice[];
+    const discordOut = outputs.find(d => d.id === MediaEngineStore.getOutputDeviceId?.())?.name;
+    const byName = matchByName(outs.filter(d => d.deviceId !== "default" && d.deviceId !== "communications"), discordOut);
+    if (byName) return byName;
+    for (const id of ["communications", "default"]) {
+        const d = outs.find(x => x.deviceId === id);
+        if (d && !isCable(d.label)) return id === "default" ? "" : id;
+    }
+    return outs.find(d => !isCable(d.label) && d.deviceId !== "default" && d.deviceId !== "communications")?.deviceId ?? "";
+}
+
+/** True when installing VB-CABLE made it Windows' default speaker or mic. */
+export async function cableIsWindowsDefault() {
+    const all = await navigator.mediaDevices.enumerateDevices().catch(() => []);
+    return all.some(d => d.deviceId === "default" && isCable(d.label));
 }
 
 async function cableSpeakerId() {
@@ -160,6 +205,7 @@ async function applyMonitor() {
         monitorDest = ctx.createMediaStreamDestination();
         post.connect(monitorDest);
         monitorAudio = new Audio();
+        await (monitorAudio as any).setSinkId(await headphonesId()).catch(() => { });
         monitorAudio.srcObject = monitorDest.stream;
         await monitorAudio.play().catch(() => { });
     } else if (!want && monitorAudio) {
@@ -175,7 +221,7 @@ async function build(target: "cable" | "speakers") {
     const micId = await pickMicId();
     micStream = await navigator.mediaDevices.getUserMedia({
         audio: {
-            deviceId: micId && micId !== "default" ? { exact: micId } : undefined,
+            deviceId: micId ? { exact: micId } : undefined,
             // Discord does its own noise suppression and echo cancelling on the cable
             echoCancellation: false,
             noiseSuppression: false,
@@ -207,7 +253,7 @@ async function build(target: "cable" | "speakers") {
 
 async function setTarget(target: "cable" | "speakers") {
     if (!ctx) return;
-    const sink = target === "cable" ? await cableSpeakerId() : "";
+    const sink = target === "cable" ? await cableSpeakerId() : await headphonesId();
     if (target === "cable" && !sink) throw new Error("VB-CABLE's speaker (CABLE Input) wasn't found.");
     await (ctx as any).setSinkId(sink ?? "");
     sendingTo = target;

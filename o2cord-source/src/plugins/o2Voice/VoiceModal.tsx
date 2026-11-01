@@ -18,7 +18,7 @@ import { RenderModalProps } from "@vencord/discord-types";
 import { Forms, Modal, openModal, Text, useEffect, useState } from "@webpack/common";
 
 import {
-    applyVoice, applyVolume, getRecordState, hasCable, isRunning, isTesting, listMics, onVoiceChange, reopenMic,
+    applyVoice, applyVolume, cableIsWindowsDefault, getRecordState, hasCable, isRunning, isTesting, listMics, onVoiceChange, reopenMic,
     sendSentence, setOn, settings, setTesting, startSentence, VB_CABLE_URL, VB_CABLE_ZIP
 } from "./engine";
 import { VOICES } from "./voices";
@@ -50,6 +50,7 @@ function VoiceModalInner({ transitionState, onClose }: RenderModalProps) {
     const bump = () => rerender(n => n + 1);
     const [mics, setMics] = useState<MediaDeviceInfo[]>([]);
     const [pickingKey, setPickingKey] = useState(false);
+    const [cableDefault, setCableDefault] = useState(false);
     const s = settings.store;
     const cable = hasCable();
     const record = getRecordState();
@@ -57,6 +58,7 @@ function VoiceModalInner({ transitionState, onClose }: RenderModalProps) {
     useEffect(() => {
         const off = onVoiceChange(bump);
         void listMics().then(setMics);
+        void cableIsWindowsDefault().then(setCableDefault);
         return () => {
             off();
             // leaving the window ends a test
@@ -124,6 +126,24 @@ function VoiceModalInner({ transitionState, onClose }: RenderModalProps) {
                         <span className="o2-vc-muted">
                             Download didn't start? <a href={VB_CABLE_URL} onClick={e => { e.preventDefault(); VencordNative.native.openExternal(VB_CABLE_URL); }}>Open vb-audio.com</a> and press Download there.
                         </span>
+                    </Card>
+                )}
+
+                {cable && cableDefault && (
+                    <Card title="Windows made VB-CABLE your default speaker">
+                        <Forms.FormText>
+                            When VB-CABLE was installed, Windows switched your default speaker and mic to it - so games,
+                            YouTube and other apps now play into the cable and you can't hear them. O2 Voice itself is fine
+                            (it uses the mic and headphones Discord uses), but put Windows back:
+                        </Forms.FormText>
+                        <ol className="o2-vc-steps">
+                            <li>Windows Settings → System → <b>Sound</b>.</li>
+                            <li><b>Output</b>: pick your headset / speakers (not "CABLE Input").</li>
+                            <li><b>Input</b>: pick your real microphone (not "CABLE Output").</li>
+                        </ol>
+                        <div className="o2-vc-row">
+                            <Button variant="secondary" size="small" onClick={() => void cableIsWindowsDefault().then(setCableDefault)}>Check again</Button>
+                        </div>
                     </Card>
                 )}
 
@@ -223,7 +243,7 @@ function VoiceModalInner({ transitionState, onClose }: RenderModalProps) {
                                     bump();
                                 }}
                             >
-                                <option value="">Windows default</option>
+                                <option value="">Same as Discord</option>
                                 {mics.map(m => <option key={m.deviceId} value={m.label}>{m.label}</option>)}
                             </select>
                         </label>
