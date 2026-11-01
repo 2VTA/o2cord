@@ -22,7 +22,7 @@ import { OptionType } from "@utils/types";
 import { findByPropsLazy } from "@webpack";
 import { MediaEngineStore, SelectedChannelStore, showToast, Toasts } from "@webpack/common";
 
-import { CustomParams, getVoice } from "./voices";
+import { CustomParams, getVoice, LoudParams } from "./voices";
 import { WORKLET_NAME, WORKLET_SOURCE } from "./worklet";
 
 const logger = new Logger("O2Voice", "#c792ea");
@@ -40,7 +40,11 @@ export const settings = definePluginSettings({
     customEcho: { type: OptionType.NUMBER, description: "", default: 0, hidden: true },
     customReverb: { type: OptionType.NUMBER, description: "", default: 0, hidden: true },
     customGrit: { type: OptionType.NUMBER, description: "", default: 0, hidden: true },
-    customRobot: { type: OptionType.NUMBER, description: "", default: 0, hidden: true }
+    customRobot: { type: OptionType.NUMBER, description: "", default: 0, hidden: true },
+    loudBoost: { type: OptionType.NUMBER, description: "", default: 9, hidden: true },
+    loudBass: { type: OptionType.NUMBER, description: "", default: 10, hidden: true },
+    loudTreble: { type: OptionType.NUMBER, description: "", default: 0, hidden: true },
+    loudGrit: { type: OptionType.NUMBER, description: "", default: 100, hidden: true }
 });
 
 export const VB_CABLE_URL = "https://vb-audio.com/Cable/";
@@ -169,6 +173,11 @@ function customParams(): CustomParams {
     return { pitch: s.customPitch, echo: s.customEcho, reverb: s.customReverb, grit: s.customGrit, robot: s.customRobot };
 }
 
+function loudParams(): LoudParams {
+    const s = settings.store;
+    return { boost: s.loudBoost, bass: s.loudBass, treble: s.loudTreble, grit: s.loudGrit };
+}
+
 /** Puts the chosen voice between the worklet and the volume. */
 export function applyVoice() {
     if (!ctx || !worklet || !post) return;
@@ -184,7 +193,7 @@ export function applyVoice() {
     voiceOut = ctx.createGain();
     voiceOut.connect(post);
     try {
-        stopVoice = voice.build({ ctx, input: worklet, output: voiceOut, custom });
+        stopVoice = voice.build({ ctx, input: worklet, output: voiceOut, custom, loud: loudParams() });
     } catch (e) {
         logger.error("Couldn't build voice", voice.id, e);
         worklet.connect(voiceOut);

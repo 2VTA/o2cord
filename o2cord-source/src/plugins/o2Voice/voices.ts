@@ -18,11 +18,19 @@ export interface CustomParams {
     robot: number; // 0-100
 }
 
+export interface LoudParams {
+    boost: number; // 1-20 (x)
+    bass: number; // 0-20 dB
+    treble: number; // 0-15 dB
+    grit: number; // 0-100
+}
+
 export interface VoiceContext {
     ctx: AudioContext;
     input: AudioNode;
     output: AudioNode;
     custom: CustomParams;
+    loud: LoudParams;
 }
 
 export interface Voice {
@@ -273,9 +281,18 @@ export const VOICES: Voice[] = [
         name: "LOUD",
         emoji: "🔊",
         hint: "Very loud and blown out",
-        // boosted far past full scale, bass pushed up, then clipped hard - loud on purpose
-        build: ({ ctx, input, output }) => {
-            chain(input, gainNode(ctx, 9), filter(ctx, "lowshelf", 180, 0.7, 10), shaper(ctx, 1), gainNode(ctx, 0.98), output);
+        // boosted far past full scale, bass pushed up, then clipped hard - loud on purpose (sliders in the window)
+        build: ({ ctx, input, output, loud }) => {
+            chain(
+                input,
+                gainNode(ctx, loud.boost),
+                filter(ctx, "lowshelf", 180, 0.7, loud.bass),
+                filter(ctx, "highshelf", 3500, 0.7, loud.treble),
+                // Distortion 0 = no shaper at all (the curve is never fully straight)
+                ...(loud.grit > 0 ? [shaper(ctx, loud.grit / 100)] : []),
+                gainNode(ctx, 0.98),
+                output
+            );
             return none;
         }
     },

@@ -85,7 +85,7 @@ function VoiceModalInner({ transitionState, onClose }: RenderModalProps) {
         bump();
     }
 
-    function setCustom(key: "customPitch" | "customEcho" | "customReverb" | "customGrit" | "customRobot", v: number) {
+    function setCustom(key: "customPitch" | "customEcho" | "customReverb" | "customGrit" | "customRobot" | "loudBoost" | "loudBass" | "loudTreble" | "loudGrit", v: number) {
         settings.store[key] = v;
         applyVoice();
         bump();
@@ -191,6 +191,18 @@ function VoiceModalInner({ transitionState, onClose }: RenderModalProps) {
                             <Range label="Grit" value={s.customGrit} min={0} max={100} onChange={v => setCustom("customGrit", v)} />
                             <Range label="Robot" value={s.customRobot} min={0} max={100} onChange={v => setCustom("customRobot", v)} />
                         </div>
+                    </Card>
+                )}
+
+                {s.voice === "loud" && (
+                    <Card title="LOUD">
+                        <div className="o2-vc-grid">
+                            <Range label="Boost" value={s.loudBoost} min={1} max={20} unit="x" onChange={v => setCustom("loudBoost", v)} />
+                            <Range label="Bass" value={s.loudBass} min={0} max={20} unit=" dB" onChange={v => setCustom("loudBass", v)} />
+                            <Range label="Treble" value={s.loudTreble} min={0} max={15} unit=" dB" onChange={v => setCustom("loudTreble", v)} />
+                            <Range label="Distortion" value={s.loudGrit} min={0} max={100} onChange={v => setCustom("loudGrit", v)} />
+                        </div>
+                        <span className="o2-vc-muted">Boost is how hard the voice is pushed, Distortion how much it breaks up. Discord's Automatic Gain Control (Voice settings) turns it down - switch that off for full LOUD.</span>
                     </Card>
                 )}
 
