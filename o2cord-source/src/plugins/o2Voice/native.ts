@@ -8,9 +8,15 @@
  * ways - into VB-CABLE (so the voice channel hears it through your mic, mixed
  * with your voice) and into your headphones (so you hear it too). Devices are
  * picked by name: device ids differ per site, names don't.
+ *
+ * No ads: the embed player is used first (AdGuard's blocker is put into it,
+ * like the YoutubeAdblock plugin does), and if an ad still starts it is muted
+ * for everyone and skipped - nobody in the call hears it.
  */
 
 import { BrowserWindow, IpcMainInvokeEvent, session } from "electron";
+// AdGuard's YouTube ad blocker, the same file the YoutubeAdblock plugin uses
+import adguard from "file://../youtubeAdblock.desktop/adguard.js?minify";
 
 const PARTITION = "persist:o2voice-youtube";
 let win: BrowserWindow | null = null;
@@ -74,11 +80,65 @@ const routeScript = (o: PlayOptions) => `(async () => {
     out.srcObject = mine.stream;
     await out.play().catch(() => {});
 
-    window.__o2voice = { video, toCable, toMe };
+    const o = window.__o2voice = { video, toCable, toMe, volume: opts.volume, hear: opts.hear, ad: false };
+    o.apply = () => {
+        toCable.gain.value = o.ad ? 0 : o.volume;
+        toMe.gain.value = o.ad || !o.hear ? 0 : o.volume;
+    };
+
+    // an ad that got through: silent for everyone, fast-forwarded, skipped
+    setInterval(() => {
+        const player = document.querySelector(".html5-video-player");
+        const ad = !!player && (player.classList.contains("ad-showing") || player.classList.contains("ad-interrupting"));
+        if (ad) {
+            video.muted = true;
+            if (Number.isFinite(video.duration) && video.duration > 0) video.currentTime = video.duration;
+            video.playbackRate = 16;
+            document.querySelector(".ytp-ad-skip-button, .ytp-ad-skip-button-modern, .ytp-skip-ad-button")?.click();
+        } else if (o.ad) {
+            video.muted = false;
+            video.playbackRate = 1;
+        }
+        if (ad !== o.ad) {
+            o.ad = ad;
+            o.apply();
+        }
+    }, 200);
+
     video.loop = false;
+    video.muted = false;
+    o.apply();
     await video.play().catch(() => {});
     return document.title.replace(/ - YouTube$/, "");
 })()`;
+
+/**
+ * YouTube redirects some first loads (adds &themeRefresh=1 and the like), which
+ * makes loadURL give up with ERR_ABORTED - wait for the page it lands on instead.
+ */
+async function load(page: BrowserWindow, url: string) {
+    const landed = new Promise<void>(resolve => {
+        page.webContents.once("did-finish-load", () => resolve());
+        setTimeout(resolve, 20_000);
+    });
+    await page.loadURL(url).catch(e => {
+        if (!String(e).includes("ERR_ABORTED")) throw e;
+        return landed;
+    });
+}
+
+/** Waits for the embed player: true once its video has loaded, false if it shows an error. */
+function embedPlays(page: BrowserWindow): Promise<boolean> {
+    return page.webContents.executeJavaScript(`new Promise(resolve => {
+        const started = Date.now();
+        const t = setInterval(() => {
+            const video = document.querySelector("video");
+            const error = document.querySelector(".ytp-error, .ytp-embed-error");
+            if (error || Date.now() - started > 10000) { clearInterval(t); resolve(false); }
+            else if (video && video.readyState >= 1) { clearInterval(t); resolve(true); }
+        }, 200);
+    })`, true).catch(() => false);
+}
 
 export async function ytPlay(_: IpcMainInvokeEvent, link: string, opts: PlayOptions) {
     const id = videoId(String(link ?? ""));
@@ -105,17 +165,15 @@ export async function ytPlay(_: IpcMainInvokeEvent, link: string, opts: PlayOpti
     win.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
     win.on("closed", () => { win = null; });
 
-    // YouTube redirects the first load (adds &themeRefresh=1 and the like), which makes
-    // loadURL give up with ERR_ABORTED - wait for the page it lands on instead
     const page = win;
-    const landed = new Promise<void>(resolve => {
-        page.webContents.once("did-finish-load", () => resolve());
-        setTimeout(resolve, 20_000);
+    // the ad blocker goes into every page this window loads, as early as it can
+    page.webContents.on("dom-ready", () => {
+        page.webContents.executeJavaScript(adguard).catch(() => { });
     });
-    await page.loadURL(`https://www.youtube.com/watch?v=${id}`).catch(e => {
-        if (!String(e).includes("ERR_ABORTED")) throw e;
-        return landed;
-    });
+
+    await load(page, `https://www.youtube.com/embed/${id}?autoplay=1&rel=0&playsinline=1`);
+    // some videos can't be embedded - use the normal page for those
+    if (!await embedPlays(page)) await load(page, `https://www.youtube.com/watch?v=${id}`);
     if (page !== win || page.isDestroyed()) throw new Error("Stopped.");
     const safe = {
         volume: Math.max(0, Math.min(1.5, Number(opts?.volume) || 1)),
@@ -141,7 +199,7 @@ export function ytPause(_: IpcMainInvokeEvent, paused: boolean) {
 
 export function ytSettings(_: IpcMainInvokeEvent, volume: number, hear: boolean) {
     const v = Math.max(0, Math.min(1.5, Number(volume) || 0));
-    return inPage(`o.toCable.gain.value = ${v}; o.toMe.gain.value = ${hear ? v : 0}; return true;`);
+    return inPage(`o.volume = ${v}; o.hear = ${!!hear}; o.apply(); return true;`);
 }
 
 export function ytStatus() {
