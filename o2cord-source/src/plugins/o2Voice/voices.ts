@@ -33,6 +33,8 @@ export interface Voice {
     /** worklet pitch ratio (1 = unchanged) */
     pitch?: number | ((c: CustomParams) => number);
     liveReverse?: boolean;
+    /** short random syllables instead of plain reverse (see worklet.ts) */
+    babble?: boolean;
     build(v: VoiceContext): () => void;
 }
 
@@ -264,6 +266,34 @@ export const VOICES: Voice[] = [
         build: ({ ctx, input, output }) => {
             chain(input, filter(ctx, "highpass", 650), filter(ctx, "lowpass", 4200), shaper(ctx, 0.55), gainNode(ctx, 0.6), output);
             return none;
+        }
+    },
+    {
+        id: "loud",
+        name: "LOUD",
+        emoji: "🔊",
+        hint: "Very loud and blown out",
+        // boosted far past full scale, bass pushed up, then clipped hard - loud on purpose
+        build: ({ ctx, input, output }) => {
+            chain(input, gainNode(ctx, 9), filter(ctx, "lowshelf", 180, 0.7, 10), shaper(ctx, 1), gainNode(ctx, 0.98), output);
+            return none;
+        }
+    },
+    {
+        id: "squid",
+        name: "Squid Talk",
+        emoji: "🦑",
+        hint: "Cute gibberish - nobody gets a word",
+        pitch: 1.75,
+        liveReverse: true,
+        babble: true,
+        build: ({ ctx, input, output }) => {
+            // bright and bouncy: a quick wobble and a lift in the highs
+            const wob = ctx.createDelay(0.05);
+            wob.delayTime.value = 0.004;
+            const stop = lfo(ctx, wob.delayTime, 9, 0.0015);
+            chain(input, wob, filter(ctx, "highpass", 220), filter(ctx, "highshelf", 3000, 0.7, 5), output);
+            return stop;
         }
     },
     {

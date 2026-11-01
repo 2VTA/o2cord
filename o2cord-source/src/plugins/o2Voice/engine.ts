@@ -179,7 +179,7 @@ export function applyVoice() {
     const voice = getVoice(settings.store.voice);
     const custom = customParams();
     const pitch = typeof voice.pitch === "function" ? voice.pitch(custom) : voice.pitch ?? 1;
-    worklet.port.postMessage({ ratio: pitch, liveReverse: !!voice.liveReverse, chunkMs: settings.store.reverseChunkMs });
+    worklet.port.postMessage({ ratio: pitch, liveReverse: !!voice.liveReverse, babble: !!voice.babble, chunkMs: voice.babble ? 80 : settings.store.reverseChunkMs });
 
     voiceOut = ctx.createGain();
     voiceOut.connect(post);

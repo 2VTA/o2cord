@@ -10,6 +10,9 @@
  *    cross-faded (sin^2 windows) so the jumps where a head wraps can't be heard;
  *  - live reverse: the voice is cut into chunks and each chunk is played
  *    backwards, one chunk late (a true reverse needs the future);
+ *  - babble ("squid talk"): the same chunks, but short and random - some
+ *    backwards, some not, each a little higher or lower - so it keeps your
+ *    rhythm and tone while no word survives;
  *  - sentence reverse: while recording the mic goes silent, then the whole
  *    recording is played backwards.
  */
@@ -23,7 +26,9 @@ class O2Voice extends AudioWorkletProcessor {
     constructor() {
         super();
         this.ratio = 1;
+        this.baseRatio = 1;
         this.liveReverse = false;
+        this.babble = false;
 
         this.W = Math.round(sampleRate * 0.045);
         this.line = new Float32Array(this.W * 2 + 4);
@@ -43,7 +48,8 @@ class O2Voice extends AudioWorkletProcessor {
         this.playPos = -1;
 
         this.port.onmessage = ({ data }) => {
-            if (typeof data.ratio === "number") this.ratio = Math.min(2.5, Math.max(0.4, data.ratio));
+            if (typeof data.ratio === "number") this.ratio = this.baseRatio = Math.min(2.5, Math.max(0.4, data.ratio));
+            if (typeof data.babble === "boolean") this.babble = data.babble;
             if (typeof data.liveReverse === "boolean" && data.liveReverse !== this.liveReverse) {
                 this.liveReverse = data.liveReverse;
                 this.inPos = this.outPos = this.outLen = 0;
@@ -103,10 +109,16 @@ class O2Voice extends AudioWorkletProcessor {
     reverseLive(x) {
         this.inChunk[this.inPos++] = x;
         if (this.inPos >= this.chunk) {
-            for (let i = 0; i < this.chunk; i++) this.outChunk[i] = this.inChunk[this.chunk - 1 - i];
+            const flip = !this.babble || Math.random() < 0.6;
+            for (let i = 0; i < this.chunk; i++) this.outChunk[i] = this.inChunk[flip ? this.chunk - 1 - i : i];
             this.outLen = this.chunk;
             this.outPos = 0;
             this.inPos = 0;
+            if (this.babble) {
+                // next syllable: 60-110 ms long, a little higher or lower
+                this.chunk = Math.round(sampleRate * (0.06 + Math.random() * 0.05));
+                this.ratio = this.baseRatio * (0.92 + Math.random() * 0.18);
+            }
         }
         if (this.outPos >= this.outLen) return 0;
         const y = this.outChunk[this.outPos] * this.edge(this.outPos, this.outLen);
