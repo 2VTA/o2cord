@@ -31,6 +31,18 @@ export interface Release {
 
 export const RELEASES: Release[] = [
     {
+        version: "1.3.68",
+        date: "November 2, 2026",
+        features: [
+            {
+                plugin: "O2Voice",
+                title: "O2 Voice - a voice changer",
+                text: "Change your voice in voice channels: Chipmunk, Demon, Robot, Radio, Phone, Alien, Underwater, Cave, Ghost, Megaphone, LOUD, Squid Talk, live Reverse and your own Custom mix. You can also record a whole sentence and send it backwards. Open it from the new microphone button in the top bar (right-click it for a quick voice menu). It needs the free VB-CABLE driver - the window downloads it and walks you through it."
+            }
+        ],
+        fixes: []
+    },
+    {
         version: "1.3.67",
         date: "October 31, 2026",
         features: [
