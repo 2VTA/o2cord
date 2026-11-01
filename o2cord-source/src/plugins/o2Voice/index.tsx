@@ -21,6 +21,7 @@ import {
     restoreDiscordMic, sendSentence, setOn, settings, startSentence
 } from "./engine";
 import { openVoiceModal } from "./VoiceModal";
+import { ytStop } from "./youtube";
 import { getVoice, VOICES } from "./voices";
 
 function VoiceIcon({ width = 20, height = 20, className }: { width?: number; height?: number; className?: string; }) {
@@ -158,5 +159,6 @@ export default definePlugin({
             restoreDiscordMic();
         }
         disposeEngine();
+        void ytStop();
     }
 });

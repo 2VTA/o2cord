@@ -44,7 +44,9 @@ export const settings = definePluginSettings({
     loudBoost: { type: OptionType.NUMBER, description: "", default: 9, hidden: true },
     loudBass: { type: OptionType.NUMBER, description: "", default: 10, hidden: true },
     loudTreble: { type: OptionType.NUMBER, description: "", default: 0, hidden: true },
-    loudGrit: { type: OptionType.NUMBER, description: "", default: 100, hidden: true }
+    loudGrit: { type: OptionType.NUMBER, description: "", default: 100, hidden: true },
+    ytVolume: { type: OptionType.NUMBER, description: "", default: 60, hidden: true },
+    ytHear: { type: OptionType.BOOLEAN, description: "", default: true, hidden: true }
 });
 
 export const VB_CABLE_URL = "https://vb-audio.com/Cable/";
@@ -134,6 +136,14 @@ async function headphonesId(): Promise<string> {
         if (d && !isCable(d.label)) return id === "default" ? "" : id;
     }
     return outs.find(d => !isCable(d.label) && d.deviceId !== "default" && d.deviceId !== "communications")?.deviceId ?? "";
+}
+
+/** The name of the headphones Discord plays on - the YouTube player finds them by name. */
+export async function headphonesName() {
+    const id = await headphonesId();
+    if (!id) return "";
+    const all = await navigator.mediaDevices.enumerateDevices().catch(() => []);
+    return all.find(d => d.kind === "audiooutput" && d.deviceId === id)?.label ?? "";
 }
 
 /** True when installing VB-CABLE made it Windows' default speaker or mic. */

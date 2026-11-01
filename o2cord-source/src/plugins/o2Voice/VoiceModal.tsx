@@ -15,13 +15,66 @@ import { Button } from "@components/Button";
 import { FormSwitch } from "@components/FormSwitch";
 import { classes } from "@utils/misc";
 import { RenderModalProps } from "@vencord/discord-types";
-import { Forms, Modal, openModal, Text, useEffect, useState } from "@webpack/common";
+import { Forms, Modal, openModal, Text, TextInput, useEffect, useState } from "@webpack/common";
 
 import {
     applyVoice, applyVolume, cableIsWindowsDefault, getRecordState, hasCable, isRunning, isTesting, listMics, onVoiceChange, reopenMic,
     sendSentence, setOn, settings, setTesting, startSentence, VB_CABLE_URL, VB_CABLE_ZIP
 } from "./engine";
 import { VOICES } from "./voices";
+import { canUseYoutube, getYt, onYtChange, ytApplySettings, ytPause, ytPlay, ytStop } from "./youtube";
+
+const clock = (sec: number) => {
+    if (!Number.isFinite(sec)) return "0:00";
+    const s = Math.floor(sec);
+    return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+};
+
+// Ryder's own: a YouTube video played through the mic, mixed with the voice
+function YoutubeCard() {
+    const [, rerender] = useState(0);
+    const [link, setLink] = useState("");
+    useEffect(() => onYtChange(() => rerender(n => n + 1)), []);
+    const yt = getYt();
+    const s = settings.store;
+    const sending = !!s.on && isRunning();
+
+    return (
+        <Card title="YouTube through your mic">
+            <Forms.FormText>Paste a YouTube link - everyone in the voice channel hears it from your mic, along with your voice.</Forms.FormText>
+            {!sending && <span className="o2-vc-muted">Turn the voice changer on and join a voice channel, or nobody else hears it.</span>}
+            <div className="o2-vc-row">
+                <div style={{ flex: "1 1 260px" }}>
+                    <TextInput value={link} placeholder="https://www.youtube.com/watch?v=..." onChange={setLink} />
+                </div>
+                <Button variant="primary" size="small" disabled={!link.trim() || yt.loading} onClick={() => void ytPlay(link)}>
+                    {yt.loading ? "Loading..." : "Play"}
+                </Button>
+            </div>
+            {yt.error && <span className="o2-vc-muted" style={{ color: "var(--text-feedback-critical)" }}>{yt.error}</span>}
+            {yt.playing && (
+                <div className="o2-vc-row">
+                    <span style={{ flex: "1 1 200px" }}>
+                        <b>{yt.paused ? "⏸" : "▶"} {yt.title}</b>
+                        <span className="o2-vc-muted"> · {clock(yt.time)} / {clock(yt.duration)}</span>
+                    </span>
+                    <Button variant="secondary" size="small" onClick={() => void ytPause(!yt.paused)}>{yt.paused ? "Resume" : "Pause"}</Button>
+                    <Button variant="dangerSecondary" size="small" onClick={() => void ytStop()}>Stop</Button>
+                </div>
+            )}
+            <div className="o2-vc-grid">
+                <Range label="YouTube volume" value={s.ytVolume} min={0} max={150} unit="%" onChange={v => { settings.store.ytVolume = v; void ytApplySettings(); rerender(n => n + 1); }} />
+                <FormSwitch
+                    title="Hear it too"
+                    description="Plays it in your headphones as well."
+                    value={!!s.ytHear}
+                    hideBorder
+                    onChange={v => { settings.store.ytHear = v; void ytApplySettings(); rerender(n => n + 1); }}
+                />
+            </div>
+        </Card>
+    );
+}
 
 function Range({ label, value, min, max, unit = "", onChange }: { label: string; value: number; min: number; max: number; unit?: string; onChange(v: number): void; }) {
     return (
@@ -218,6 +271,8 @@ function VoiceModalInner({ transitionState, onClose }: RenderModalProps) {
                         />
                     </Card>
                 )}
+
+                {canUseYoutube() && <YoutubeCard />}
 
                 <Card title="Say a sentence backwards">
                     <Forms.FormText>
