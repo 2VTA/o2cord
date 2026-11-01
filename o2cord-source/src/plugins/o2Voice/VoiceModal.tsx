@@ -19,7 +19,7 @@ import { Forms, Modal, openModal, Text, useEffect, useState } from "@webpack/com
 
 import {
     applyVoice, applyVolume, getRecordState, hasCable, isRunning, isTesting, listMics, onVoiceChange, reopenMic,
-    sendSentence, setOn, settings, setTesting, startSentence, VB_CABLE_URL
+    sendSentence, setOn, settings, setTesting, startSentence, VB_CABLE_URL, VB_CABLE_ZIP
 } from "./engine";
 import { VOICES } from "./voices";
 
@@ -113,14 +113,17 @@ function VoiceModalInner({ transitionState, onClose }: RenderModalProps) {
                             like other voice changers do. Install it once:
                         </Forms.FormText>
                         <ol className="o2-vc-steps">
-                            <li>Download <b>VB-CABLE</b> from its official site (vb-audio.com) and unzip it.</li>
+                            <li>Press <b>Download VB-CABLE</b> - your browser saves <b>VBCABLE_Driver_Pack45.zip</b> from vb-audio.com. Unzip it.</li>
                             <li>Right-click <b>VBCABLE_Setup_x64.exe</b> → Run as administrator → <b>Install Driver</b>.</li>
                             <li>Restart your PC, then come back here - O2 Voice sets the rest up by itself.</li>
                         </ol>
                         <div className="o2-vc-row">
-                            <Button variant="primary" size="small" onClick={() => VencordNative.native.openExternal(VB_CABLE_URL)}>Open vb-audio.com</Button>
+                            <Button variant="primary" size="small" onClick={() => VencordNative.native.openExternal(VB_CABLE_ZIP)}>Download VB-CABLE</Button>
                             <Button variant="secondary" size="small" onClick={bump}>Check again</Button>
                         </div>
+                        <span className="o2-vc-muted">
+                            Download didn't start? <a href={VB_CABLE_URL} onClick={e => { e.preventDefault(); VencordNative.native.openExternal(VB_CABLE_URL); }}>Open vb-audio.com</a> and press Download there.
+                        </span>
                     </Card>
                 )}
 

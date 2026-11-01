@@ -44,6 +44,8 @@ export const settings = definePluginSettings({
 });
 
 export const VB_CABLE_URL = "https://vb-audio.com/Cable/";
+// the official Windows package (the site's own Download button) - opening it makes the browser save it
+export const VB_CABLE_ZIP = "https://download.vb-audio.com/Download_CABLE/VBCABLE_Driver_Pack45.zip";
 const CABLE_MIC = /CABLE Output/i; // what Discord records from
 const CABLE_SPEAKER = /CABLE Input/i; // what o2cord plays into
 
