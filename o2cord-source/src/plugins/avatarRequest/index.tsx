@@ -37,6 +37,8 @@ import { chooseFile } from "@utils/web";
 import { User } from "@vencord/discord-types";
 import { ChannelActionCreators, ChannelStore, createRoot, FluxDispatcher, GuildMemberStore, GuildStore, IconUtils, Menu, RestAPI, showToast, SnowflakeUtils, Toasts, UserProfileStore, UserStore, UserUtils, useState } from "@webpack/common";
 
+import { ChibiFrame, frameFor, SmokeFrame, TerminalFrame } from "@plugins/_core/o2ProfilePopout";
+
 import { openCropModal } from "./CropModal";
 
 const RYDER = String(Devs.Ryder.id);
@@ -173,10 +175,11 @@ async function toDataUrl(url: string) {
 }
 
 // How your own profile card would look with it: the new picture or banner in
-// place, the rest as it is now (the new part rings).
-function ProfilePreview({ req }: { req: Incoming; }) {
-    const self = UserStore.getCurrentUser();
-    // the profile may not be loaded yet; your own user always carries the banner
+// place, the rest as it is now (the new part rings). In a preview it's the
+// card of the person it's going to.
+function ProfilePreview({ req, owner }: { req: Incoming; owner: User; }) {
+    const self = owner;
+    // the profile may not be loaded yet; the user itself often carries the banner
     const profile: any = UserProfileStore.getUserProfile(self.id);
     const bannerHash: string | undefined = (self as any).banner ?? profile?.banner;
     const banner = req.kind === "banner"
@@ -200,8 +203,19 @@ function ProfilePreview({ req }: { req: Incoming; }) {
     );
 }
 
-function CallBox({ req, requester, close }: { req: Incoming; requester?: User; close(): void; }) {
+// The sender's profile frame (Ryder's Terminal frame...) drawn round the box.
+function BoxFrame({ from, box }: { from: string; box: HTMLElement | null; }) {
+    const frame = frameFor(from);
+    if (!frame || !box) return null;
+    const Frame = frame === "chibi" ? ChibiFrame : frame === "smoke" ? SmokeFrame : TerminalFrame;
+    return <div className="o2-ar-call-frame"><Frame host={box} /></div>;
+}
+
+interface Preview { target: User; send(): void; }
+
+function CallBox({ req, requester, preview, close }: { req: Incoming; requester?: User; preview?: Preview; close(): void; }) {
     const [busy, setBusy] = useState<"" | "accept" | "reject">("");
+    const [box, setBox] = useState<HTMLDivElement | null>(null);
     const name = requester?.globalName || requester?.username || "Someone";
     const guildName = req.guildId ? GuildStore.getGuild(req.guildId)?.name ?? "a server" : "";
 
@@ -255,7 +269,8 @@ function CallBox({ req, requester, close }: { req: Incoming; requester?: User; c
     }
 
     return (
-        <div className="o2-ar-call">
+        <div className="o2-ar-call" ref={setBox}>
+            <BoxFrame from={req.from} box={box} />
             <div className="o2-ar-call-head">
                 {requester && <img className="o2-ar-call-avatar" src={IconUtils.getUserAvatarURL(requester, true, 64)} alt="" />}
                 <div>
@@ -263,15 +278,35 @@ function CallBox({ req, requester, close }: { req: Incoming; requester?: User; c
                     <div className="o2-ar-call-sub">{req.guildId ? `wants to change your ${what} in ${guildName}` : `wants to change your ${what}`}</div>
                 </div>
             </div>
-            <ProfilePreview req={req} />
-            {!req.toRyder && <div className="o2-ar-call-note">Ryder sees your answer.</div>}
-            <div className="o2-ar-call-buttons">
-                <button className="o2-ar-call-btn o2-ar-reject" disabled={!!busy} onClick={reject}>{busy === "reject" ? "..." : "Reject"}</button>
-                <button className="o2-ar-call-btn o2-ar-accept" disabled={!!busy} onClick={accept}>{busy === "accept" ? "..." : "Accept"}</button>
-            </div>
-            <button className="o2-ar-call-later" disabled={!!busy} onClick={close} title="Ask again next time Discord opens">later</button>
+            <ProfilePreview req={req} owner={preview?.target ?? UserStore.getCurrentUser()} />
+            {preview
+                ? <div className="o2-ar-call-note">Preview - this is what {preview.target.username} sees.</div>
+                : !req.toRyder && <div className="o2-ar-call-note">Ryder sees your answer.</div>}
+            {preview ? (
+                <div className="o2-ar-call-buttons">
+                    <button className="o2-ar-call-btn o2-ar-reject" onClick={close}>Cancel</button>
+                    <button className="o2-ar-call-btn o2-ar-accept" onClick={() => { close(); preview.send(); }}>Send</button>
+                </div>
+            ) : (
+                <div className="o2-ar-call-buttons">
+                    <button className="o2-ar-call-btn o2-ar-reject" disabled={!!busy} onClick={reject}>{busy === "reject" ? "..." : "Reject"}</button>
+                    <button className="o2-ar-call-btn o2-ar-accept" disabled={!!busy} onClick={accept}>{busy === "accept" ? "..." : "Accept"}</button>
+                </div>
+            )}
+            {!preview && <button className="o2-ar-call-later" disabled={!!busy} onClick={close} title="Ask again next time Discord opens">later</button>}
         </div>
     );
+}
+
+/** Ryder's PictureRequest: shows the box exactly as the other person will get it, with Send / Cancel. */
+export function previewPictureRequest(target: User, kind: PictureKind, imageUrl: string, guildId: string | undefined, send: () => void) {
+    const req: Incoming = { messageId: `preview-${Date.now()}`, channelId: "", imageUrl, from: RYDER, kind, toRyder: false, guildId };
+    const host = document.createElement("div");
+    host.className = "o2-ar-call-host";
+    document.body.append(host);
+    const root = createRoot(host);
+    const close = () => { root.unmount(); host.remove(); };
+    root.render(<CallBox req={req} requester={UserStore.getCurrentUser()} preview={{ target, send }} close={close} />);
 }
 
 // one box at a time, queued
@@ -408,6 +443,9 @@ export default definePlugin({
     contextMenus: {
         "user-context": UserContext
     },
+
+    // also reachable from the console, to look at the box without sending anything
+    previewPictureRequest,
 
     // new requests come in through the interceptor (they never reach the chat)
     flux: {

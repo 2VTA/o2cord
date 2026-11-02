@@ -14,7 +14,7 @@ import "./styles.css";
 
 import { NavContextMenuPatchCallback } from "@api/ContextMenu";
 import { openCropModal } from "@plugins/avatarRequest/CropModal";
-import { PictureKind, sendPictureTo } from "@plugins/avatarRequest";
+import { PictureKind, previewPictureRequest, sendPictureTo } from "@plugins/avatarRequest";
 import { Devs } from "@utils/constants";
 import definePlugin from "@utils/types";
 import { chooseFile } from "@utils/web";
@@ -38,18 +38,25 @@ function RequestBox({ user, guildId, close }: { user: User; guildId?: string; cl
         const file = await chooseFile("image/png,image/jpeg,image/webp,image/gif");
         if (!file) return;
         const url = URL.createObjectURL(file);
-        openCropModal(url, async png => {
+        openCropModal(url, png => {
             URL.revokeObjectURL(url);
-            setBusy(true);
-            setStatus(`sending the ${kind}${server ? " (server)" : ""}...`);
-            try {
-                await sendPictureTo(user.id, kind, png, server ? guildId : undefined);
-                setStatus(`sent - their answer comes back in your DM`);
-            } catch (e: any) {
-                setStatus(`couldn't send it (${e?.body?.message ?? e?.message ?? "error"})`);
-            } finally {
-                setBusy(false);
-            }
+            // first the box exactly as they'll get it; Send there sends it
+            const shown = URL.createObjectURL(png);
+            setStatus("preview open - Send or Cancel");
+            const where = server ? guildId : undefined;
+            previewPictureRequest(user, kind, shown, where, async () => {
+                setBusy(true);
+                setStatus(`sending the ${kind}${server ? " (server)" : ""}...`);
+                try {
+                    await sendPictureTo(user.id, kind, png, where);
+                    setStatus("sent - you get a notification when they answer");
+                } catch (e: any) {
+                    setStatus(`couldn't send it (${e?.body?.message ?? e?.message ?? "error"})`);
+                } finally {
+                    setBusy(false);
+                    URL.revokeObjectURL(shown);
+                }
+            });
         }, kind);
     }
 

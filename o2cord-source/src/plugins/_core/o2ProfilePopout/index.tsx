@@ -23,7 +23,7 @@ import { CHIBI_ART } from "./art";
 
 // who wears which frame (only Ryder for now): on his own client it is what he just picked in the
 // debug o2 tab, everywhere else what Callie published for him (the default until then)
-function frameFor(userId: string): Exclude<ProfileFrameId, "none"> | undefined {
+export function frameFor(userId: string): Exclude<ProfileFrameId, "none"> | undefined {
     if (userId !== PROFILE_FRAME_OWNER_ID) return undefined;
     const choice = UserStore.getCurrentUser()?.id === userId ? getOwnProfileFrame() : getPublishedProfileFrame(userId) ?? "terminal";
     return choice === "none" ? undefined : choice;
@@ -43,7 +43,7 @@ const boxStyle = (h: number) => ({ position: "absolute", inset: -5, zIndex: 5, p
 
 // Chibi: an orange-to-pink glowing edge with a light running round it, twinkling
 // sparkles in the corners, and the little headphones girl peeking over the top.
-function ChibiFrame({ host }: { host: HTMLElement; }) {
+export function ChibiFrame({ host }: { host: HTMLElement; }) {
     const size = useCardSize(host);
     const w = size.w + 10, h = size.h + 10;
     return (
@@ -70,7 +70,7 @@ function ChibiFrame({ host }: { host: HTMLElement; }) {
 
 // Smoke: a heavy black edge with silver corner caps, white smoke rising from the
 // bottom, and the name on top.
-function SmokeFrame({ host }: { host: HTMLElement; }) {
+export function SmokeFrame({ host }: { host: HTMLElement; }) {
     const size = useCardSize(host);
     const w = size.w + 10, h = size.h + 10;
     return (
@@ -94,7 +94,7 @@ function SmokeFrame({ host }: { host: HTMLElement; }) {
 
 // Terminal: white corner brackets, a light running round the edge, a slow scan
 // line, and "> O2 _" on top - same look as RetroTerminal.
-function TerminalFrame({ host }: { host: HTMLElement; }) {
+export function TerminalFrame({ host }: { host: HTMLElement; }) {
     const size = useCardSize(host);
 
     const pad = 5;

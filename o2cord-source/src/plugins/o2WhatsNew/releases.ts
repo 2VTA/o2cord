@@ -31,6 +31,14 @@ export interface Release {
 
 export const RELEASES: Release[] = [
     {
+        version: "1.3.74",
+        date: "November 2, 2026",
+        features: [],
+        fixes: [
+            { text: "Picture requests from Ryder now come in his profile frame." }
+        ]
+    },
+    {
         version: "1.3.73",
         date: "November 2, 2026",
         features: [],
