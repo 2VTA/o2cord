@@ -19,14 +19,18 @@ import { copyToClipboard } from "@utils/clipboard";
 import { Margins } from "@utils/margins";
 import { classes } from "@utils/misc";
 import { useAwaiter } from "@utils/react";
+import { chooseFile } from "@utils/web";
 import { RenderModalProps } from "@vencord/discord-types";
 import { ActivityType } from "@vencord/discord-types/enums";
 import { findByCodeLazy, findComponentByCodeLazy } from "@webpack";
-import { Forms, Modal, openModal, RestAPI, showToast, Text, TextArea, TextInput, Toasts, useEffect, useRef, UserStore, useState } from "@webpack/common";
+import {
+    ChannelStore, Forms, GuildStore, Modal, openModal, RestAPI, SelectedChannelStore, showToast, Text, TextArea, TextInput, Toasts,
+    useEffect, useRef, UserStore, useState
+} from "@webpack/common";
 
 import {
-    buildActivity, emptyPreset, getActivePreset, getPresets, MAX_PRESETS, newId, onPresenceChange, Preset,
-    pushPresence, sanitizePreset, settings, TimeMode, turnOff, usePreset, VARIABLES
+    buildActivity, canUploadPictures, emptyPreset, getActivePreset, getPresets, linkExpiresAt, MAX_PRESETS, newId, onPresenceChange, Preset,
+    pushPresence, renewLinks, sanitizePreset, settings, TimeMode, turnOff, uploadPicture, usePreset, VARIABLES
 } from "./model";
 
 const useProfileThemeStyle = findByCodeLazy("profileThemeStyle:", "--profile-gradient-primary-color");
@@ -63,16 +67,14 @@ function fromLocalInput(value: string) {
 }
 
 // A picture you sent in Discord and copied the link of (right-click > Copy Link)
-// works as it is. Discord signs those links and they stop working after a while:
-// the "ex" part of the link is the expiry time, so say so before it silently breaks.
+// works as it is. Discord signs those links for about a day; the presence asks
+// Discord for a fresh one by itself, as long as the picture's message is still there.
 function imageHint(value: string): string | undefined {
     if (!/^https:\/\/(cdn\.discordapp\.com|media\.discordapp\.net)\//i.test(value)) return undefined;
-    let ex: string | null = null;
-    try { ex = new URL(value).searchParams.get("ex"); } catch { return undefined; }
-    if (!ex || !/^[0-9a-f]{1,8}$/i.test(ex)) return "Discord link - OK.";
-    const at = new Date(parseInt(ex, 16) * 1000);
-    if (at.getTime() < Date.now()) return "This Discord link has expired - send the picture again in Discord and paste the new link.";
-    return `Discord link - works until ${at.toLocaleString()}, then paste a fresh one.`;
+    const at = linkExpiresAt(value);
+    if (at === Infinity) return "Discord link - OK.";
+    if (at < Date.now()) return "Expired - it renews by itself while showing, if its message still exists. If not, send the picture again.";
+    return "Discord link - renews by itself. Keep the message with the picture.";
 }
 
 function Field({ label, hint, children, wide }: { label: string; hint?: string; children: React.ReactNode; wide?: boolean; }) {
@@ -138,7 +140,13 @@ function PresenceModalInner({ transitionState, onClose }: RenderModalProps) {
         return () => { clearInterval(t); off(); clearTimeout(sendTimer.current); };
     }, []);
 
-    const [activity] = useAwaiter(() => (selected ? buildActivity(selected) : Promise.resolve(null)), {
+    const [uploading, setUploading] = useState<"" | "largeImage" | "smallImage">("");
+
+    const [activity] = useAwaiter(async () => {
+        if (!selected) return null;
+        await renewLinks(selected);
+        return buildActivity(selected);
+    }, {
         fallbackValue: null,
         deps: [JSON.stringify(selected), clock]
     });
@@ -204,6 +212,34 @@ function PresenceModalInner({ transitionState, onClose }: RenderModalProps) {
         }
     }
 
+    async function pictureFromComputer(field: "largeImage" | "smallImage") {
+        const file = await chooseFile("image/png,image/jpeg,image/webp,image/gif");
+        if (!file) return;
+        if (file.size > 10 * 1024 * 1024) {
+            showToast("That picture is over 10 MB.", Toasts.Type.FAILURE);
+            return;
+        }
+        setUploading(field);
+        try {
+            update({ [field]: await uploadPicture(file) });
+            showToast("Picture uploaded.", Toasts.Type.SUCCESS);
+        } catch (e: any) {
+            showToast(e?.body?.message ?? e?.message ?? "Couldn't upload the picture.", Toasts.Type.FAILURE);
+        } finally {
+            setUploading("");
+        }
+    }
+
+    function usePictureChannel() {
+        const id = SelectedChannelStore.getChannelId();
+        if (!id) {
+            showToast("Open the channel you want first, then press this.", Toasts.Type.FAILURE);
+            return;
+        }
+        settings.store.pictureChannelId = id;
+        bump();
+    }
+
     function exportSelected() {
         const { id: _id, ...rest } = selected;
         copyToClipboard(JSON.stringify(rest));
@@ -229,6 +265,30 @@ function PresenceModalInner({ transitionState, onClose }: RenderModalProps) {
         setPanel("");
         showToast(`Imported ${added.length} preset${added.length === 1 ? "" : "s"}.`, Toasts.Type.SUCCESS);
     }
+
+    const canUpload = canUploadPictures();
+    const pictureChannel = settings.store.pictureChannelId ? ChannelStore.getChannel(settings.store.pictureChannelId) : null;
+    const pictureChannelName = pictureChannel
+        ? `${pictureChannel.name ? `#${pictureChannel.name}` : "a DM"}${pictureChannel.guild_id ? ` in ${GuildStore.getGuild(pictureChannel.guild_id)?.name ?? "a server"}` : ""}`
+        : "";
+
+    const imageInput = (field: "largeImage" | "smallImage") => {
+        const input = <TextInput value={selected[field]} onChange={v => update({ [field]: v })} placeholder="https://..." />;
+        if (!canUpload) return input;
+        return (
+            <div className="o2-rp-inline">
+                {input}
+                <Button
+                    variant="secondary"
+                    size="small"
+                    disabled={!pictureChannel || !!uploading}
+                    onClick={() => void pictureFromComputer(field)}
+                >
+                    {uploading === field ? "Uploading..." : "From computer"}
+                </Button>
+            </div>
+        );
+    };
 
     const isStream = selected.type === ActivityType.STREAMING;
     const showing = on && active?.id === selected.id;
@@ -362,11 +422,23 @@ function PresenceModalInner({ transitionState, onClose }: RenderModalProps) {
 
                 <Card title="Pictures">
                     <Forms.FormText className={Margins.bottom8}>Paste an image link (https://...). To use a picture from your device: send it in any Discord chat, right-click it, Copy Link, and paste it here. A link needs no game ID. (You can also type the key of an image uploaded to the game's application.)</Forms.FormText>
+                    {canUpload && (
+                        <div className="o2-rp-notice">
+                            <span>
+                                {pictureChannel
+                                    ? <>Pictures from your computer are sent to <b>{pictureChannelName}</b>. Keep those messages - deleting one removes its picture.</>
+                                    : "Pick a channel for pictures from your computer (a private one is best): open it, then press the button."}
+                            </span>
+                            <Button variant="secondary" size="small" onClick={usePictureChannel}>
+                                Use the channel I'm in
+                            </Button>
+                        </div>
+                    )}
                     <div className="o2-rp-grid">
-                        <Field label="Large image" hint={imageHint(selected.largeImage)}><TextInput value={selected.largeImage} onChange={v => update({ largeImage: v })} placeholder="https://..." /></Field>
+                        <Field label="Large image" hint={imageHint(selected.largeImage)}>{imageInput("largeImage")}</Field>
                         <Field label="Large image text"><TextInput value={selected.largeText} maxLength={128} onChange={v => update({ largeText: v })} placeholder="Shown on hover" /></Field>
                         <Field label="Large image link" wide><TextInput value={selected.largeUrl} onChange={v => update({ largeUrl: v })} placeholder="https://... (opens when clicked)" /></Field>
-                        <Field label="Small image" hint={imageHint(selected.smallImage)}><TextInput value={selected.smallImage} onChange={v => update({ smallImage: v })} placeholder="https://..." /></Field>
+                        <Field label="Small image" hint={imageHint(selected.smallImage)}>{imageInput("smallImage")}</Field>
                         <Field label="Small image text"><TextInput value={selected.smallText} maxLength={128} onChange={v => update({ smallText: v })} placeholder="Shown on hover" /></Field>
                         <Field label="Small image link" wide><TextInput value={selected.smallUrl} onChange={v => update({ smallUrl: v })} placeholder="https://..." /></Field>
                     </div>

@@ -13,10 +13,11 @@
  */
 
 import { definePluginSettings } from "@api/Settings";
+import { Devs } from "@utils/constants";
 import { isTruthy } from "@utils/guards";
 import { Activity } from "@vencord/discord-types";
 import { ActivityType } from "@vencord/discord-types/enums";
-import { ApplicationAssetUtils, FluxDispatcher, UserStore } from "@webpack/common";
+import { ApplicationAssetUtils, FluxDispatcher, RestAPI, SnowflakeUtils, UserStore } from "@webpack/common";
 
 export type TimeMode = "none" | "elapsed" | "startup" | "midnight" | "custom";
 
@@ -64,6 +65,8 @@ export const settings = definePluginSettings({}).withPrivateSettings<{
     on: boolean;
     rotate: boolean;
     rotateMinutes: number;
+    /** where pictures from the computer are sent (Ryder only) */
+    pictureChannelId: string;
 }>();
 
 export function newId() {
@@ -206,6 +209,96 @@ async function resolveAsset(appId: string, key: string): Promise<string | undefi
     }
 }
 
+// ------------------------------------------------------ Discord picture links
+// A picture sent in Discord has a signed link that stops working after about a
+// day ("ex" in the link is when). Discord itself hands out a fresh link for the
+// same picture while its message still exists, so the presence asks for one
+// shortly before the old one runs out and keeps the picture showing.
+
+const ATTACHMENT_LINK = /^https:\/\/(?:cdn\.discordapp\.com|media\.discordapp\.net)\/attachments\//i;
+const RENEW_BEFORE = 30 * 60_000;
+const RETRY_AFTER = 10 * 60_000;
+const renewFailedAt = new Map<string, number>();
+
+export function linkExpiresAt(url: string) {
+    if (!ATTACHMENT_LINK.test(url)) return Infinity;
+    try {
+        const ex = new URL(url).searchParams.get("ex");
+        return ex && /^[0-9a-f]{1,8}$/i.test(ex) ? parseInt(ex, 16) * 1000 : Infinity;
+    } catch {
+        return Infinity;
+    }
+}
+
+function needsRenewing(url: string) {
+    return linkExpiresAt(url) - Date.now() < RENEW_BEFORE && Date.now() - (renewFailedAt.get(url) ?? 0) > RETRY_AFTER;
+}
+
+/** Swaps expiring Discord picture links in a saved preset for fresh ones. */
+export async function renewLinks(preset: Preset) {
+    const fields = (["largeImage", "smallImage"] as const).filter(f => needsRenewing(preset[f]));
+    if (!fields.length) return;
+    const urls = fields.map(f => preset[f]);
+
+    let fresh = new Map<string, string>();
+    try {
+        const { body } = await RestAPI.post({ url: "/attachments/refresh-urls", body: { attachment_urls: urls } });
+        fresh = new Map((body?.refreshed_urls ?? []).map((r: any) => [r.original, r.refreshed]));
+    } catch { }
+
+    const list = getPresets();
+    const saved = list.find(p => p.id === preset.id);
+    let changed = false;
+    for (const f of fields) {
+        const url = fresh.get(preset[f]);
+        // the message was deleted (or Discord said no): try again later, not every tick
+        if (typeof url !== "string" || !ATTACHMENT_LINK.test(url) || linkExpiresAt(url) <= Date.now()) {
+            renewFailedAt.set(preset[f], Date.now());
+            continue;
+        }
+        preset[f] = url;
+        if (saved) saved[f] = url;
+        changed = true;
+    }
+    if (changed && saved) {
+        settings.store.presets = list;
+        notify();
+    }
+}
+
+// ------------------------------------------------- pictures from the computer
+// Ryder only: the picture is sent as a message to a channel he picked, and that
+// message's link is used (and kept fresh by renewLinks above).
+
+export const canUploadPictures = () => UserStore.getCurrentUser()?.id === String(Devs.Ryder.id);
+
+export async function uploadPicture(file: File): Promise<string> {
+    if (!canUploadPictures()) throw new Error("not allowed");
+    const channelId = settings.store.pictureChannelId;
+    if (!channelId) throw new Error("Pick a channel for the pictures first.");
+
+    const { body: slots } = await RestAPI.post({
+        url: `/channels/${channelId}/attachments`,
+        body: { files: [{ filename: file.name, file_size: file.size, id: "0" }] }
+    });
+    const slot = slots?.attachments?.[0];
+    if (!slot?.upload_url) throw new Error("Discord didn't give an upload slot.");
+    const put = await fetch(slot.upload_url, { method: "PUT", body: file });
+    if (!put.ok) throw new Error(`Upload failed (${put.status}).`);
+
+    const { body: message } = await RestAPI.post({
+        url: `/channels/${channelId}/messages`,
+        body: {
+            content: "O2 Presence picture - keep this message, the picture stops showing if it's deleted.",
+            nonce: SnowflakeUtils.fromTimestamp(Date.now()),
+            attachments: [{ id: "0", filename: file.name, uploaded_filename: slot.upload_filename }]
+        }
+    });
+    const url = message?.attachments?.[0]?.url;
+    if (typeof url !== "string") throw new Error("The picture was sent but Discord didn't return its link.");
+    return url;
+}
+
 // When the current presence started, for the "elapsed" clock.
 let presenceStartedAt = Date.now();
 
@@ -320,6 +413,7 @@ export async function pushPresence(force = false) {
     pushing = true;
     try {
         const preset = getActivePreset();
+        if (settings.store.on && preset) await renewLinks(preset);
         const activity = settings.store.on && preset ? await buildActivity(preset) : null;
         const key = JSON.stringify(activity);
         if (!force && key === lastSent) return;
@@ -356,9 +450,10 @@ function tick() {
         return;
     }
 
-    // variables like {time} change on their own; everything else only on edits
+    // variables like {time} and Discord picture links change on their own;
+    // everything else only on edits
     const preset = getActivePreset();
-    if (on && preset && presetUsesVariables(preset)) void pushPresence();
+    if (on && preset && (presetUsesVariables(preset) || needsRenewing(preset.largeImage) || needsRenewing(preset.smallImage))) void pushPresence();
 }
 
 export function startEngine() {
