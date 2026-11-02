@@ -94,7 +94,7 @@ export function SmokeFrame({ host }: { host: HTMLElement; }) {
 
 // Terminal: white corner brackets, a light running round the edge, a slow scan
 // line, and "> O2 _" on top - same look as RetroTerminal.
-export function TerminalFrame({ host }: { host: HTMLElement; }) {
+export function TerminalFrame({ host, tag = "O2" }: { host: HTMLElement; tag?: string; }) {
     const size = useCardSize(host);
 
     const pad = 5;
@@ -110,7 +110,7 @@ export function TerminalFrame({ host }: { host: HTMLElement; }) {
             <span className="o2-frame-corner o2-frame-bl" />
             <span className="o2-frame-corner o2-frame-br" />
             <span className="o2-frame-scan" />
-            <span className="o2-frame-tag">&gt; O2 <span className="o2-frame-caret">_</span></span>
+            <span className="o2-frame-tag">&gt; {tag} <span className="o2-frame-caret">_</span></span>
         </div>
     );
 }

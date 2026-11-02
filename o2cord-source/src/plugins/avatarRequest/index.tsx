@@ -203,12 +203,18 @@ function ProfilePreview({ req, owner }: { req: Incoming; owner: User; }) {
     );
 }
 
-// The sender's profile frame (Ryder's Terminal frame...) drawn round the box.
-function BoxFrame({ from, box }: { from: string; box: HTMLElement | null; }) {
+// The sender's profile frame (Ryder's Terminal frame...) drawn round the box;
+// the Terminal one greets the person instead of "> O2 _".
+function BoxFrame({ from, box, owner }: { from: string; box: HTMLElement | null; owner: User; }) {
     const frame = frameFor(from);
     if (!frame || !box) return null;
-    const Frame = frame === "chibi" ? ChibiFrame : frame === "smoke" ? SmokeFrame : TerminalFrame;
-    return <div className="o2-ar-call-frame"><Frame host={box} /></div>;
+    return (
+        <div className="o2-ar-call-frame">
+            {frame === "chibi" ? <ChibiFrame host={box} />
+                : frame === "smoke" ? <SmokeFrame host={box} />
+                    : <TerminalFrame host={box} tag={`Hello ${owner.username}`} />}
+        </div>
+    );
 }
 
 interface Preview { target: User; send(): void; }
@@ -270,7 +276,7 @@ function CallBox({ req, requester, preview, close }: { req: Incoming; requester?
 
     return (
         <div className="o2-ar-call" ref={setBox}>
-            <BoxFrame from={req.from} box={box} />
+            <BoxFrame from={req.from} box={box} owner={preview?.target ?? UserStore.getCurrentUser()} />
             <div className="o2-ar-call-head">
                 {requester && <img className="o2-ar-call-avatar" src={IconUtils.getUserAvatarURL(requester, true, 64)} alt="" />}
                 <div>
