@@ -241,13 +241,18 @@ export async function buildActivity(p: Preset): Promise<Activity | null> {
             activity.timestamps = { start: midnight.getTime() };
             break;
         }
-        case "custom":
-            if (p.startAt || p.endAt) {
+        case "custom": {
+            // Discord drops the whole activity (silently - it still shows on your
+            // side) when a time is before 1970, so the oldest start it gets is 1970
+            const start = p.startAt ? Math.max(1, p.startAt) : 0;
+            const end = p.endAt > 0 ? p.endAt : 0;
+            if (start || end) {
                 activity.timestamps = {};
-                if (p.startAt) activity.timestamps.start = p.startAt;
-                if (p.endAt) activity.timestamps.end = p.endAt;
+                if (start) activity.timestamps.start = start;
+                if (end) activity.timestamps.end = end;
             }
             break;
+        }
     }
 
     const buttons = [

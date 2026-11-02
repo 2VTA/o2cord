@@ -377,11 +377,11 @@ function PresenceModalInner({ transitionState, onClose }: RenderModalProps) {
                     <Forms.FormText className={Margins.top8}>{TIME_MODES.find(([v]) => v === selected.timeMode)?.[2]}</Forms.FormText>
                     {selected.timeMode === "custom" && (
                         <div className="o2-rp-grid">
-                            <Field label="Start" hint="Counts up from here.">
-                                <input type="datetime-local" value={toLocalInput(selected.startAt)} onChange={e => update({ startAt: fromLocalInput(e.target.value) })} />
+                            <Field label="Start" hint="Counts up from here (1970 at the earliest - Discord won't show older).">
+                                <input type="datetime-local" min="1970-01-01T00:00" value={toLocalInput(selected.startAt)} onChange={e => update({ startAt: fromLocalInput(e.target.value) })} />
                             </Field>
                             <Field label="End" hint="Counts down to here (set only this for a countdown).">
-                                <input type="datetime-local" value={toLocalInput(selected.endAt)} onChange={e => update({ endAt: fromLocalInput(e.target.value) })} />
+                                <input type="datetime-local" min="1970-01-01T00:00" value={toLocalInput(selected.endAt)} onChange={e => update({ endAt: fromLocalInput(e.target.value) })} />
                             </Field>
                         </div>
                     )}
