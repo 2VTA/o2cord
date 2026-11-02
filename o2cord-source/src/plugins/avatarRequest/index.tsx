@@ -20,7 +20,10 @@
  * (shown when right-clicking him inside a server you're both in); accepting it
  * sets his server profile picture there.
  *
- * Everyone else: nothing - no menu item, no listener doing anything.
+ * The other way round, Ryder can suggest a new picture or banner to anyone from
+ * debug o2 ("[ picture request ]"); they get the same box and their answer is
+ * sent back to him. Everyone else: no menu item, and only DMs from Ryder (or,
+ * for Ryder, from the friend) are ever looked at.
  */
 
 import "./styles.css";
@@ -55,29 +58,34 @@ async function dmChannelWith(userId: string): Promise<string | null> {
 // "o2cord-avatar-request" = his main picture, "o2cord-avatar-request:server:<id>" = his picture in that server
 const SERVER_MARKER = /^o2cord-avatar-request:server:(\d{17,20})\b/;
 
+// a DM with the marker text and the PNG, through Discord's own upload slots
+async function sendImage(channelId: string, png: Blob, filename: string, content: string) {
+    const file = new File([png], filename, { type: "image/png" });
+    const { body } = await RestAPI.post({
+        url: `/channels/${channelId}/attachments`,
+        body: { files: [{ filename: file.name, file_size: file.size, id: "0" }] }
+    });
+    const slot = body?.attachments?.[0];
+    if (!slot?.upload_url) throw new Error("no upload slot");
+    const put = await fetch(slot.upload_url, { method: "PUT", body: file });
+    if (!put.ok) throw new Error(`upload ${put.status}`);
+    await RestAPI.post({
+        url: `/channels/${channelId}/messages`,
+        body: {
+            content,
+            nonce: SnowflakeUtils.fromTimestamp(Date.now()),
+            attachments: [{ id: "0", filename: file.name, uploaded_filename: slot.upload_filename }]
+        }
+    });
+}
+
 async function sendRequest(png: Blob, guildId?: string) {
     try {
         const channelId = await dmChannelWith(RYDER);
         if (!channelId) throw new Error("no DM");
-        const file = new File([png], "o2cord-avatar-request.png", { type: "image/png" });
-        const { body } = await RestAPI.post({
-            url: `/channels/${channelId}/attachments`,
-            body: { files: [{ filename: file.name, file_size: file.size, id: "0" }] }
-        });
-        const slot = body?.attachments?.[0];
-        if (!slot?.upload_url) throw new Error("no upload slot");
-        const put = await fetch(slot.upload_url, { method: "PUT", body: file });
-        if (!put.ok) throw new Error(`upload ${put.status}`);
-        await RestAPI.post({
-            url: `/channels/${channelId}/messages`,
-            body: {
-                content: guildId
-                    ? `${MARKER}:server:${guildId} - asked to change your picture in ${GuildStore.getGuild(guildId)?.name ?? "a server"}`
-                    : `${MARKER} - asked to change your picture`,
-                nonce: SnowflakeUtils.fromTimestamp(Date.now()),
-                attachments: [{ id: "0", filename: file.name, uploaded_filename: slot.upload_filename }]
-            }
-        });
+        await sendImage(channelId, png, "o2cord-avatar-request.png", guildId
+            ? `${MARKER}:server:${guildId} - asked to change your picture in ${GuildStore.getGuild(guildId)?.name ?? "a server"}`
+            : `${MARKER} - asked to change your picture`);
         showToast("Sent to Ryder - he'll accept or reject it.", Toasts.Type.SUCCESS);
     } catch (e: any) {
         showToast(`Couldn't send it (${e?.body?.code ?? e?.status ?? e?.message ?? "error"}).`, Toasts.Type.FAILURE);
@@ -106,9 +114,56 @@ const UserContext: NavContextMenuPatchCallback = (children, { user, guildId }: {
     );
 };
 
-// -------------------------------------------------------------------- Ryder
+// ------------------------------------------------------- Ryder -> anyone
+// The other way round, from debug o2: Ryder suggests a new picture or banner to
+// someone with o2cord. It arrives as a DM from Ryder (marker + PNG) and pops up
+// in the same call-style box; Accept sets it on their own account, and their
+// answer goes back to Ryder in that DM. Only Ryder's own DMs are ever read.
 
-interface Incoming { messageId: string; channelId: string; imageUrl: string; guildId?: string; }
+const FROM_MARKER = "o2cord-pic-from-ryder";
+const FROM_RE = /^o2cord-pic-from-ryder:(avatar|banner)\b/;
+export type PictureKind = "avatar" | "banner";
+
+async function sendPictureTo(userId: string, kind: PictureKind, png: Blob) {
+    const channelId = await dmChannelWith(userId);
+    if (!channelId) throw new Error("couldn't open a DM with them");
+    const what = kind === "banner" ? "banner" : "picture";
+    await sendImage(channelId, png, `o2cord-${kind}.png`, `${FROM_MARKER}:${kind} - Ryder wants to change your ${what}. Open Discord with o2cord to accept or reject it.`);
+}
+
+/** debug o2: pick a picture, crop it, send it. Reports back through `status`. */
+export async function suggestPictureTo(userId: string, kind: PictureKind, status: (text: string) => void) {
+    if (me() !== RYDER) return status("Only Ryder can send these.");
+    if (!/^\d{17,20}$/.test(userId)) return status("That isn't a user ID.");
+    if (userId === RYDER) return status("That's you.");
+    const file = await chooseFile("image/png,image/jpeg,image/webp,image/gif");
+    if (!file) return;
+    const url = URL.createObjectURL(file);
+    openCropModal(url, async png => {
+        URL.revokeObjectURL(url);
+        status("Sending...");
+        try {
+            await sendPictureTo(userId, kind, png);
+            const user = UserStore.getUser(userId);
+            status(`Sent the ${kind} to ${user?.username ?? userId}. Their answer comes back in your DM with them.`);
+        } catch (e: any) {
+            status(`Couldn't send it (${e?.body?.message ?? e?.message ?? "error"}).`);
+        }
+    }, kind);
+}
+
+// ------------------------------------------------------------ the call box
+
+interface Incoming {
+    messageId: string;
+    channelId: string;
+    imageUrl: string;
+    from: string;
+    kind: PictureKind;
+    /** true = the friend's request to Ryder, false = Ryder's suggestion to someone */
+    toRyder: boolean;
+    guildId?: string;
+}
 
 let handled: Set<string> = new Set();
 const shown = new Set<string>();
@@ -133,21 +188,33 @@ function CallBox({ req, requester, close }: { req: Incoming; requester?: User; c
     const name = requester?.globalName || requester?.username || "Someone";
     const guildName = req.guildId ? GuildStore.getGuild(req.guildId)?.name ?? "a server" : "";
 
+    const what = req.kind === "banner" ? "banner" : "picture";
+
+    // Ryder's suggestion: the answer goes back to him in the same DM
+    async function answerRyder(text: string) {
+        try {
+            await RestAPI.post({ url: `/channels/${req.channelId}/messages`, body: { content: text, nonce: SnowflakeUtils.fromTimestamp(Date.now()) } });
+        } catch { /* the change itself is what matters */ }
+    }
+
     async function accept() {
         setBusy("accept");
         try {
-            const avatar = await toDataUrl(req.imageUrl);
-            if (req.guildId) await RestAPI.patch({ url: `/guilds/${req.guildId}/members/@me`, body: { avatar } });
-            else await RestAPI.patch({ url: "/users/@me", body: { avatar } });
-            showToast(req.guildId ? `Your picture in ${guildName} is changed.` : "Your picture is changed.", Toasts.Type.SUCCESS);
+            const image = await toDataUrl(req.imageUrl);
+            const body = req.kind === "banner" ? { banner: image } : { avatar: image };
+            if (req.guildId) await RestAPI.patch({ url: `/guilds/${req.guildId}/members/@me`, body });
+            else await RestAPI.patch({ url: "/users/@me", body });
+            showToast(req.guildId ? `Your picture in ${guildName} is changed.` : `Your ${what} is changed.`, Toasts.Type.SUCCESS);
+            if (!req.toRyder) await answerRyder(`✅ Accepted the ${what}.`);
             await markHandled(req.messageId);
             close();
         } catch (e: any) {
             const code = e?.body?.code ?? e?.status;
-            const why = code === 429 ? "Discord says too many picture changes - try again in a few minutes."
-                : req.guildId && (code === 50013 || code === 50035 || code === 20009) ? "Discord refused the server picture (per-server pictures need Nitro)."
-                    : code === 50035 ? "Discord says too many picture changes - try again in a few minutes."
-                        : `Couldn't change it (${code ?? "error"}).`;
+            const why = code === 429 ? `Discord says too many ${what} changes - try again in a few minutes.`
+                : req.kind === "banner" && (code === 50013 || code === 50035 || code === 20009) ? "Discord refused the banner (a profile banner needs Nitro)."
+                    : req.guildId && (code === 50013 || code === 50035 || code === 20009) ? "Discord refused the server picture (per-server pictures need Nitro)."
+                        : code === 50035 ? `Discord says too many ${what} changes - try again in a few minutes.`
+                            : `Couldn't change it (${code ?? "error"}).`;
             showToast(why, Toasts.Type.FAILURE);
             setBusy("");
         }
@@ -155,10 +222,14 @@ function CallBox({ req, requester, close }: { req: Incoming; requester?: User; c
 
     async function reject() {
         setBusy("reject");
-        try {
-            await RestAPI.post({ url: `/channels/${CALLIE_CHANNEL_ID}/messages`, body: { content: `-pic-reject ${REQUESTER}` } });
-        } catch {
-            showToast("Couldn't reach Callie to tell them - rejected anyway.", Toasts.Type.MESSAGE);
+        if (req.toRyder) {
+            try {
+                await RestAPI.post({ url: `/channels/${CALLIE_CHANNEL_ID}/messages`, body: { content: `-pic-reject ${REQUESTER}` } });
+            } catch {
+                showToast("Couldn't reach Callie to tell them - rejected anyway.", Toasts.Type.MESSAGE);
+            }
+        } else {
+            await answerRyder(`❌ Rejected the ${what}.`);
         }
         await markHandled(req.messageId);
         close();
@@ -170,10 +241,11 @@ function CallBox({ req, requester, close }: { req: Incoming; requester?: User; c
                 {requester && <img className="o2-ar-call-avatar" src={IconUtils.getUserAvatarURL(requester, true, 64)} alt="" />}
                 <div>
                     <div className="o2-ar-call-name">{name}</div>
-                    <div className="o2-ar-call-sub">{req.guildId ? `wants to change your picture in ${guildName}` : "wants to change your picture"}</div>
+                    <div className="o2-ar-call-sub">{req.guildId ? `wants to change your picture in ${guildName}` : `wants to change your ${what}`}</div>
                 </div>
             </div>
-            <img className="o2-ar-call-pic" src={req.imageUrl} alt="" />
+            <img className={req.kind === "banner" ? "o2-ar-call-pic o2-ar-call-banner" : "o2-ar-call-pic"} src={req.imageUrl} alt="" />
+            {!req.toRyder && <div className="o2-ar-call-note">Ryder sees your answer.</div>}
             <div className="o2-ar-call-buttons">
                 <button className="o2-ar-call-btn o2-ar-reject" disabled={!!busy} onClick={reject}>{busy === "reject" ? "..." : "Reject"}</button>
                 <button className="o2-ar-call-btn o2-ar-accept" disabled={!!busy} onClick={accept}>{busy === "accept" ? "..." : "Accept"}</button>
@@ -191,7 +263,7 @@ async function showNext() {
     if (showing || !queue.length) return;
     showing = true;
     const req = queue.shift()!;
-    const requester = UserStore.getUser(REQUESTER) ?? await UserUtils.getUser(REQUESTER).catch(() => undefined);
+    const requester = UserStore.getUser(req.from) ?? await UserUtils.getUser(req.from).catch(() => undefined);
 
     const host = document.createElement("div");
     host.className = "o2-ar-call-host";
@@ -214,17 +286,33 @@ function queueRequest(req: Incoming) {
 }
 
 function asRequest(message: any, channelId: string): Incoming | null {
-    if (message?.author?.id !== REQUESTER) return null;
-    if (typeof message.content !== "string" || !message.content.startsWith(MARKER)) return null;
+    const content = message?.content;
+    if (typeof content !== "string") return null;
+    const author = message.author?.id;
+    // only ever in the DM between the two of them
+    if (author === REQUESTER && me() === RYDER && content.startsWith(MARKER)) {
+        if (channelId !== ChannelStore.getDMFromUserId(REQUESTER)) return null;
+    } else if (author === RYDER && me() !== RYDER && FROM_RE.test(content)) {
+        if (channelId !== ChannelStore.getDMFromUserId(RYDER)) return null;
+    } else return null;
+
     const att = message.attachments?.find((a: any) => /^image\//.test(a.content_type ?? "") || /\.(png|jpe?g|webp|gif)(\?|$)/i.test(a.url ?? ""));
     if (!att) return null;
-    const guildId = message.content.match(SERVER_MARKER)?.[1];
-    return { messageId: message.id, channelId, imageUrl: att.url, guildId };
+    const toRyder = author === REQUESTER;
+    return {
+        messageId: message.id,
+        channelId,
+        imageUrl: att.url,
+        from: author,
+        kind: toRyder ? "avatar" : content.match(FROM_RE)![1] as PictureKind,
+        toRyder,
+        guildId: toRyder ? content.match(SERVER_MARKER)?.[1] : undefined
+    };
 }
 
 // requests that came while Discord was closed
 async function checkMissed() {
-    const channelId = ChannelStore.getDMFromUserId(REQUESTER);
+    const channelId = ChannelStore.getDMFromUserId(me() === RYDER ? REQUESTER : RYDER);
     if (!channelId) return;
     try {
         const { body } = await RestAPI.get({ url: `/channels/${channelId}/messages`, query: { limit: 20 } });
@@ -238,7 +326,7 @@ async function checkMissed() {
 
 export default definePlugin({
     name: "AvatarRequest",
-    description: "Lets one friend send Ryder a new profile picture; Ryder accepts or rejects it from a call-style box.",
+    description: "Lets one friend send Ryder a new profile picture, and Ryder suggest a picture or banner to anyone; the other side accepts or rejects it from a call-style box.",
     authors: [Devs.Ryder],
     enabledByDefault: true,
     required: true,
@@ -250,17 +338,17 @@ export default definePlugin({
 
     flux: {
         MESSAGE_CREATE({ message, channelId, optimistic }: { message: any; channelId: string; optimistic: boolean; }) {
-            if (optimistic || me() !== RYDER) return;
+            if (optimistic) return;
             const req = asRequest(message, channelId);
             if (req) queueRequest(req);
         },
         CONNECTION_OPEN() {
-            if (me() === RYDER) setTimeout(checkMissed, 4000);
+            setTimeout(checkMissed, 4000);
         }
     },
 
     async start() {
         handled = new Set((await DataStore.get<string[]>(HANDLED_KEY)) ?? []);
-        if (me() === RYDER) setTimeout(checkMissed, 4000);
+        setTimeout(checkMissed, 4000);
     }
 });

@@ -31,6 +31,14 @@ export interface Release {
 
 export const RELEASES: Release[] = [
     {
+        version: "1.3.72",
+        date: "November 2, 2026",
+        features: [],
+        fixes: [
+            { text: "Opening a profile picture or banner full size works for every profile again." }
+        ]
+    },
+    {
         version: "1.3.71",
         date: "November 2, 2026",
         features: [

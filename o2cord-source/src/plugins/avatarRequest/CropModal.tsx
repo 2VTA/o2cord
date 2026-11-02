@@ -5,17 +5,24 @@
  *
  * "Edit Image" - the same shape as Discord's own avatar cropper: the picture in
  * a circle, drag to move it, slider to zoom, Reset / Cancel / Apply. Apply gives
- * back a 512 x 512 PNG of what is inside the circle.
+ * back a 512 x 512 PNG of what is inside the circle - or, for a banner, a
+ * 1360 x 480 PNG of what is inside the wide frame.
  */
 
 import { Button } from "@components/Button";
 import { RenderModalProps } from "@vencord/discord-types";
 import { Modal, openModal, useEffect, useRef, useState } from "@webpack/common";
 
-const VIEW = 300; // circle size on screen
-const OUT = 512; // exported size
+export type CropShape = "avatar" | "banner";
 
-function CropModal({ src, onApply, transitionState, onClose }: RenderModalProps & { src: string; onApply(png: Blob): void; }) {
+// frame size on screen, and the exported size
+const SHAPES = {
+    avatar: { w: 300, h: 300, outW: 512, outH: 512 },
+    banner: { w: 340, h: 120, outW: 1360, outH: 480 }
+};
+
+function CropModal({ src, shape, onApply, transitionState, onClose }: RenderModalProps & { src: string; shape: CropShape; onApply(png: Blob): void; }) {
+    const { w: VW, h: VH, outW, outH } = SHAPES[shape];
     const [img, setImg] = useState<HTMLImageElement | null>(null);
     const [zoom, setZoom] = useState(1);
     const [pos, setPos] = useState({ x: 0, y: 0 });
@@ -27,24 +34,25 @@ function CropModal({ src, onApply, transitionState, onClose }: RenderModalProps 
         i.src = src;
     }, [src]);
 
-    // base scale: the picture covers the circle at zoom 1
-    const base = img ? Math.max(VIEW / img.width, VIEW / img.height) : 1;
+    // base scale: the picture covers the frame at zoom 1
+    const base = img ? Math.max(VW / img.width, VH / img.height) : 1;
     const scale = base * zoom;
     const w = img ? img.width * scale : 0, h = img ? img.height * scale : 0;
-    // keep the circle covered
+    // keep the frame covered
     const clamp = (p: { x: number; y: number; }) => ({
-        x: Math.min((w - VIEW) / 2, Math.max(-(w - VIEW) / 2, p.x)),
-        y: Math.min((h - VIEW) / 2, Math.max(-(h - VIEW) / 2, p.y))
+        x: Math.min((w - VW) / 2, Math.max(-(w - VW) / 2, p.x)),
+        y: Math.min((h - VH) / 2, Math.max(-(h - VH) / 2, p.y))
     });
     const at = clamp(pos);
 
     function apply() {
         if (!img) return;
         const c = document.createElement("canvas");
-        c.width = c.height = OUT;
+        c.width = outW;
+        c.height = outH;
         const ctx = c.getContext("2d")!;
-        const k = OUT / VIEW;
-        ctx.drawImage(img, (VIEW / 2 - w / 2 + at.x) * k, (VIEW / 2 - h / 2 + at.y) * k, w * k, h * k);
+        const k = outW / VW;
+        ctx.drawImage(img, (VW / 2 - w / 2 + at.x) * k, (VH / 2 - h / 2 + at.y) * k, w * k, h * k);
         c.toBlob(b => { if (b) { onApply(b); onClose(); } }, "image/png");
     }
 
@@ -58,7 +66,7 @@ function CropModal({ src, onApply, transitionState, onClose }: RenderModalProps 
                     onPointerUp={() => { drag.current = null; }}
                 >
                     {img && <img src={src} alt="" draggable={false} style={{ width: w, height: h, transform: `translate(${at.x}px, ${at.y}px)` }} />}
-                    <div className="o2-ar-ring" />
+                    <div className={shape === "banner" ? "o2-ar-ring o2-ar-ring-banner" : "o2-ar-ring"} />
                 </div>
                 <div className="o2-ar-zoom">
                     <span>-</span>
@@ -76,6 +84,6 @@ function CropModal({ src, onApply, transitionState, onClose }: RenderModalProps 
     );
 }
 
-export function openCropModal(src: string, onApply: (png: Blob) => void) {
-    openModal(props => <CropModal {...props} src={src} onApply={onApply} />);
+export function openCropModal(src: string, onApply: (png: Blob) => void, shape: CropShape = "avatar") {
+    openModal(props => <CropModal {...props} src={src} shape={shape} onApply={onApply} />);
 }

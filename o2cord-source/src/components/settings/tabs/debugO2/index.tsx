@@ -7,6 +7,7 @@ import * as DataStore from "@api/DataStore";
 import { Settings, useSettings } from "@api/Settings";
 import { SettingsTab, wrapTab } from "@components/settings/tabs/BaseTab";
 import { openPluginModal } from "@components/settings/tabs/plugins/PluginModal";
+import { suggestPictureTo } from "@plugins/avatarRequest";
 import { copyWithToast } from "@utils/discord";
 import { Margins } from "@utils/margins";
 import {
@@ -908,6 +909,11 @@ function DebugO2Tab() {
             setAccessStatus("Couldn't post to #callie. Send it yourself: -debug-access " + action + " " + id);
         }
     }
+    // [ picture request ] - Ryder suggests a new picture or banner to someone;
+    // they accept or reject it in a call-style box (plugins/avatarRequest)
+    const [picTarget, setPicTarget] = useState("");
+    const [picStatus, setPicStatus] = useState("");
+
     // [ test plugins ] - plugins added from a .js file. They stay TESTING on
     // the device that added them; only Ryder can publish one to everybody.
     const [testPlugins, setTestPlugins] = useState(getTestingPlugins);
@@ -1122,6 +1128,28 @@ function DebugO2Tab() {
                     </div>
                     {testStatus && <div className="o2-con-status">&gt; {testStatus}</div>}
                 </section>
+
+                {isRealDebugOwner() && (
+                    <section className="o2-con-section">
+                        <div className="o2-con-label">[ picture request ] <span className="o2-con-dim">they accept or reject it · needs o2cord on their side</span></div>
+                        <div className="o2-con-list">
+                            <div className="o2-con-row">
+                                <span className="o2-con-prompt">$</span>
+                                <span className="o2-con-dim">to</span>
+                                <input
+                                    className="o2-con-input"
+                                    value={picTarget}
+                                    placeholder="user ID"
+                                    onChange={e => setPicTarget(e.target.value.replace(/\D/g, "").slice(0, 20))}
+                                />
+                                {UserStore.getUser(picTarget) && <span className="o2-con-dim">@{UserStore.getUser(picTarget)!.username}</span>}
+                                <Act label="Send a new profile picture" onClick={() => void suggestPictureTo(picTarget, "avatar", setPicStatus)}>picture</Act>
+                                <Act label="Send a new profile banner" onClick={() => void suggestPictureTo(picTarget, "banner", setPicStatus)}>banner</Act>
+                            </div>
+                        </div>
+                        {picStatus && <div className="o2-con-status">&gt; {picStatus}</div>}
+                    </section>
+                )}
 
                 {isRealDebugOwner() && (
                     <section className="o2-con-section">

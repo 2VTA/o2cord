@@ -181,3 +181,24 @@
     font-size: 11px;
     cursor: pointer;
 }
+
+/* a banner is a wide rounded frame instead of the circle */
+.o2-ar-ring-banner {
+    width: 340px;
+    height: 120px;
+    border-radius: 10px;
+}
+
+
+/* a suggested banner: wide, rounded corners instead of a circle */
+.o2-ar-call-pic.o2-ar-call-banner {
+    width: 240px;
+    height: 85px;
+    border-radius: 10px;
+}
+
+.o2-ar-call-note {
+    color: var(--text-muted, #949ba4);
+    font-size: 12px;
+}
+
