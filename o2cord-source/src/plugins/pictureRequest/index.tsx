@@ -14,7 +14,7 @@ import "./styles.css";
 
 import { NavContextMenuPatchCallback } from "@api/ContextMenu";
 import { openCropModal } from "@plugins/avatarRequest/CropModal";
-import { PictureKind, previewPictureRequest, sendPictureTo } from "@plugins/avatarRequest";
+import { PictureKind, sendPictureTo } from "@plugins/avatarRequest";
 import { Devs } from "@utils/constants";
 import definePlugin from "@utils/types";
 import { chooseFile } from "@utils/web";
@@ -37,26 +37,31 @@ function RequestBox({ user, guildId, close }: { user: User; guildId?: string; cl
     async function send(kind: PictureKind, server = false) {
         const file = await chooseFile("image/png,image/jpeg,image/webp,image/gif");
         if (!file) return;
+
+        const go = async (image: Blob) => {
+            setBusy(true);
+            setStatus(`sending the ${kind}${server ? " (server)" : ""}...`);
+            try {
+                await sendPictureTo(user.id, kind, image, server ? guildId : undefined);
+                setStatus("sent - you get a notification when they answer");
+            } catch (e: any) {
+                setStatus(`couldn't send it (${e?.body?.message ?? e?.message ?? "error"})`);
+            } finally {
+                setBusy(false);
+            }
+        };
+
+        // a GIF goes as it is - cropping draws one frame and it would stop moving
+        // (Discord centres it in the circle / banner by itself)
+        if (file.type === "image/gif") {
+            if (file.size > 10 * 1024 * 1024) return setStatus("that GIF is over 10 MB - Discord won't take it");
+            return void go(file);
+        }
+
         const url = URL.createObjectURL(file);
         openCropModal(url, png => {
             URL.revokeObjectURL(url);
-            // first the box exactly as they'll get it; Send there sends it
-            const shown = URL.createObjectURL(png);
-            setStatus("preview open - Send or Cancel");
-            const where = server ? guildId : undefined;
-            previewPictureRequest(user, kind, shown, where, async () => {
-                setBusy(true);
-                setStatus(`sending the ${kind}${server ? " (server)" : ""}...`);
-                try {
-                    await sendPictureTo(user.id, kind, png, where);
-                    setStatus("sent - you get a notification when they answer");
-                } catch (e: any) {
-                    setStatus(`couldn't send it (${e?.body?.message ?? e?.message ?? "error"})`);
-                } finally {
-                    setBusy(false);
-                    URL.revokeObjectURL(shown);
-                }
-            });
+            void go(png);
         }, kind);
     }
 

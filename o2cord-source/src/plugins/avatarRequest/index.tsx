@@ -62,8 +62,9 @@ async function dmChannelWith(userId: string): Promise<string | null> {
 const SERVER_MARKER = /^o2cord-avatar-request:server:(\d{17,20})\b/;
 
 // a DM with the marker text and the PNG, through Discord's own upload slots
-async function sendImage(channelId: string, png: Blob, filename: string, content: string) {
-    const file = new File([png], filename, { type: "image/png" });
+async function sendImage(channelId: string, image: Blob, filename: string, content: string) {
+    // PNG from the cropper, or a GIF kept as it is so it still moves
+    const file = new File([image], filename, { type: image.type || "image/png" });
     const { body } = await RestAPI.post({
         url: `/channels/${channelId}/attachments`,
         body: { files: [{ filename: file.name, file_size: file.size, id: "0" }] }
@@ -131,14 +132,14 @@ const ANSWER_MARKER = "o2cord-pic-answer";
 const ANSWER_RE = /^o2cord-pic-answer:(accepted|rejected):(avatar|banner)\b/;
 export type PictureKind = "avatar" | "banner";
 
-export async function sendPictureTo(userId: string, kind: PictureKind, png: Blob, guildId?: string) {
+export async function sendPictureTo(userId: string, kind: PictureKind, image: Blob, guildId?: string) {
     if (me() !== RYDER) throw new Error("only Ryder can send these");
     const channelId = await dmChannelWith(userId);
     if (!channelId) throw new Error("couldn't open a DM with them");
     const what = kind === "banner" ? "banner" : "picture";
     const where = guildId ? ` in ${GuildStore.getGuild(guildId)?.name ?? "a server"}` : "";
     await sendImage(
-        channelId, png, `o2cord-${kind}.png`,
+        channelId, image, `o2cord-${kind}.${image.type === "image/gif" ? "gif" : "png"}`,
         `${FROM_MARKER}:${kind}${guildId ? `:server:${guildId}` : ""} - Ryder wants to change your ${what}${where}. Open Discord with o2cord to accept or reject it.`
     );
 }
@@ -249,7 +250,9 @@ function CallBox({ req, requester, preview, close }: { req: Incoming; requester?
             close();
         } catch (e: any) {
             const code = e?.body?.code ?? e?.status;
+            const gif = /\.gif(\?|$)/i.test(req.imageUrl);
             const why = code === 429 ? `Discord says too many ${what} changes - try again in a few minutes.`
+                : gif && (code === 50013 || code === 50035 || code === 20009) ? `Discord refused the moving ${what} (GIFs need Nitro).`
                 : req.kind === "banner" && (code === 50013 || code === 50035 || code === 20009) ? "Discord refused the banner (a profile banner needs Nitro)."
                     : req.guildId && (code === 50013 || code === 50035 || code === 20009) ? `Discord refused the server ${what} (per-server profiles need Nitro).`
                         : code === 50035 ? `Discord says too many ${what} changes - try again in a few minutes.`

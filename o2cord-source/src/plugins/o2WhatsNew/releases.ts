@@ -35,7 +35,8 @@ export const RELEASES: Release[] = [
         date: "November 2, 2026",
         features: [],
         fixes: [
-            { text: "Picture requests greet you by name on the frame." }
+            { text: "Picture requests greet you by name on the frame." },
+            { text: "Picture requests can be moving GIFs (taking one needs Nitro)." }
         ]
     },
     {
