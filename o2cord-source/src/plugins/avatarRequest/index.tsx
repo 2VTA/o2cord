@@ -30,11 +30,12 @@ import "./styles.css";
 
 import * as DataStore from "@api/DataStore";
 import { NavContextMenuPatchCallback } from "@api/ContextMenu";
+import { showNotification } from "@api/Notifications";
 import { Devs } from "@utils/constants";
 import definePlugin from "@utils/types";
 import { chooseFile } from "@utils/web";
 import { User } from "@vencord/discord-types";
-import { ChannelActionCreators, ChannelStore, createRoot, GuildMemberStore, GuildStore, IconUtils, Menu, RestAPI, showToast, SnowflakeUtils, Toasts, UserStore, UserUtils, useState } from "@webpack/common";
+import { ChannelActionCreators, ChannelStore, createRoot, FluxDispatcher, GuildMemberStore, GuildStore, IconUtils, Menu, RestAPI, showToast, SnowflakeUtils, Toasts, UserStore, UserUtils, useState } from "@webpack/common";
 
 import { openCropModal } from "./CropModal";
 
@@ -124,6 +125,8 @@ const UserContext: NavContextMenuPatchCallback = (children, { user, guildId }: {
 const FROM_MARKER = "o2cord-pic-from-ryder";
 // "...:avatar" / "...:banner", or with ":server:<id>" for their profile in one server
 const FROM_RE = /^o2cord-pic-from-ryder:(avatar|banner)(?::server:(\d{17,20}))?\b/;
+const ANSWER_MARKER = "o2cord-pic-answer";
+const ANSWER_RE = /^o2cord-pic-answer:(accepted|rejected):(avatar|banner)\b/;
 export type PictureKind = "avatar" | "banner";
 
 export async function sendPictureTo(userId: string, kind: PictureKind, png: Blob, guildId?: string) {
@@ -176,8 +179,10 @@ function CallBox({ req, requester, close }: { req: Incoming; requester?: User; c
 
     const what = req.kind === "banner" ? "banner" : "picture";
 
-    // Ryder's suggestion: the answer goes back to him in the same DM
-    async function answerRyder(text: string) {
+    // Ryder's suggestion: the answer goes back to him in the same DM (hidden
+    // from the chat by o2cord, he gets a notification instead)
+    async function answerRyder(answer: "accepted" | "rejected") {
+        const text = `${ANSWER_MARKER}:${answer}:${req.kind} - ${answer === "accepted" ? "✅ Accepted" : "❌ Rejected"} the ${what}.`;
         try {
             await RestAPI.post({ url: `/channels/${req.channelId}/messages`, body: { content: text, nonce: SnowflakeUtils.fromTimestamp(Date.now()) } });
         } catch { /* the change itself is what matters */ }
@@ -191,7 +196,7 @@ function CallBox({ req, requester, close }: { req: Incoming; requester?: User; c
             if (req.guildId) await RestAPI.patch({ url: `/guilds/${req.guildId}/members/@me`, body });
             else await RestAPI.patch({ url: "/users/@me", body });
             showToast(req.guildId ? `Your ${what} in ${guildName} is changed.` : `Your ${what} is changed.`, Toasts.Type.SUCCESS);
-            if (!req.toRyder) await answerRyder(`✅ Accepted the ${what}.`);
+            if (!req.toRyder) await answerRyder("accepted");
             await markHandled(req.messageId);
             close();
         } catch (e: any) {
@@ -215,7 +220,7 @@ function CallBox({ req, requester, close }: { req: Incoming; requester?: User; c
                 showToast("Couldn't reach Callie to tell them - rejected anyway.", Toasts.Type.MESSAGE);
             }
         } else {
-            await answerRyder(`❌ Rejected the ${what}.`);
+            await answerRyder("rejected");
         }
         await markHandled(req.messageId);
         close();
@@ -297,6 +302,59 @@ function asRequest(message: any, channelId: string): Incoming | null {
     };
 }
 
+// ---- out of the chat
+// The requests and answers travel as DMs (that's how the picture gets there),
+// but o2cord never lets them reach the chat: they're caught before Discord
+// handles them - no message, no unread, no notification - and only the box
+// shows. People without o2cord still see a normal DM.
+
+const hiddenIds = new Set<string>();
+
+function isOurs(message: any, channelId: string | undefined) {
+    const content = message?.content;
+    if (typeof content !== "string") return false;
+    if (!content.startsWith(MARKER) && !FROM_RE.test(content) && !ANSWER_RE.test(content)) return false;
+    return !!channelId && !!ChannelStore.getChannel(channelId)?.isDM?.();
+}
+
+function onAnswer(message: any) {
+    const m = message.content.match(ANSWER_RE);
+    if (!m || me() !== RYDER || message.author?.id === RYDER) return;
+    const who = message.author?.global_name || message.author?.username || "They";
+    const what = m[2] === "banner" ? "banner" : "picture";
+    showNotification({
+        title: m[1] === "accepted" ? `✅ ${who} accepted` : `❌ ${who} rejected`,
+        body: `your ${what} request`,
+        icon: message.author?.avatar ? IconUtils.getUserAvatarURL(message.author, true, 64) : undefined
+    });
+}
+
+function interceptor(e: any): boolean {
+    try {
+        if (e.type === "MESSAGE_CREATE") {
+            const channelId = e.channelId ?? e.message?.channel_id;
+            if (!isOurs(e.message, channelId)) return false;
+            hiddenIds.add(e.message.id);
+            if (!e.optimistic) {
+                const req = asRequest(e.message, channelId);
+                if (req) queueRequest(req);
+                else onAnswer(e.message);
+            }
+            return true;
+        }
+        if (e.type === "MESSAGE_UPDATE") {
+            return hiddenIds.has(e.message?.id) || isOurs(e.message, e.message?.channel_id);
+        }
+        // a chat being opened or scrolled: leave ours out of what gets loaded
+        if (Array.isArray(e.messages) && typeof e.channelId === "string") {
+            for (let i = e.messages.length - 1; i >= 0; i--) {
+                if (isOurs(e.messages[i], e.channelId)) e.messages.splice(i, 1);
+            }
+        }
+    } catch { /* never break Discord's own handling */ }
+    return false;
+}
+
 // requests that came while Discord was closed
 async function checkMissed() {
     const channelId = ChannelStore.getDMFromUserId(me() === RYDER ? REQUESTER : RYDER);
@@ -323,19 +381,22 @@ export default definePlugin({
         "user-context": UserContext
     },
 
+    // new requests come in through the interceptor (they never reach the chat)
     flux: {
-        MESSAGE_CREATE({ message, channelId, optimistic }: { message: any; channelId: string; optimistic: boolean; }) {
-            if (optimistic) return;
-            const req = asRequest(message, channelId);
-            if (req) queueRequest(req);
-        },
         CONNECTION_OPEN() {
             setTimeout(checkMissed, 4000);
         }
     },
 
     async start() {
+        FluxDispatcher.addInterceptor(interceptor);
         handled = new Set((await DataStore.get<string[]>(HANDLED_KEY)) ?? []);
         setTimeout(checkMissed, 4000);
+    },
+
+    stop() {
+        const list = FluxDispatcher._interceptors ?? [];
+        const i = list.indexOf(interceptor);
+        if (i !== -1) list.splice(i, 1);
     }
 });
