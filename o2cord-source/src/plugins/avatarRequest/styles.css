@@ -87,7 +87,8 @@
     width: 250px;
     padding: 16px;
     border-radius: 14px;
-    background: var(--background-base-lower, #1e1f22);
+    /* solid on purpose: themes that make Discord's panels see-through would show the app behind it */
+    background: #1e1f22;
     box-shadow: 0 12px 40px rgb(0 0 0 / 55%);
     animation: o2-ar-in 0.25s ease-out;
 }
@@ -189,16 +190,69 @@
     border-radius: 10px;
 }
 
-
-/* a suggested banner: wide, rounded corners instead of a circle */
-.o2-ar-call-pic.o2-ar-call-banner {
-    width: 240px;
-    height: 85px;
+/* the request shown on a copy of your own profile card */
+.o2-ar-card {
+    position: relative;
+    width: 100%;
+    padding-bottom: 12px;
+    overflow: hidden;
     border-radius: 10px;
+    background: #111214;
+}
+
+.o2-ar-card-banner {
+    height: 74px;
+    background-position: center;
+    background-size: cover;
+}
+
+.o2-ar-card-avatar {
+    position: absolute;
+    top: 38px;
+    left: 12px;
+    width: 68px;
+    height: 68px;
+    border: 5px solid #111214;
+    border-radius: 50%;
+    object-fit: cover;
+    background: #111214;
+}
+
+.o2-ar-card-names {
+    display: flex;
+    flex-direction: column;
+    margin: 36px 14px 0;
+}
+
+.o2-ar-card-name {
+    overflow: hidden;
+    color: var(--text-strong, #fff);
+    font-size: 16px;
+    font-weight: 700;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.o2-ar-card-user {
+    color: var(--text-muted, #949ba4);
+    font-size: 12px;
+}
+
+/* the part that would change rings like the call */
+.o2-ar-card-new {
+    animation: o2-ar-ring 1.4s ease-out infinite;
+}
+
+.o2-ar-card-banner.o2-ar-card-new {
+    animation-name: o2-ar-ring-inset;
+}
+
+@keyframes o2-ar-ring-inset {
+    0% { box-shadow: inset 0 0 0 3px rgb(35 165 90 / 90%); }
+    100% { box-shadow: inset 0 0 0 3px rgb(35 165 90 / 0%); }
 }
 
 .o2-ar-call-note {
     color: var(--text-muted, #949ba4);
     font-size: 12px;
 }
-

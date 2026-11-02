@@ -35,7 +35,7 @@ import { Devs } from "@utils/constants";
 import definePlugin from "@utils/types";
 import { chooseFile } from "@utils/web";
 import { User } from "@vencord/discord-types";
-import { ChannelActionCreators, ChannelStore, createRoot, FluxDispatcher, GuildMemberStore, GuildStore, IconUtils, Menu, RestAPI, showToast, SnowflakeUtils, Toasts, UserStore, UserUtils, useState } from "@webpack/common";
+import { ChannelActionCreators, ChannelStore, createRoot, FluxDispatcher, GuildMemberStore, GuildStore, IconUtils, Menu, RestAPI, showToast, SnowflakeUtils, Toasts, UserProfileStore, UserStore, UserUtils, useState } from "@webpack/common";
 
 import { openCropModal } from "./CropModal";
 
@@ -172,6 +172,34 @@ async function toDataUrl(url: string) {
     });
 }
 
+// How your own profile card would look with it: the new picture or banner in
+// place, the rest as it is now (the new part rings).
+function ProfilePreview({ req }: { req: Incoming; }) {
+    const self = UserStore.getCurrentUser();
+    // the profile may not be loaded yet; your own user always carries the banner
+    const profile: any = UserProfileStore.getUserProfile(self.id);
+    const bannerHash: string | undefined = (self as any).banner ?? profile?.banner;
+    const banner = req.kind === "banner"
+        ? req.imageUrl
+        : bannerHash ? `https://cdn.discordapp.com/banners/${self.id}/${bannerHash}.${bannerHash.startsWith("a_") ? "gif" : "png"}?size=480` : null;
+    const accent = typeof profile?.accentColor === "number" ? `#${profile.accentColor.toString(16).padStart(6, "0")}` : "var(--background-mod-strong, #4e5058)";
+    const avatar = req.kind === "avatar" ? req.imageUrl : IconUtils.getUserAvatarURL(self, true, 128);
+
+    return (
+        <div className="o2-ar-card">
+            <div
+                className={req.kind === "banner" ? "o2-ar-card-banner o2-ar-card-new" : "o2-ar-card-banner"}
+                style={banner ? { backgroundImage: `url("${banner}")` } : { background: accent }}
+            />
+            <img className={req.kind === "avatar" ? "o2-ar-card-avatar o2-ar-card-new" : "o2-ar-card-avatar"} src={avatar} alt="" />
+            <div className="o2-ar-card-names">
+                <span className="o2-ar-card-name">{(self as any).globalName || self.username}</span>
+                <span className="o2-ar-card-user">{self.username}</span>
+            </div>
+        </div>
+    );
+}
+
 function CallBox({ req, requester, close }: { req: Incoming; requester?: User; close(): void; }) {
     const [busy, setBusy] = useState<"" | "accept" | "reject">("");
     const name = requester?.globalName || requester?.username || "Someone";
@@ -235,7 +263,7 @@ function CallBox({ req, requester, close }: { req: Incoming; requester?: User; c
                     <div className="o2-ar-call-sub">{req.guildId ? `wants to change your ${what} in ${guildName}` : `wants to change your ${what}`}</div>
                 </div>
             </div>
-            <img className={req.kind === "banner" ? "o2-ar-call-pic o2-ar-call-banner" : "o2-ar-call-pic"} src={req.imageUrl} alt="" />
+            <ProfilePreview req={req} />
             {!req.toRyder && <div className="o2-ar-call-note">Ryder sees your answer.</div>}
             <div className="o2-ar-call-buttons">
                 <button className="o2-ar-call-btn o2-ar-reject" disabled={!!busy} onClick={reject}>{busy === "reject" ? "..." : "Reject"}</button>
