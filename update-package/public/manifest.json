@@ -1,8 +1,8 @@
 {
-    "version":  "1.3.74",
-    "hash":  "public-20261102093049",
+    "version":  "1.3.75",
+    "hash":  "public-20261102094226",
     "author":  "o2cord",
-    "message":  "Picture requests in Ryder\u0027s frame",
+    "message":  "Picture requests: name greeting, GIFs",
     "notes":  [
                   "Public o2cord update package",
                   "ussro2 backgrounds are loaded from backgrounds.json beside this manifest",
