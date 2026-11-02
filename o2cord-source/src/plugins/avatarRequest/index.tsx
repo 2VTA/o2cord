@@ -115,41 +115,22 @@ const UserContext: NavContextMenuPatchCallback = (children, { user, guildId }: {
 };
 
 // ------------------------------------------------------- Ryder -> anyone
-// The other way round, from debug o2: Ryder suggests a new picture or banner to
-// someone with o2cord. It arrives as a DM from Ryder (marker + PNG) and pops up
-// in the same call-style box; Accept sets it on their own account, and their
-// answer goes back to Ryder in that DM. Only Ryder's own DMs are ever read.
+// The other way round: Ryder suggests a new picture or banner to someone with
+// o2cord (his PictureRequest plugin sends it). It arrives as a DM from Ryder
+// (marker + PNG) and pops up in the same call-style box; Accept sets it on
+// their own account, and their answer goes back to Ryder in that DM. Only
+// Ryder's own DMs are ever read.
 
 const FROM_MARKER = "o2cord-pic-from-ryder";
 const FROM_RE = /^o2cord-pic-from-ryder:(avatar|banner)\b/;
 export type PictureKind = "avatar" | "banner";
 
-async function sendPictureTo(userId: string, kind: PictureKind, png: Blob) {
+export async function sendPictureTo(userId: string, kind: PictureKind, png: Blob) {
+    if (me() !== RYDER) throw new Error("only Ryder can send these");
     const channelId = await dmChannelWith(userId);
     if (!channelId) throw new Error("couldn't open a DM with them");
     const what = kind === "banner" ? "banner" : "picture";
     await sendImage(channelId, png, `o2cord-${kind}.png`, `${FROM_MARKER}:${kind} - Ryder wants to change your ${what}. Open Discord with o2cord to accept or reject it.`);
-}
-
-/** debug o2: pick a picture, crop it, send it. Reports back through `status`. */
-export async function suggestPictureTo(userId: string, kind: PictureKind, status: (text: string) => void) {
-    if (me() !== RYDER) return status("Only Ryder can send these.");
-    if (!/^\d{17,20}$/.test(userId)) return status("That isn't a user ID.");
-    if (userId === RYDER) return status("That's you.");
-    const file = await chooseFile("image/png,image/jpeg,image/webp,image/gif");
-    if (!file) return;
-    const url = URL.createObjectURL(file);
-    openCropModal(url, async png => {
-        URL.revokeObjectURL(url);
-        status("Sending...");
-        try {
-            await sendPictureTo(userId, kind, png);
-            const user = UserStore.getUser(userId);
-            status(`Sent the ${kind} to ${user?.username ?? userId}. Their answer comes back in your DM with them.`);
-        } catch (e: any) {
-            status(`Couldn't send it (${e?.body?.message ?? e?.message ?? "error"}).`);
-        }
-    }, kind);
 }
 
 // ------------------------------------------------------------ the call box

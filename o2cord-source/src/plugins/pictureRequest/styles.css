@@ -1,0 +1,115 @@
+/* ---- PictureRequest box: the debug o2 console look ---- */
+.o2-pr-backdrop {
+    position: fixed;
+    inset: 0;
+    /* under Discord's modal layer, so the crop window opens on top of it */
+    z-index: 100;
+    display: grid;
+    place-items: center;
+    background: rgb(0 0 0 / 45%);
+}
+
+.o2-pr-box {
+    --con-bg: #0b0b0b;
+    --con-fg: #e8e8e8;
+    --con-dim: #8a8a8a;
+    --con-line: #333;
+
+    width: 320px;
+    max-width: calc(100vw - 32px);
+    padding: 12px 14px 14px;
+    border: 1px solid var(--con-line);
+    border-radius: 6px;
+    background: var(--con-bg);
+    box-shadow: 0 12px 40px rgb(0 0 0 / 60%);
+    color: var(--con-fg);
+    font-family: var(--font-code), ui-monospace, Consolas, monospace;
+    font-size: 13px;
+    line-height: 1.5;
+}
+
+.o2-pr-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-bottom: 8px;
+    margin-bottom: 12px;
+    border-bottom: 1px solid var(--con-line);
+}
+
+.o2-pr-x,
+.o2-pr-btn {
+    padding: 1px 4px;
+    border: 1px solid transparent;
+    border-radius: 3px;
+    background: transparent;
+    color: var(--con-dim);
+    font: inherit;
+    cursor: pointer;
+    transition: color 0.12s, border-color 0.12s;
+}
+
+.o2-pr-x:hover:not(:disabled),
+.o2-pr-btn:hover:not(:disabled) {
+    color: var(--con-fg);
+    border-color: var(--con-fg);
+}
+
+.o2-pr-x:disabled,
+.o2-pr-btn:disabled {
+    opacity: 0.4;
+    cursor: default;
+}
+
+.o2-pr-user {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 12px;
+}
+
+.o2-pr-user img {
+    width: 36px;
+    height: 36px;
+    border: 1px solid var(--con-line);
+    border-radius: 50%;
+    filter: grayscale(1);
+}
+
+.o2-pr-user > span {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.o2-pr-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.o2-pr-dim {
+    color: var(--con-dim);
+}
+
+.o2-pr-actions {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 10px;
+}
+
+.o2-pr-btn {
+    flex: 1;
+    padding: 6px 0;
+    border-color: var(--con-line);
+    color: var(--con-fg);
+}
+
+.o2-pr-status {
+    color: var(--con-fg);
+}
+
+.o2-pr-note {
+    margin-top: 6px;
+    font-size: 11px;
+}
