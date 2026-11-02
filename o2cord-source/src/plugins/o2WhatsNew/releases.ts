@@ -31,6 +31,14 @@ export interface Release {
 
 export const RELEASES: Release[] = [
     {
+        version: "1.3.70",
+        date: "November 2, 2026",
+        features: [],
+        fixes: [
+            { plugin: "O2Presence", text: "Pictures copied from a Discord chat no longer stop showing after a day - O2 Presence gets a fresh link from Discord by itself, as long as the picture's message is still there." }
+        ]
+    },
+    {
         version: "1.3.69",
         date: "November 2, 2026",
         features: [],
