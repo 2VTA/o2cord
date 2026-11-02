@@ -1,8 +1,8 @@
 {
-    "version":  "1.3.70",
-    "hash":  "public-20261102083701",
+    "version":  "1.3.71",
+    "hash":  "public-20261102085048",
     "author":  "o2cord",
-    "message":  "O2 Presence pictures keep showing",
+    "message":  "O2 Presence: pictures from your computer",
     "notes":  [
                   "Public o2cord update package",
                   "ussro2 backgrounds are loaded from backgrounds.json beside this manifest",
