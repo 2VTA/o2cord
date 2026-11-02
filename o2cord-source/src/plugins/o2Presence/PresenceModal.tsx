@@ -29,7 +29,7 @@ import {
 } from "@webpack/common";
 
 import {
-    buildActivity, canUploadPictures, emptyPreset, getActivePreset, getPresets, linkExpiresAt, MAX_PRESETS, newId, onPresenceChange, Preset,
+    buildActivity, emptyPreset, getActivePreset, getPresets, linkExpiresAt, MAX_PRESETS, newId, onPresenceChange, Preset,
     pushPresence, renewLinks, sanitizePreset, settings, TimeMode, turnOff, uploadPicture, usePreset, VARIABLES
 } from "./model";
 
@@ -266,18 +266,15 @@ function PresenceModalInner({ transitionState, onClose }: RenderModalProps) {
         showToast(`Imported ${added.length} preset${added.length === 1 ? "" : "s"}.`, Toasts.Type.SUCCESS);
     }
 
-    const canUpload = canUploadPictures();
     const pictureChannel = settings.store.pictureChannelId ? ChannelStore.getChannel(settings.store.pictureChannelId) : null;
     const pictureChannelName = pictureChannel
         ? `${pictureChannel.name ? `#${pictureChannel.name}` : "a DM"}${pictureChannel.guild_id ? ` in ${GuildStore.getGuild(pictureChannel.guild_id)?.name ?? "a server"}` : ""}`
         : "";
 
     const imageInput = (field: "largeImage" | "smallImage") => {
-        const input = <TextInput value={selected[field]} onChange={v => update({ [field]: v })} placeholder="https://..." />;
-        if (!canUpload) return input;
         return (
             <div className="o2-rp-inline">
-                {input}
+                <TextInput value={selected[field]} onChange={v => update({ [field]: v })} placeholder="https://..." />
                 <Button
                     variant="secondary"
                     size="small"
@@ -421,19 +418,17 @@ function PresenceModalInner({ transitionState, onClose }: RenderModalProps) {
                 </Card>
 
                 <Card title="Pictures">
-                    <Forms.FormText className={Margins.bottom8}>Paste an image link (https://...). To use a picture from your device: send it in any Discord chat, right-click it, Copy Link, and paste it here. A link needs no game ID. (You can also type the key of an image uploaded to the game's application.)</Forms.FormText>
-                    {canUpload && (
-                        <div className="o2-rp-notice">
-                            <span>
-                                {pictureChannel
-                                    ? <>Pictures from your computer are sent to <b>{pictureChannelName}</b>. Keep those messages - deleting one removes its picture.</>
-                                    : "Pick a channel for pictures from your computer (a private one is best): open it, then press the button."}
-                            </span>
-                            <Button variant="secondary" size="small" onClick={usePictureChannel}>
-                                Use the channel I'm in
-                            </Button>
-                        </div>
-                    )}
+                    <Forms.FormText className={Margins.bottom8}>Paste an image link (https://...), or press "From computer" to pick a picture from your device - it's sent to the channel you choose below and its link is filled in for you. A link needs no game ID. (You can also type the key of an image uploaded to the game's application.)</Forms.FormText>
+                    <div className="o2-rp-notice">
+                        <span>
+                            {pictureChannel
+                                ? <>Pictures from your computer are sent to <b>{pictureChannelName}</b>. Keep those messages - deleting one removes its picture.</>
+                                : "Pick a channel for pictures from your computer (a private one is best): open it, then press the button."}
+                        </span>
+                        <Button variant="secondary" size="small" onClick={usePictureChannel}>
+                            Use the channel I'm in
+                        </Button>
+                    </div>
                     <div className="o2-rp-grid">
                         <Field label="Large image" hint={imageHint(selected.largeImage)}>{imageInput("largeImage")}</Field>
                         <Field label="Large image text"><TextInput value={selected.largeText} maxLength={128} onChange={v => update({ largeText: v })} placeholder="Shown on hover" /></Field>

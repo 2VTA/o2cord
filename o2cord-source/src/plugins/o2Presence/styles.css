@@ -18,6 +18,18 @@
     font-size: 14px;
 }
 
+/* the text wraps; the button keeps its full width instead of running over it */
+.o2-rp-notice > span {
+    flex: 1;
+    min-width: 0;
+}
+
+.o2-rp-notice > :not(span),
+.o2-rp-inline > button {
+    flex-shrink: 0;
+    white-space: nowrap;
+}
+
 .o2-rp-top {
     display: flex;
     flex-wrap: wrap;

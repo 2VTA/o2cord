@@ -31,6 +31,18 @@ export interface Release {
 
 export const RELEASES: Release[] = [
     {
+        version: "1.3.71",
+        date: "November 2, 2026",
+        features: [
+            {
+                plugin: "O2Presence",
+                title: "Pictures from your computer",
+                text: "No more copying links: pick a channel once in the Pictures section (a private one is best), then press \"From computer\" next to Large or Small image. The picture is sent to that channel and its link is filled in - and it keeps showing as long as that message is there."
+            }
+        ],
+        fixes: []
+    },
+    {
         version: "1.3.70",
         date: "November 2, 2026",
         features: [],

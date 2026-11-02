@@ -13,7 +13,6 @@
  */
 
 import { definePluginSettings } from "@api/Settings";
-import { Devs } from "@utils/constants";
 import { isTruthy } from "@utils/guards";
 import { Activity } from "@vencord/discord-types";
 import { ActivityType } from "@vencord/discord-types/enums";
@@ -65,7 +64,7 @@ export const settings = definePluginSettings({}).withPrivateSettings<{
     on: boolean;
     rotate: boolean;
     rotateMinutes: number;
-    /** where pictures from the computer are sent (Ryder only) */
+    /** where pictures from the computer are sent */
     pictureChannelId: string;
 }>();
 
@@ -267,13 +266,10 @@ export async function renewLinks(preset: Preset) {
 }
 
 // ------------------------------------------------- pictures from the computer
-// Ryder only: the picture is sent as a message to a channel he picked, and that
-// message's link is used (and kept fresh by renewLinks above).
-
-export const canUploadPictures = () => UserStore.getCurrentUser()?.id === String(Devs.Ryder.id);
+// The picture is sent as a message to a channel you picked (saved on this
+// device), and that message's link is used - kept fresh by renewLinks above.
 
 export async function uploadPicture(file: File): Promise<string> {
-    if (!canUploadPictures()) throw new Error("not allowed");
     const channelId = settings.store.pictureChannelId;
     if (!channelId) throw new Error("Pick a channel for the pictures first.");
 
