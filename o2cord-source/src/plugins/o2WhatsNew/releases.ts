@@ -31,6 +31,14 @@ export interface Release {
 
 export const RELEASES: Release[] = [
     {
+        version: "1.3.69",
+        date: "November 2, 2026",
+        features: [],
+        fixes: [
+            { plugin: "O2Presence", text: "Your presence now shows for everyone again when a preset uses a custom start time from before 1970 - Discord refused the whole status, so only you could see it. The oldest start is now 1970." }
+        ]
+    },
+    {
         version: "1.3.68",
         date: "November 2, 2026",
         features: [
