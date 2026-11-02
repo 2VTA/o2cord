@@ -19,13 +19,14 @@ import { Devs } from "@utils/constants";
 import definePlugin from "@utils/types";
 import { chooseFile } from "@utils/web";
 import { User } from "@vencord/discord-types";
-import { createRoot, IconUtils, Menu, UserStore, useEffect, useState } from "@webpack/common";
+import { createRoot, GuildMemberStore, GuildStore, IconUtils, Menu, UserStore, useEffect, useState } from "@webpack/common";
 
 const isRyder = () => UserStore.getCurrentUser()?.id === String(Devs.Ryder.id);
 
-function RequestBox({ user, close }: { user: User; close(): void; }) {
+function RequestBox({ user, guildId, close }: { user: User; guildId?: string; close(): void; }) {
     const [status, setStatus] = useState("pick what to send");
     const [busy, setBusy] = useState(false);
+    const guildName = guildId ? GuildStore.getGuild(guildId)?.name ?? "this server" : "";
 
     useEffect(() => {
         const onKey = (e: KeyboardEvent) => { if (e.key === "Escape" && !busy) close(); };
@@ -33,16 +34,16 @@ function RequestBox({ user, close }: { user: User; close(): void; }) {
         return () => window.removeEventListener("keydown", onKey);
     }, [busy]);
 
-    async function send(kind: PictureKind) {
+    async function send(kind: PictureKind, server = false) {
         const file = await chooseFile("image/png,image/jpeg,image/webp,image/gif");
         if (!file) return;
         const url = URL.createObjectURL(file);
         openCropModal(url, async png => {
             URL.revokeObjectURL(url);
             setBusy(true);
-            setStatus(`sending the ${kind}...`);
+            setStatus(`sending the ${kind}${server ? " (server)" : ""}...`);
             try {
-                await sendPictureTo(user.id, kind, png);
+                await sendPictureTo(user.id, kind, png, server ? guildId : undefined);
                 setStatus(`sent - their answer comes back in your DM`);
             } catch (e: any) {
                 setStatus(`couldn't send it (${e?.body?.message ?? e?.message ?? "error"})`);
@@ -70,8 +71,16 @@ function RequestBox({ user, close }: { user: User; close(): void; }) {
                     <button type="button" className="o2-pr-btn" disabled={busy} onClick={() => send("avatar")}>[picture]</button>
                     <button type="button" className="o2-pr-btn" disabled={busy} onClick={() => send("banner")}>[banner]</button>
                 </div>
+                {guildId && (
+                    <div className="o2-pr-actions">
+                        <button type="button" className="o2-pr-btn" disabled={busy} title={`Only in ${guildName}`} onClick={() => send("avatar", true)}>[picture (server)]</button>
+                        <button type="button" className="o2-pr-btn" disabled={busy} title={`Only in ${guildName}`} onClick={() => send("banner", true)}>[banner (server)]</button>
+                    </div>
+                )}
                 <div className="o2-pr-status">&gt; {status}</div>
-                <div className="o2-pr-dim o2-pr-note">they accept or reject it · needs o2cord on their side · a banner needs their Nitro</div>
+                <div className="o2-pr-dim o2-pr-note">
+                    they accept or reject it · needs o2cord on their side · a banner{guildId ? " or (server)" : ""} needs their Nitro{guildId ? ` · (server) = only in ${guildName}` : ""}
+                </div>
             </div>
         </div>
     );
@@ -79,7 +88,7 @@ function RequestBox({ user, close }: { user: User; close(): void; }) {
 
 let openBox: (() => void) | null = null;
 
-function openRequestBox(user: User) {
+function openRequestBox(user: User, guildId?: string) {
     openBox?.();
     const host = document.createElement("div");
     document.body.append(host);
@@ -90,14 +99,16 @@ function openRequestBox(user: User) {
         if (openBox === close) openBox = null;
     };
     openBox = close;
-    root.render(<RequestBox user={user} close={close} />);
+    root.render(<RequestBox user={user} guildId={guildId} close={close} />);
 }
 
-const UserContext: NavContextMenuPatchCallback = (children, { user }: { user?: User; }) => {
+const UserContext: NavContextMenuPatchCallback = (children, { user, guildId }: { user?: User; guildId?: string; }) => {
     if (!user || user.bot || !isRyder() || user.id === UserStore.getCurrentUser()?.id) return;
+    // the (server) buttons only when they're in the server you right-clicked them in
+    const inServer = guildId && GuildMemberStore.isMember(guildId, user.id) ? guildId : undefined;
     children.push(
         <Menu.MenuGroup>
-            <Menu.MenuItem id="o2-picture-request" label="Picture request" action={() => openRequestBox(user)} />
+            <Menu.MenuItem id="o2-picture-request" label="Picture request" action={() => openRequestBox(user, inServer)} />
         </Menu.MenuGroup>
     );
 };

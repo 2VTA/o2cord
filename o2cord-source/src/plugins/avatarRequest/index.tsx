@@ -122,15 +122,20 @@ const UserContext: NavContextMenuPatchCallback = (children, { user, guildId }: {
 // Ryder's own DMs are ever read.
 
 const FROM_MARKER = "o2cord-pic-from-ryder";
-const FROM_RE = /^o2cord-pic-from-ryder:(avatar|banner)\b/;
+// "...:avatar" / "...:banner", or with ":server:<id>" for their profile in one server
+const FROM_RE = /^o2cord-pic-from-ryder:(avatar|banner)(?::server:(\d{17,20}))?\b/;
 export type PictureKind = "avatar" | "banner";
 
-export async function sendPictureTo(userId: string, kind: PictureKind, png: Blob) {
+export async function sendPictureTo(userId: string, kind: PictureKind, png: Blob, guildId?: string) {
     if (me() !== RYDER) throw new Error("only Ryder can send these");
     const channelId = await dmChannelWith(userId);
     if (!channelId) throw new Error("couldn't open a DM with them");
     const what = kind === "banner" ? "banner" : "picture";
-    await sendImage(channelId, png, `o2cord-${kind}.png`, `${FROM_MARKER}:${kind} - Ryder wants to change your ${what}. Open Discord with o2cord to accept or reject it.`);
+    const where = guildId ? ` in ${GuildStore.getGuild(guildId)?.name ?? "a server"}` : "";
+    await sendImage(
+        channelId, png, `o2cord-${kind}.png`,
+        `${FROM_MARKER}:${kind}${guildId ? `:server:${guildId}` : ""} - Ryder wants to change your ${what}${where}. Open Discord with o2cord to accept or reject it.`
+    );
 }
 
 // ------------------------------------------------------------ the call box
@@ -185,7 +190,7 @@ function CallBox({ req, requester, close }: { req: Incoming; requester?: User; c
             const body = req.kind === "banner" ? { banner: image } : { avatar: image };
             if (req.guildId) await RestAPI.patch({ url: `/guilds/${req.guildId}/members/@me`, body });
             else await RestAPI.patch({ url: "/users/@me", body });
-            showToast(req.guildId ? `Your picture in ${guildName} is changed.` : `Your ${what} is changed.`, Toasts.Type.SUCCESS);
+            showToast(req.guildId ? `Your ${what} in ${guildName} is changed.` : `Your ${what} is changed.`, Toasts.Type.SUCCESS);
             if (!req.toRyder) await answerRyder(`✅ Accepted the ${what}.`);
             await markHandled(req.messageId);
             close();
@@ -193,7 +198,7 @@ function CallBox({ req, requester, close }: { req: Incoming; requester?: User; c
             const code = e?.body?.code ?? e?.status;
             const why = code === 429 ? `Discord says too many ${what} changes - try again in a few minutes.`
                 : req.kind === "banner" && (code === 50013 || code === 50035 || code === 20009) ? "Discord refused the banner (a profile banner needs Nitro)."
-                    : req.guildId && (code === 50013 || code === 50035 || code === 20009) ? "Discord refused the server picture (per-server pictures need Nitro)."
+                    : req.guildId && (code === 50013 || code === 50035 || code === 20009) ? `Discord refused the server ${what} (per-server profiles need Nitro).`
                         : code === 50035 ? `Discord says too many ${what} changes - try again in a few minutes.`
                             : `Couldn't change it (${code ?? "error"}).`;
             showToast(why, Toasts.Type.FAILURE);
@@ -222,7 +227,7 @@ function CallBox({ req, requester, close }: { req: Incoming; requester?: User; c
                 {requester && <img className="o2-ar-call-avatar" src={IconUtils.getUserAvatarURL(requester, true, 64)} alt="" />}
                 <div>
                     <div className="o2-ar-call-name">{name}</div>
-                    <div className="o2-ar-call-sub">{req.guildId ? `wants to change your picture in ${guildName}` : `wants to change your ${what}`}</div>
+                    <div className="o2-ar-call-sub">{req.guildId ? `wants to change your ${what} in ${guildName}` : `wants to change your ${what}`}</div>
                 </div>
             </div>
             <img className={req.kind === "banner" ? "o2-ar-call-pic o2-ar-call-banner" : "o2-ar-call-pic"} src={req.imageUrl} alt="" />
@@ -280,14 +285,15 @@ function asRequest(message: any, channelId: string): Incoming | null {
     const att = message.attachments?.find((a: any) => /^image\//.test(a.content_type ?? "") || /\.(png|jpe?g|webp|gif)(\?|$)/i.test(a.url ?? ""));
     if (!att) return null;
     const toRyder = author === REQUESTER;
+    const from = toRyder ? null : content.match(FROM_RE)!;
     return {
         messageId: message.id,
         channelId,
         imageUrl: att.url,
         from: author,
-        kind: toRyder ? "avatar" : content.match(FROM_RE)![1] as PictureKind,
+        kind: from ? from[1] as PictureKind : "avatar",
         toRyder,
-        guildId: toRyder ? content.match(SERVER_MARKER)?.[1] : undefined
+        guildId: from ? from[2] : content.match(SERVER_MARKER)?.[1]
     };
 }
 
