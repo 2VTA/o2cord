@@ -8,9 +8,11 @@
 #   2. finds your Discord (Stable / PTB / Canary from the .deb, .tar.gz or your
 #      distro's package) and puts a tiny loader in front of its app.asar
 #      (your original is kept as _app.asar, nothing is deleted)
+#   3. offers a small background service that puts o2cord back by itself after
+#      Discord is updated (a Discord update replaces the file o2cord sits in)
 #
-# o2cord then updates itself from inside Discord - run this again only if Discord
-# itself was updated and o2cord disappeared, or to remove it (--uninstall).
+# o2cord then updates itself from inside Discord. If o2cord's files are ever
+# missing, Discord still starts normally - it just starts without o2cord.
 #
 # Not supported yet: Flatpak and Snap Discord (their files are read-only).
 #
@@ -19,8 +21,11 @@
 #   bash install.sh --all           install into every Discord found
 #   bash install.sh --target PATH   install into one Discord: its folder, or the discord command
 #                                   (e.g. --target /opt/discord  or  --target "$(command -v discord)")
+#   bash install.sh --auto-repair   also set up the update-proof service, without asking
+#   bash install.sh --no-auto-repair   don't set it up (and don't ask)
+#   bash install.sh --status        show what is installed and whether the service is running
 #   bash install.sh --list          only show the Discords found
-#   bash install.sh --uninstall     put the original app.asar back
+#   bash install.sh --uninstall     put the original app.asar back and remove the service
 #   bash install.sh --help
 #
 # Run it as your normal user. It asks for your password (sudo) only when
@@ -35,8 +40,20 @@ ok()   { printf '%s✓%s %s\n' "$G" "$N" "$*"; }
 warn() { printf '%s!%s %s\n' "$Y" "$N" "$*" >&2; }
 die()  { printf '%s✗ %s%s\n' "$R" "$*" "$N" >&2; exit 1; }
 
+SCRIPT_URL="${O2CORD_SCRIPT_URL:-https://raw.githubusercontent.com/2VTA/o2cord/main/docs/install.sh}"
+FILES_BASE="${O2CORD_FILES_BASE:-https://raw.githubusercontent.com/2VTA/o2cord/main/update-package/public/files}"
+DIST_FILES=(patcher.js preload.js renderer.js renderer.css)
+DIST_DIR=""
+REAL_USER=""
+SUDO=""
+TMP=""
+trap 'rm -rf "${TMP:-}"' EXIT
+ensure_tmp() { if [ -z "$TMP" ]; then TMP="$(mktemp -d)"; fi; }
+# is there a terminal to ask questions on (also when the script itself was piped in)?
+have_tty() { ( : < /dev/tty ) 2>/dev/null; }
+
 # ── "did you mean --target?" for typos ───────────────────────────────────────
-KNOWN_OPTIONS=(--all --target --list --uninstall --remove --help)
+KNOWN_OPTIONS=(--all --target --list --status --uninstall --remove --repair --config --auto-repair --no-auto-repair --help)
 
 distance() { # edit distance between two short words
     local a="$1" b="$2" i j cost x y z m
@@ -66,43 +83,6 @@ unknown_option() {
     if [ "$bestd" -le 3 ]; then die "Unknown option: $opt - did you mean $best ?  (bash install.sh --help)"; fi
     die "Unknown option: $opt  (bash install.sh --help)"
 }
-
-ACTION=install
-ALL=0
-TARGET=""
-while [ $# -gt 0 ]; do
-    case "$1" in
-        --uninstall|--remove) ACTION=uninstall ;;
-        --list) ACTION=list ;;
-        --all) ALL=1 ;;
-        --target) shift; [ $# -gt 0 ] || die "--target needs a path"; TARGET="$1" ;;
-        --target=*) TARGET="${1#--target=}" ;;
-        -h|--help) sed -n '2,/^set -euo/p' "$0" | sed '$d' | sed 's/^# \{0,1\}//'; exit 0 ;;
-        *) unknown_option "$1" ;;
-    esac
-    shift
-done
-
-[ "$(uname -s)" = "Linux" ] || die "This installer is for Linux. On Windows use the installer from the website."
-
-# Run with sudo: set o2cord up for the person who called sudo, not for root
-# (Discord runs as that person and must be able to read - and update - the files)
-REAL_USER=""
-if [ "$(id -u)" -eq 0 ]; then
-    if [ -n "${SUDO_USER:-}" ] && [ "$SUDO_USER" != "root" ]; then
-        REAL_USER="$SUDO_USER"
-        REAL_HOME="$(getent passwd "$REAL_USER" | cut -d: -f6)"
-        [ -n "$REAL_HOME" ] && [ -d "$REAL_HOME" ] || die "Couldn't find the home folder of $REAL_USER."
-        HOME="$REAL_HOME"
-        XDG_DATA_HOME=""
-    else
-        warn "Running as root without sudo: o2cord would be set up for root's home, not yours. Run it as your normal user instead."
-    fi
-fi
-
-FILES_BASE="${O2CORD_FILES_BASE:-https://raw.githubusercontent.com/2VTA/o2cord/main/update-package/public/files}"
-DIST_DIR="${O2CORD_DIST_DIR:-${XDG_DATA_HOME:-$HOME/.local/share}/o2cord/dist}"
-DIST_FILES=(patcher.js preload.js renderer.js renderer.css)
 
 # ── finding Discord ───────────────────────────────────────────────────────────
 # Discord keeps app.asar in <folder>/resources (the official .deb/.tar.gz) or, for packages
@@ -147,38 +127,38 @@ running_dirs() {
 # Folder -> app.asar folder, also looking one level up (binary in .../bin, etc.)
 resolve_dir() {
     local d="$1" try
-    for try in "$d" "$d/.." "$d/../.."; do
+    for try in "$d" "$d/.."; do
         [ -d "$try" ] || continue
         if asar_home "$try"; then return 0; fi
     done
     return 1
 }
 
-KNOWN_FOLDERS=(
-    /usr/share/discord /usr/share/discord-ptb /usr/share/discord-canary
-    /usr/lib/discord /usr/lib/discord-ptb /usr/lib/discord-canary
-    /usr/lib64/discord /usr/lib64/discord-ptb /usr/lib64/discord-canary
-    /opt/discord /opt/Discord /opt/discord-ptb /opt/DiscordPTB /opt/discord-canary /opt/DiscordCanary
-    /usr/lib/discord_arch_electron /opt/discord_arch_electron
-    "$HOME/.local/share/discord" "$HOME/Discord" "$HOME/DiscordPTB" "$HOME/DiscordCanary"
-)
 LAUNCHERS=(discord discord-ptb discord-canary Discord DiscordPTB DiscordCanary discord-stable)
 
 not_flatpak_snap() { case "$1" in */flatpak/*|*/snap/*|/var/lib/snapd/*) return 1 ;; *) return 0 ;; esac; }
 
 find_discords() {
-    local d l p found=()
+    local d l p
+    local known=(
+        /usr/share/discord /usr/share/discord-ptb /usr/share/discord-canary
+        /usr/lib/discord /usr/lib/discord-ptb /usr/lib/discord-canary
+        /usr/lib64/discord /usr/lib64/discord-ptb /usr/lib64/discord-canary
+        /opt/discord /opt/Discord /opt/discord-ptb /opt/DiscordPTB /opt/discord-canary /opt/DiscordCanary
+        /usr/lib/discord_arch_electron /opt/discord_arch_electron
+        "$HOME/.local/share/discord" "$HOME/Discord" "$HOME/DiscordPTB" "$HOME/DiscordCanary"
+    )
     {
-        for d in "${KNOWN_FOLDERS[@]}"; do [ -d "$d" ] && resolve_dir "$d" || true; done
+        for d in "${known[@]}"; do if [ -d "$d" ]; then resolve_dir "$d" || true; fi; done
         for l in "${LAUNCHERS[@]}"; do
             p="$(command -v "$l" 2>/dev/null || true)"
             [ -n "$p" ] || continue
-            while IFS= read -r d; do [ -n "$d" ] && resolve_dir "$d" || true; done < <(launcher_dirs "$p")
+            while IFS= read -r d; do if [ -n "$d" ]; then resolve_dir "$d" || true; fi; done < <(launcher_dirs "$p")
         done
-        while IFS= read -r d; do [ -n "$d" ] && resolve_dir "$d" || true; done < <(running_dirs)
+        while IFS= read -r d; do if [ -n "$d" ]; then resolve_dir "$d" || true; fi; done < <(running_dirs)
     } 2>/dev/null | while IFS= read -r p; do
         p="$(readlink -f "$p" 2>/dev/null || printf '%s' "$p")"
-        not_flatpak_snap "$p" && printf '%s\n' "$p"
+        if not_flatpak_snap "$p"; then printf '%s\n' "$p"; fi
     done | awk '!seen[$0]++'
     return 0
 }
@@ -232,7 +212,6 @@ diagnose() {
 }
 
 # ── doing things in a folder that may need admin rights ──────────────────────
-SUDO=""
 need_admin_for() {
     SUDO=""
     if [ ! -w "$1" ]; then
@@ -245,9 +224,110 @@ need_admin_for() {
 }
 run() { if [ -n "$SUDO" ]; then "$SUDO" "$@"; else "$@"; fi; }
 
-is_asar_file() { [ -f "$1" ] && [ "$(head -c 4 "$1" | od -An -tx1 | tr -d ' \n')" = "04000000" ]; }
+# ── the loader: a tiny asar FILE ─────────────────────────────────────────────
+# app.asar stays a regular file (so a package upgrade replaces it cleanly) holding
+# index.js + package.json. The asar format is simple enough to write by hand:
+#   [4][size of header buffer]  [size of header payload][json length][json + padding]  [file data]
+le32() { local n=$1; printf "$(printf '\\x%02x\\x%02x\\x%02x\\x%02x' $((n & 255)) $(((n >> 8) & 255)) $(((n >> 16) & 255)) $(((n >> 24) & 255)))"; }
 
-loader_js() { printf 'require(%s);\n' "\"$DIST_DIR/patcher.js\""; }
+build_asar() { # $1 = output, $2 = index.js, $3 = package.json
+    local out="$1" js="$2" pj="$3" s1 s2 header len pad payload hb
+    s1="$(wc -c < "$js" | tr -d ' ')"; s2="$(wc -c < "$pj" | tr -d ' ')"
+    header="{\"files\":{\"index.js\":{\"size\":$s1,\"offset\":\"0\"},\"package.json\":{\"size\":$s2,\"offset\":\"$s1\"}}}"
+    len=${#header}
+    pad=$(((4 - len % 4) % 4))
+    payload=$((4 + len + pad))
+    hb=$((4 + payload))
+    {
+        le32 4; le32 "$hb"
+        le32 "$payload"; le32 "$len"; printf '%s' "$header"
+        if [ "$pad" -gt 0 ]; then head -c "$pad" /dev/zero; fi
+        cat "$js" "$pj"
+    } > "$out"
+}
+
+json_str() { local s="$1"; s="${s//\\/\\\\}"; s="${s//\"/\\\"}"; printf '"%s"' "$s"; }
+
+loader_js() {
+    cat <<EOF
+/* o2cord-loader - puts o2cord in front of Discord. Remove it with: bash install.sh --uninstall */
+const fs = require("fs");
+const path = require("path");
+const patcher = $(json_str "$DIST_DIR/patcher.js");
+if (fs.existsSync(patcher)) {
+    require(patcher);
+} else {
+    // o2cord's files are gone (deleted or moved): start plain Discord instead of not starting at all
+    console.error("[o2cord] " + patcher + " is missing - starting Discord without o2cord");
+    const original = path.join(__dirname, "..", "_app.asar");
+    const pkg = require(path.join(original, "package.json"));
+    require.main.filename = path.join(original, pkg.main);
+    require("electron").app.setAppPath(original);
+    require(require.main.filename);
+}
+EOF
+}
+
+# a Discord asar starts with the 4-byte header "04 00 00 00"
+is_asar_file() { [ -f "$1" ] && [ "$(head -c 4 "$1" | od -An -tx1 | tr -d ' \n')" = "04000000" ]; }
+# our loader: a small asar file carrying the marker (Discord's own is megabytes)
+is_ours() { [ -f "$1" ] && [ "$(stat -c %s "$1" 2>/dev/null || echo 999999999)" -lt 65536 ] && grep -aq 'o2cord-loader' "$1"; }
+# the loader from the older versions of this script: a folder
+is_ours_dir() { [ -d "$1" ] && grep -q 'o2cord' "$1/index.js" 2>/dev/null; }
+
+write_loader() { # $1 = folder that holds app.asar
+    local res="$1" js pj out stage
+    ensure_tmp
+    js="$TMP/loader.js"; pj="$TMP/package.json"; out="$TMP/app.asar"
+    loader_js > "$js"
+    printf '{"name":"discord","main":"index.js"}\n' > "$pj"
+    build_asar "$out" "$js" "$pj"
+    is_asar_file "$out" || { warn "couldn't build the loader file"; return 1; }
+    # written next to the real one, then renamed over it: Discord never sees half a file
+    stage="$res/.app.asar.o2cord-new"
+    run install -m 0644 "$out" "$stage"
+    if [ "$(id -u)" -eq 0 ]; then chown --reference="$res" "$stage" 2>/dev/null || true; fi
+    run mv -f "$stage" "$res/app.asar"
+}
+
+# Puts the loader in front of Discord's app.asar. $1 = the folder that holds it.
+# Returns 1 (message already printed) when it can't do that safely.
+patch_folder() {
+    local res="$1" asar backup
+    asar="$res/app.asar"; backup="$res/_app.asar"
+    need_admin_for "$res"
+
+    if is_ours "$asar"; then
+        :   # already in front - only the path to o2cord's files is refreshed below
+    elif [ -d "$asar" ]; then
+        if ! is_ours_dir "$asar"; then warn "$asar is a folder that isn't o2cord's - not touching it."; return 1; fi
+        if ! is_asar_file "$backup" || is_ours "$backup"; then warn "$backup is missing or isn't Discord's file - can't keep your original safe, stopping."; return 1; fi
+        run rm -rf "$asar"     # the old folder-style loader: replaced by the file-style one
+    elif is_asar_file "$asar"; then
+        # Discord's own file (also what is left after a Discord update): it becomes the backup
+        run mv -f "$asar" "$backup"
+    else
+        warn "$asar isn't a Discord app.asar - not touching it."
+        return 1
+    fi
+    if ! is_asar_file "$backup" || is_ours "$backup"; then warn "$backup is missing or isn't Discord's file - can't keep your original safe, stopping."; return 1; fi
+    write_loader "$res"
+}
+
+unpatch_folder() { # $1 = folder that holds app.asar
+    local res="$1" asar backup
+    asar="$res/app.asar"; backup="$res/_app.asar"
+    if { is_ours "$asar" || is_ours_dir "$asar"; } && is_asar_file "$backup" && ! is_ours "$backup"; then
+        need_admin_for "$res"
+        run rm -rf "$asar"
+        run mv -f "$backup" "$asar"
+        ok "original app.asar is back - o2cord removed from $(kind_of "$res")."
+    elif is_asar_file "$asar" && ! is_ours "$asar"; then
+        say "  o2cord isn't installed here."
+    else
+        warn "  nothing to restore ($backup is missing) - reinstall Discord to be safe."
+    fi
+}
 
 # ── the o2cord files ─────────────────────────────────────────────────────────
 fetch() {
@@ -257,145 +337,356 @@ fetch() {
     fi
 }
 
-TMP=""
-trap 'rm -rf "${TMP:-}"' EXIT
+# mkdir -p that also gives every folder it had to create to the real user (run with sudo, a plain
+# mkdir would leave ~/.local and ~/.local/share owned by root and break the user's other programs)
+mkdir_for_user() {
+    local dir="$1" p="$1" missing=()
+    while [ ! -d "$p" ] && [ "$p" != "/" ]; do missing=("$p" "${missing[@]}"); p="$(dirname "$p")"; done
+    mkdir -p "$dir"
+    if [ -n "$REAL_USER" ]; then
+        for p in "${missing[@]}"; do chown "$REAL_USER": "$p" 2>/dev/null || true; done
+    fi
+}
 
 download_dist() {
-    local tmp f
-    tmp="$(mktemp -d)"; TMP="$tmp"
+    local f
+    ensure_tmp
+    mkdir -p "$TMP/dist"
     say "Downloading o2cord..."
     for f in "${DIST_FILES[@]}"; do
-        fetch "$FILES_BASE/$f" "$tmp/$f" || die "Couldn't download $f from $FILES_BASE"
-        [ -s "$tmp/$f" ] || die "$f came back empty"
+        fetch "$FILES_BASE/$f" "$TMP/dist/$f" || die "Couldn't download $f from $FILES_BASE"
+        [ -s "$TMP/dist/$f" ] || die "$f came back empty"
     done
-    grep -q 'o2cord' "$tmp/patcher.js" || die "patcher.js doesn't look like o2cord - not installing it."
-    mkdir -p "$DIST_DIR"
-    for f in "${DIST_FILES[@]}"; do mv -f "$tmp/$f" "$DIST_DIR/$f"; done
+    grep -q 'o2cord' "$TMP/dist/patcher.js" || die "patcher.js doesn't look like o2cord - not installing it."
+    mkdir_for_user "$DIST_DIR"
+    for f in "${DIST_FILES[@]}"; do mv -f "$TMP/dist/$f" "$DIST_DIR/$f"; done
     printf '{}\n' > "$DIST_DIR/package.json"
     # ran with sudo: the files must belong to you, or Discord can't read or update them
     if [ -n "$REAL_USER" ]; then chown -R "$REAL_USER": "$(dirname "$DIST_DIR")" 2>/dev/null || true; fi
     ok "o2cord files are in $DIST_DIR"
 }
 
-# ── install / uninstall one Discord ($1 = the folder that holds its app.asar) ─
-install_one() {
-    local res="$1" asar backup
-    asar="$res/app.asar"; backup="$res/_app.asar"
-    say "${B}$(kind_of "$res") Discord${N} ${D}($res)${N}"
-    need_admin_for "$res"
+# ── staying alive across Discord updates ─────────────────────────────────────
+# A Discord update replaces app.asar and o2cord disappears. A systemd "path" unit watches
+# the file; when it changes, the same script runs in --repair mode and puts o2cord back.
+# Two flavours: for a Discord in your own folders everything lives in your home (no admin
+# rights, runs while you're logged in); for a system-wide Discord it is a system service.
+AR_SCOPE=""      # "user" | "system"
 
-    if [ -d "$asar" ]; then
-        # already patched: just point the loader at the current files
-        if [ -f "$asar/index.js" ] && ! grep -q 'o2cord' "$asar/index.js"; then
-            warn "  another mod's loader was here - replacing it with o2cord's."
-        fi
-    elif is_asar_file "$asar"; then
-        # Discord's own file (also after a Discord update replaced our loader): keep it as the backup
-        run mv -f "$asar" "$backup"
+ar_paths() { # sets the paths of the chosen scope
+    if [ "$AR_SCOPE" = system ]; then
+        AR_SCRIPT=/usr/local/lib/o2cord/install.sh; AR_CONF=/etc/o2cord/repair.conf
+        AR_UNITS=/etc/systemd/system; AR_CTL=(systemctl); AR_WANT=multi-user.target
     else
-        die "$asar isn't a Discord app.asar - not touching it."
+        AR_SCRIPT="$(dirname "$DIST_DIR")/install.sh"; AR_CONF="$(dirname "$DIST_DIR")/repair.conf"
+        AR_UNITS="${XDG_CONFIG_HOME:-$HOME/.config}/systemd/user"; AR_CTL=(systemctl --user); AR_WANT=default.target
     fi
-    is_asar_file "$backup" || die "$backup is missing or isn't a valid asar - can't keep your original safe, stopping."
-
-    run mkdir -p "$asar"
-    loader_js | run tee "$asar/index.js" >/dev/null
-    printf '{"name":"discord","main":"index.js"}\n' | run tee "$asar/package.json" >/dev/null
-    ok "o2cord is set up for $(kind_of "$res") - restart Discord to load it."
 }
 
-uninstall_one() {
-    local res="$1" asar backup
-    asar="$res/app.asar"; backup="$res/_app.asar"
-    say "${B}$(kind_of "$res") Discord${N} ${D}($res)${N}"
-    if [ -d "$asar" ] && is_asar_file "$backup"; then
-        need_admin_for "$res"
-        run rm -rf "$asar"
-        run mv -f "$backup" "$asar"
-        ok "original app.asar is back - o2cord removed from $(kind_of "$res")."
-    elif is_asar_file "$asar"; then
-        say "  o2cord isn't installed here."
-    else
-        warn "  nothing to restore ($backup is missing) - reinstall Discord to be safe."
+ar_have_user_systemd() { command -v systemctl >/dev/null 2>&1 && systemctl --user show-environment >/dev/null 2>&1; }
+
+ar_read_targets() { # existing targets from a config file
+    local conf="$1" line
+    [ -r "$conf" ] || return 0
+    while IFS= read -r line; do case "$line" in TARGET=*) printf '%s\n' "${line#TARGET=}" ;; esac; done < "$conf"
+}
+
+setup_autorepair() { # $@ = the folders that now have o2cord in front
+    command -v systemctl >/dev/null 2>&1 || { warn "No systemd here, so I can't watch for Discord updates. After a Discord update, run this script again."; return 0; }
+    local d writable=1 self
+    for d in "$@"; do [ -w "$d" ] || writable=0; done
+    if [ "$(id -u)" -ne 0 ] && [ "$writable" = 1 ] && ar_have_user_systemd; then AR_SCOPE=user; else AR_SCOPE=system; fi
+    ar_paths
+
+    # where the copy of this script comes from (a piped run has no file to copy)
+    ensure_tmp
+    self="$TMP/self.sh"
+    if [ -f "$0" ] && [ -r "$0" ] && head -n 1 "$0" | grep -q '^#!'; then cat "$0" > "$self"; else fetch "$SCRIPT_URL" "$self" || { warn "Couldn't get the script for the update service - skipped."; return 0; }; fi
+
+    # old + new targets, no duplicates
+    local all=() t
+    while IFS= read -r t; do [ -n "$t" ] && all+=("$t"); done < <({ ar_read_targets "$AR_CONF"; printf '%s\n' "$@"; } | awk '!seen[$0]++')
+    {
+        printf 'DIST_DIR=%s\n' "$DIST_DIR"
+        for t in "${all[@]}"; do printf 'TARGET=%s\n' "$t"; done
+    } > "$TMP/repair.conf"
+
+    {
+        printf '[Unit]\nDescription=Put o2cord back in front of Discord after Discord was updated\n\n'
+        printf '[Service]\nType=oneshot\nExecStart=/bin/bash %s --repair --config %s\n\n' "$AR_SCRIPT" "$AR_CONF"
+        printf '[Install]\nWantedBy=%s\n' "$AR_WANT"
+    } > "$TMP/o2cord-repair.service"
+    {
+        printf '[Unit]\nDescription=Watch Discord for updates (o2cord)\n\n[Path]\n'
+        for t in "${all[@]}"; do printf 'PathChanged=%s/app.asar\n' "$t"; done
+        printf 'Unit=o2cord-repair.service\n\n[Install]\nWantedBy=%s\n' "$AR_WANT"
+    } > "$TMP/o2cord-repair.path"
+
+    if [ "$AR_SCOPE" = system ]; then need_admin_for /etc; else SUDO=""; fi
+    run install -D -m 0755 "$self" "$AR_SCRIPT"
+    run install -D -m 0644 "$TMP/repair.conf" "$AR_CONF"
+    run install -D -m 0644 "$TMP/o2cord-repair.service" "$AR_UNITS/o2cord-repair.service"
+    run install -D -m 0644 "$TMP/o2cord-repair.path" "$AR_UNITS/o2cord-repair.path"
+    run "${AR_CTL[@]}" daemon-reload
+    run "${AR_CTL[@]}" enable --now o2cord-repair.path o2cord-repair.service >/dev/null 2>&1 \
+        || { warn "Couldn't start the update service ($AR_SCOPE) - o2cord still works, but after a Discord update run this script again."; return 0; }
+    ok "update service is on ($AR_SCOPE): o2cord comes back by itself after Discord updates."
+}
+
+# while o2cord is being taken out, the watcher must be off - it would put o2cord straight back
+pause_autorepair() {
+    local scope
+    for scope in user system; do
+        AR_SCOPE="$scope"; ar_paths
+        [ -e "$AR_UNITS/o2cord-repair.path" ] || continue
+        if [ "$scope" = system ]; then need_admin_for /etc; else SUDO=""; fi
+        run "${AR_CTL[@]}" stop o2cord-repair.path o2cord-repair.service >/dev/null 2>&1 || true
+    done
+}
+
+remove_autorepair() {
+    local scope
+    for scope in user system; do
+        AR_SCOPE="$scope"; ar_paths
+        [ -e "$AR_UNITS/o2cord-repair.path" ] || [ -e "$AR_CONF" ] || continue
+        if [ "$scope" = system ]; then need_admin_for /etc; else SUDO=""; fi
+        run "${AR_CTL[@]}" disable --now o2cord-repair.path o2cord-repair.service >/dev/null 2>&1 || true
+        run rm -f "$AR_UNITS/o2cord-repair.path" "$AR_UNITS/o2cord-repair.service" "$AR_CONF" "$AR_SCRIPT"
+        run "${AR_CTL[@]}" daemon-reload >/dev/null 2>&1 || true
+        ok "update service removed ($scope)."
+    done
+}
+
+# --repair: what the service runs. No questions, no sudo, never downloads.
+repair_all() { # $1 = config file
+    local conf="$1" line res n=0
+    local -a list=()
+    [ -r "$conf" ] || die "no config at $conf"
+    while IFS= read -r line; do
+        case "$line" in
+            DIST_DIR=*) DIST_DIR="${line#DIST_DIR=}" ;;
+            TARGET=*) list+=("${line#TARGET=}") ;;
+        esac
+    done < "$conf"
+    [ -n "$DIST_DIR" ] || die "config has no DIST_DIR"
+    if command -v flock >/dev/null 2>&1; then
+        exec 9> "${XDG_RUNTIME_DIR:-/tmp}/o2cord-repair.lock" || true
+        flock -w 60 9 || true
     fi
+    for res in "${list[@]}"; do
+        if [ ! -d "$res" ]; then say "skip $res (not there)"; continue; fi
+        if is_ours "$res/app.asar"; then say "ok   $res (already in front)"; continue; fi
+        if patch_folder "$res"; then say "back $res (o2cord put back)"; n=$((n + 1)); else say "FAIL $res"; fi
+    done
+    say "repaired $n"
+}
+
+# ── what is installed where ──────────────────────────────────────────────────
+status_one() { # $1 = folder that holds app.asar
+    local res="$1" asar state
+    asar="$res/app.asar"
+    if is_ours "$asar"; then state="${G}o2cord is in front${N}"
+    elif is_ours_dir "$asar"; then state="${Y}o2cord is in front (older folder-style loader - run install.sh once to upgrade it)${N}"
+    elif is_asar_file "$asar" && [ -e "$res/_app.asar" ]; then state="${Y}not in front: Discord was updated and replaced it - run install.sh (or let the update service do it)${N}"
+    elif is_asar_file "$asar"; then state="not installed"
+    else state="${R}unexpected: $asar isn't a Discord asar${N}"; fi
+    say "  $(kind_of "$res")  $res"
+    say "    $state"
+}
+
+service_status() {
+    local scope
+    for scope in user system; do
+        AR_SCOPE="$scope"; ar_paths
+        [ -e "$AR_UNITS/o2cord-repair.path" ] || continue
+        say "  update service ($scope): $("${AR_CTL[@]}" is-active o2cord-repair.path 2>/dev/null || echo "not running")  ${D}($AR_UNITS/o2cord-repair.path)${N}"
+        found_service=1
+    done
 }
 
 # ── main ─────────────────────────────────────────────────────────────────────
-TARGETS=()
-if [ -n "$TARGET" ]; then
-    # a folder, or the discord command / binary / launcher script
-    found_target=""
-    if [ -d "$TARGET" ]; then
-        found_target="$(resolve_dir "$TARGET" || true)"
+main() {
+    local ACTION=install ALL=0 TARGET="" AUTO=ask CONFIG="" d line i pick
+    found_service=0
+    # a system service starts with an empty environment: no HOME
+    if [ -z "${HOME:-}" ]; then HOME="$(getent passwd "$(id -u)" 2>/dev/null | cut -d: -f6)"; HOME="${HOME:-/root}"; fi
+    export HOME
+    while [ $# -gt 0 ]; do
+        case "$1" in
+            --uninstall|--remove) ACTION=uninstall ;;
+            --list) ACTION=list ;;
+            --status) ACTION=status ;;
+            --repair) ACTION=repair ;;
+            --config) shift; [ $# -gt 0 ] || die "--config needs a file"; CONFIG="$1" ;;
+            --config=*) CONFIG="${1#--config=}" ;;
+            --all) ALL=1 ;;
+            --auto-repair) AUTO=yes ;;
+            --no-auto-repair) AUTO=no ;;
+            --target) shift; [ $# -gt 0 ] || die "--target needs a path"; TARGET="$1" ;;
+            --target=*) TARGET="${1#--target=}" ;;
+            -h|--help) sed -n '2,/^set -euo/p' "$0" | sed '$d' | sed 's/^# \{0,1\}//'; exit 0 ;;
+            *) unknown_option "$1" ;;
+        esac
+        shift
+    done
+
+    [ "$(uname -s)" = "Linux" ] || die "This installer is for Linux. On Windows use the installer from the website."
+
+    # Run with sudo: set o2cord up for the person who called sudo, not for root
+    # (Discord runs as that person and must be able to read - and update - the files)
+    if [ "$(id -u)" -eq 0 ] && [ "$ACTION" != repair ]; then
+        if [ -n "${SUDO_USER:-}" ] && [ "$SUDO_USER" != "root" ]; then
+            REAL_USER="$SUDO_USER"
+            local real_home; real_home="$(getent passwd "$REAL_USER" | cut -d: -f6)"
+            [ -n "$real_home" ] && [ -d "$real_home" ] || die "Couldn't find the home folder of $REAL_USER."
+            HOME="$real_home"
+            XDG_DATA_HOME=""
+            XDG_CONFIG_HOME=""
+        else
+            warn "Running as root without sudo: o2cord would be set up for root's home, not yours. Run it as your normal user instead."
+        fi
     fi
-    if [ -z "$found_target" ] && [ -e "$TARGET" ]; then
-        while IFS= read -r d; do
-            [ -n "$d" ] || continue
-            found_target="$(resolve_dir "$d" || true)"
-            [ -z "$found_target" ] || break
-        done < <(launcher_dirs "$TARGET")
+    DIST_DIR="${O2CORD_DIST_DIR:-${XDG_DATA_HOME:-$HOME/.local/share}/o2cord/dist}"
+
+    if [ "$ACTION" = repair ]; then
+        if [ -z "$CONFIG" ]; then
+            if [ "$(id -u)" -eq 0 ]; then CONFIG=/etc/o2cord/repair.conf; else CONFIG="$(dirname "$DIST_DIR")/repair.conf"; fi
+        fi
+        repair_all "$CONFIG"
+        return 0
     fi
-    if [ -z "$found_target" ]; then
-        [ -e "$TARGET" ] || die "$TARGET doesn't exist."
-        say "I couldn't find app.asar from $TARGET."
-        say "Give me the folder that holds app.asar (often .../discord/resources), or the discord command."
-        diagnose
+
+    local TARGETS=()
+    if [ -n "$TARGET" ]; then
+        # a folder, or the discord command / binary / launcher script
+        local found_target=""
+        if [ -d "$TARGET" ]; then found_target="$(resolve_dir "$TARGET" || true)"; fi
+        if [ -z "$found_target" ] && [ -e "$TARGET" ]; then
+            while IFS= read -r d; do
+                [ -n "$d" ] || continue
+                found_target="$(resolve_dir "$d" || true)"
+                [ -z "$found_target" ] || break
+            done < <(launcher_dirs "$TARGET")
+        fi
+        if [ -z "$found_target" ]; then
+            [ -e "$TARGET" ] || die "$TARGET doesn't exist."
+            say "I couldn't find app.asar from $TARGET."
+            say "Give me the folder that holds app.asar (often .../discord/resources), or the discord command."
+            diagnose
+            exit 1
+        fi
+        TARGETS=("$found_target")
+    else
+        while IFS= read -r line; do [ -n "$line" ] && TARGETS+=("$line"); done < <(find_discords)
+        if [ "${#TARGETS[@]}" -eq 0 ]; then
+            say "${D}Not in the usual places - searching your disk (up to 20 seconds)...${N}"
+            while IFS= read -r line; do
+                [ -n "$line" ] || continue
+                line="$(dirname "$line")"
+                if not_flatpak_snap "$line"; then TARGETS+=("$line"); fi
+            done < <(search_disk | awk '!seen[$0]++')
+        fi
+    fi
+
+    if [ "${#TARGETS[@]}" -eq 0 ]; then
+        unsupported_hint
+        printf '%s✗ Couldn'"'"'t find Discord.%s\n' "$R" "$N" >&2
+        diagnose >&2
         exit 1
     fi
-    TARGETS=("$found_target")
-else
-    while IFS= read -r line; do [ -n "$line" ] && TARGETS+=("$line"); done < <(find_discords)
-    if [ "${#TARGETS[@]}" -eq 0 ]; then
-        say "${D}Not in the usual places - searching your disk (up to 20 seconds)...${N}"
-        while IFS= read -r line; do
-            [ -n "$line" ] || continue
-            line="$(dirname "$line")"
-            not_flatpak_snap "$line" && TARGETS+=("$line")
-        done < <(search_disk | awk '!seen[$0]++')
+
+    if [ "$ACTION" = list ]; then
+        for d in "${TARGETS[@]}"; do say "$(kind_of "$d")  $d"; done
+        unsupported_hint
+        exit 0
     fi
-fi
 
-if [ "${#TARGETS[@]}" -eq 0 ]; then
-    unsupported_hint
-    printf '%s✗ Couldn'"'"'t find Discord.%s\n' "$R" "$N" >&2
-    diagnose >&2
-    exit 1
-fi
-
-if [ "$ACTION" = list ]; then
-    for d in "${TARGETS[@]}"; do say "$(kind_of "$d")  $d"; done
-    unsupported_hint
-    exit 0
-fi
-
-# which ones
-CHOSEN=("${TARGETS[@]}")
-if [ "${#TARGETS[@]}" -gt 1 ] && [ "$ALL" = 0 ] && [ -z "$TARGET" ]; then
-    say "Found ${#TARGETS[@]} Discords:"
-    i=1; for d in "${TARGETS[@]}"; do say "  $i) $(kind_of "$d")  ${D}$d${N}"; i=$((i + 1)); done
-    if [ -r /dev/tty ]; then
-        printf 'Which one? [1-%s, a = all] ' "${#TARGETS[@]}" > /dev/tty
-        read -r pick < /dev/tty || pick=""
-    else
-        pick=""
+    if [ "$ACTION" = status ]; then
+        say "${B}Discord installs:${N}"
+        for d in "${TARGETS[@]}"; do status_one "$d"; done
+        say "${B}o2cord files:${N}"
+        if [ -s "$DIST_DIR/patcher.js" ]; then say "  $DIST_DIR  ${G}(present)${N}"; else say "  $DIST_DIR  ${R}(missing - run install.sh)${N}"; fi
+        say "${B}Update service:${N}"
+        service_status
+        [ "$found_service" = 1 ] || say "  none (run: bash install.sh --auto-repair)"
+        exit 0
     fi
-    if [ "$pick" = "a" ] || [ "$pick" = "A" ]; then CHOSEN=("${TARGETS[@]}")
-    elif [[ "$pick" =~ ^[0-9]+$ ]] && [ "$pick" -ge 1 ] && [ "$pick" -le "${#TARGETS[@]}" ]; then CHOSEN=("${TARGETS[$((pick - 1))]}")
-    else die "No choice made. Run again with --all, or --target PATH."
+
+    # which ones
+    local CHOSEN=("${TARGETS[@]}")
+    if [ "${#TARGETS[@]}" -gt 1 ] && [ "$ALL" = 0 ] && [ -z "$TARGET" ]; then
+        say "Found ${#TARGETS[@]} Discords:"
+        i=1; for d in "${TARGETS[@]}"; do say "  $i) $(kind_of "$d")  ${D}$d${N}"; i=$((i + 1)); done
+        if have_tty; then
+            printf 'Which one? [1-%s, a = all] ' "${#TARGETS[@]}" > /dev/tty
+            read -r pick < /dev/tty || pick=""
+        else
+            pick=""
+        fi
+        if [ "$pick" = "a" ] || [ "$pick" = "A" ]; then CHOSEN=("${TARGETS[@]}")
+        elif [[ "$pick" =~ ^[0-9]+$ ]] && [ "$pick" -ge 1 ] && [ "$pick" -le "${#TARGETS[@]}" ]; then CHOSEN=("${TARGETS[$((pick - 1))]}")
+        else die "No choice made. Run again with --all, or --target PATH."
+        fi
     fi
-fi
 
-if pgrep -x -i 'discord|discordptb|discordcanary' >/dev/null 2>&1; then
-    warn "Discord is running. Installing works, but you need to restart it afterwards."
-fi
+    if pgrep -x -i 'discord|discordptb|discordcanary' >/dev/null 2>&1; then
+        warn "Discord is running. Installing works, but you need to restart it afterwards."
+    fi
 
-if [ "$ACTION" = uninstall ]; then
-    for d in "${CHOSEN[@]}"; do uninstall_one "$d"; done
-    say "${D}Your o2cord settings stay in ~/.config/o2cord and the files in $DIST_DIR - delete them if you want everything gone.${N}"
-    exit 0
-fi
+    if [ "$ACTION" = uninstall ]; then
+        pause_autorepair
+        for d in "${CHOSEN[@]}"; do
+            say "${B}$(kind_of "$d") Discord${N} ${D}($d)${N}"
+            unpatch_folder "$d"
+        done
+        # Discords the service watches that still have o2cord in front: the service stays for those only
+        local remaining=() t conf
+        for conf in /etc/o2cord/repair.conf "$(dirname "$DIST_DIR")/repair.conf"; do
+            while IFS= read -r t; do
+                [ -n "$t" ] || continue
+                if is_ours "$t/app.asar" || is_ours_dir "$t/app.asar"; then remaining+=("$t"); fi
+            done < <(ar_read_targets "$conf")
+        done
+        remove_autorepair
+        if [ "${#remaining[@]}" -gt 0 ]; then setup_autorepair "${remaining[@]}"; fi
+        say "${D}Your o2cord settings stay in ~/.config/Vencord and the program files in $DIST_DIR - delete them if you want everything gone.${N}"
+        exit 0
+    fi
 
-download_dist
-for d in "${CHOSEN[@]}"; do install_one "$d"; done
-say ""
-say "Open Discord, go to Settings and look for the ${B}o2cord${N} section."
-say "${D}Discord updated and o2cord vanished? Run this again. To remove it: bash install.sh --uninstall${N}"
+    download_dist
+    local done_list=()
+    for d in "${CHOSEN[@]}"; do
+        say "${B}$(kind_of "$d") Discord${N} ${D}($d)${N}"
+        if patch_folder "$d"; then
+            ok "o2cord is set up for $(kind_of "$d") - restart Discord to load it."
+            done_list+=("$d")
+        else
+            warn "  $(kind_of "$d") was left as it was."
+        fi
+    done
+    [ "${#done_list[@]}" -gt 0 ] || die "Nothing was installed."
+
+    # surviving Discord updates
+    case "$AUTO" in
+        yes) setup_autorepair "${done_list[@]}" ;;
+        no) ;;
+        ask)
+            if have_tty; then
+                local ans=""
+                say ""
+                say "A Discord update replaces the file o2cord sits in, so o2cord would disappear."
+                say "I can add a small background service that puts it back by itself (remove it any time with --uninstall)."
+                printf 'Add it? [Y/n] ' > /dev/tty
+                read -r ans < /dev/tty || ans=""
+                case "$ans" in n|N|no|NO) say "${D}OK - after a Discord update, run this script again.${N}" ;; *) setup_autorepair "${done_list[@]}" ;; esac
+            else
+                say "${D}To keep o2cord after Discord updates, run: bash install.sh --auto-repair${N}"
+            fi ;;
+    esac
+
+    say ""
+    say "Open Discord, go to Settings and look for the ${B}o2cord${N} section."
+    say "${D}Check on it any time: bash install.sh --status   Remove it: bash install.sh --uninstall${N}"
+}
+
+if [ "${O2CORD_SOURCE_ONLY:-0}" != 1 ]; then main "$@"; fi
