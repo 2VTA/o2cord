@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Vencord, a Discord client mod
  * Copyright (c) 2026 Vendicated and contributors
  * SPDX-License-Identifier: GPL-3.0-or-later
@@ -934,13 +934,16 @@ function SectionLabel({ children, style }: { children: React.ReactNode; style?: 
     return <div className="cp-section-label" style={style}>{children}</div>;
 }
 
-function Field({ label, value, placeholder, onChange, type = "text" }: {
-    label: string; value: string; placeholder?: string; onChange: (v: string) => void; type?: string;
+function Field({ label, value, placeholder, onChange, type = "text", multiline = false }: {
+    label: string; value: string; placeholder?: string; onChange: (v: string) => void; type?: string; multiline?: boolean;
 }) {
     return (
         <div className="cp-field">
             <SectionLabel>{label}</SectionLabel>
-            <input className="cp-input" type={type} value={value} placeholder={placeholder} onChange={e => onChange(e.target.value)} />
+            {multiline
+                ? <textarea className="cp-input cp-textarea" rows={4} maxLength={190} value={value} placeholder={placeholder} onChange={e => onChange(e.target.value)} />
+                // dates stay left-to-right in every language, or the day/month/year jumble up
+                : <input className="cp-input" type={type} dir={type === "date" ? "ltr" : undefined} lang={type === "date" ? "en-US" : undefined} value={value} placeholder={placeholder} onChange={e => onChange(e.target.value)} />}
         </div>
     );
 }
@@ -1117,17 +1120,22 @@ function ImageUpload({ label, value, onChange, editOnFile = false, cropAspect }:
         };
         reader.readAsDataURL(file);
     }
+    const wide = !!cropAspect;
     return (
         <div className="cp-field">
             <SectionLabel>{label}</SectionLabel>
             <div className="cp-image-row">
-                <input className="cp-input cp-url-input" placeholder={t("Image URL...")} value={value.startsWith("data:") ? "" : value} onChange={e => onChange(e.target.value)} />
-                <button className="cp-file-btn" onClick={() => fileRef.current?.click()} title={t("Choose a file")}><FolderIcon /></button>
+                <button type="button" className={`cp2-thumb ${wide ? "cp2-thumb--wide" : ""}`} onClick={() => fileRef.current?.click()} title={t("Choose a file")}>
+                    {value ? <img src={value} alt="" /> : <span>+</span>}
+                </button>
+                <div className="cp2-image-side">
+                    <input className="cp-input cp-url-input" placeholder={t("Image URL...")} value={value.startsWith("data:") ? "" : value} onChange={e => onChange(e.target.value)} />
+                    <div className="cp2-image-actions">
+                        <button type="button" className="cp2-mini" onClick={() => fileRef.current?.click()}><FolderIcon /><span>{t("Choose a file")}</span></button>
+                        {value && <button type="button" className="cp2-mini cp2-mini--danger" onClick={() => onChange("")}><CloseIcon /><span>{t("Remove")}</span></button>}
+                    </div>
+                </div>
                 <input ref={fileRef} type="file" accept="image/*" style={{ display: "none" }} onChange={handleFile} />
-                {value && <>
-                    <img src={value} alt="" className="cp-preview-avatar" />
-                    <button className="cp-clear-btn" onClick={() => onChange("")} title={t("Delete")}><CloseIcon /></button>
-                </>}
             </div>
         </div>
     );
@@ -1401,51 +1409,167 @@ function forceAccountPanelRerender() {
     } catch { }
 }
 
+// ── The Custom Profile window ─────────────────────────────────────────────
+// A live preview of the profile on the left, the settings in tabs on the right.
+
+type CpTab = "identity" | "look" | "badges" | "share";
+const CP_TABS: [CpTab, string][] = [
+    ["identity", "Identity"],
+    ["look", "Look"],
+    ["badges", "Badges"],
+    ["share", "Share"]
+];
+
+const colorHex = (n?: number) => (n != null ? "#" + n.toString(16).padStart(6, "0") : "");
+
+function formatMemberSince(iso?: string) {
+    if (!iso) return "";
+    const d = new Date(iso);
+    if (isNaN(d.getTime())) return "";
+    return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+}
+
+// How the profile card will look with what is typed in right now. Anything left empty
+// shows the account's real value, the same way the real profile does.
+function ProfilePreview({ data, real }: { data: CustomProfileData; real: any; }) {
+    const realAvatar = real ? IconUtils.getUserAvatarURL(real, true, 128) : "";
+    const avatar = data.avatar || realAvatar;
+    const primary = colorHex(data.accentColor);
+    const accent = colorHex(data.accentColor2);
+    const bannerImage = data.nitro && data.banner ? data.banner : "";
+    const name = data.globalName || real?.globalName || real?.username || "Your name";
+    const user = data.username || real?.username || "";
+    const badges = getCustomProfileBadges(data);
+    const effect = PROFILE_EFFECTS.find(e => e.id === data.profileEffectId || e.skuId === data.profileEffectId);
+    const frame = PROFILE_FRAMES.find(f => f.skuId === data.profileFrameId);
+    const memberSince = formatMemberSince(data.createdAt);
+
+    const cardBg = primary
+        ? `linear-gradient(180deg, ${primary} 0%, ${accent || primary} 100%)`
+        : "linear-gradient(180deg, #2b2d31 0%, #1e1f22 100%)";
+
+    return (
+        <div className="cp2-preview" style={{ background: cardBg }}>
+            <div className="cp2-preview-inner">
+                <div
+                    className="cp2-preview-banner"
+                    style={bannerImage ? { backgroundImage: `url("${bannerImage}")` } : { background: primary || "#4e5058" }}
+                />
+                <div className="cp2-preview-avatar-wrap">
+                    <img className="cp2-preview-avatar" src={avatar} alt="" />
+                    {data.decorationAsset && <img className="cp2-preview-deco" src={getDecorationUrl(data.decorationAsset)} alt="" />}
+                </div>
+                {/* always there: it also keeps the name clear of the picture */}
+                <div className="cp2-preview-badges">
+                    {badges.map(b => <img key={b.id} src={b.iconSrc} alt={b.description} title={b.description} />)}
+                </div>
+                <div className="cp2-preview-body">
+                    <div className="cp2-preview-name">{name}</div>
+                    <div className="cp2-preview-user">{user}{data.pronouns ? ` · ${data.pronouns}` : ""}</div>
+                    {data.bio && (
+                        <div className="cp2-preview-section">
+                            <div className="cp2-preview-label">About me</div>
+                            <div className="cp2-preview-bio">{data.bio}</div>
+                        </div>
+                    )}
+                    {memberSince && (
+                        <div className="cp2-preview-section">
+                            <div className="cp2-preview-label">Member since</div>
+                            <div className="cp2-preview-bio">{memberSince}</div>
+                        </div>
+                    )}
+                </div>
+            </div>
+            {(effect || frame) && (
+                <div className="cp2-preview-extras">
+                    {effect && <span title={effect.title}>✦ {effect.title}</span>}
+                    {frame && <span title={frame.title}>▣ {frame.title}</span>}
+                </div>
+            )}
+        </div>
+    );
+}
+
+function Card({ title, hint, children }: { title: string; hint?: string; children: React.ReactNode; }) {
+    return (
+        <section className="cp2-card">
+            <div className="cp2-card-title">{title}</div>
+            {hint && <div className="cp2-card-hint">{hint}</div>}
+            {children}
+        </section>
+    );
+}
+
+// a colour: picker swatch + hex text + clear
+function ColorField({ label, value, fallback, onChange }: { label: string; value?: number; fallback: string; onChange: (v: number | undefined) => void; }) {
+    const hex = colorHex(value);
+    return (
+        <div className="cp2-color">
+            <span className="cp2-color-label">{label}</span>
+            <input
+                type="color"
+                className="cp-color-swatch"
+                value={hex || fallback}
+                onChange={e => { const n = parseInt(e.target.value.slice(1), 16); if (!isNaN(n)) onChange(n); }}
+            />
+            <input
+                className="cp-input cp-color-input"
+                value={hex}
+                placeholder={fallback}
+                onChange={e => {
+                    const h = e.target.value.replace("#", "");
+                    const n = parseInt(h, 16);
+                    if (!isNaN(n) && h.length === 6) onChange(n);
+                    else if (!h) onChange(undefined);
+                }}
+            />
+            {value != null && <button className="cp-clear-btn" onClick={() => onChange(undefined)} title={t("Clear")}><CloseIcon /></button>}
+        </div>
+    );
+}
+
 function CustomProfileModal({ rootProps }: { rootProps: any; }) {
     const myId = AuthenticationStore?.getId?.() || "";
     const [selectedAccountId, setSelectedAccountId] = React.useState(myId);
     const [data, setData] = React.useState<CustomProfileData>(() => ({ ...(allAccountsData[myId] || storedData || {}) }));
+    const [savedJson, setSavedJson] = React.useState(() => JSON.stringify({ ...(allAccountsData[myId] || storedData || {}) }));
     const [saving, setSaving] = React.useState(false);
+    const [confirmReset, setConfirmReset] = React.useState(false);
+    const [tab, setTab] = React.useState<CpTab>("identity");
     const [seeAll, setSeeAll] = React.useState(() => !!Settings.seeAllCustomProfile);
     const nitroLevel = data.nitroLevel ?? -1;
     const boostLevel = data.boostMonths ?? -1;
     const customIds = data.customBadgeIds ?? [];
     const oldName = data.oldName ?? "";
+    const dirty = JSON.stringify(data) !== savedJson;
 
-    // Retrieve all connected accounts
-    const accounts = React.useMemo(() => {
+    // The accounts this Discord has saved. Only real ones - with a single account
+    // there is nothing to choose, so the selector isn't shown at all.
+    const accounts: any[] = React.useMemo(() => {
         try {
-            // Tentative 1: via MultiAccountStore global
             const MAS = (window as any).Vencord?.Webpack?.findByProps?.("getUsers", "getValidUsers");
-            if (MAS?.getUsers) {
-                const users = MAS.getUsers();
-                if (Array.isArray(users) && users.length > 0) return users;
-            }
-
-            // Tentative 2: via le store interne
-            const internalStore = (window as any).Vencord?.Webpack?.findStore?.("MultiAccountStore");
-            if (internalStore?.getUsers) {
-                const users = internalStore.getUsers();
-                if (Array.isArray(users) && users.length > 0) return users;
-            }
+            const users = MAS?.getUsers?.() ?? (window as any).Vencord?.Webpack?.findStore?.("MultiAccountStore")?.getUsers?.();
+            if (Array.isArray(users) && users.length > 0) return users;
         } catch (e) { console.error("[CustomProfile] Failed to fetch accounts:", e); }
-
         const me = UserStore.getCurrentUser();
-        // Pour debug: si on ne trouve qu'un compte, on simule quand même pour voir si la barre s'affiche
-        return me ? [me, { ...me, id: "debug-placeholder", username: "Second Account?", globalName: "Simulation" }] : [];
+        return me ? [me] : [];
     }, []);
+    const realUser = accounts.find(a => a.id === selectedAccountId) ?? UserStore.getCurrentUser();
 
-    // When changing selected account, load its data
+    // When changing the selected account, load its data
     React.useEffect(() => {
-        const newData = allAccountsData[selectedAccountId] || {};
-        setData({ ...newData });
+        const newData = { ...(allAccountsData[selectedAccountId] || {}) };
+        setData(newData);
+        setSavedJson(JSON.stringify(newData));
+        setConfirmReset(false);
     }, [selectedAccountId]);
 
     function set<K extends keyof CustomProfileData>(key: K, val: CustomProfileData[K]) {
         setData(d => ({ ...d, [key]: val }));
     }
 
-    async function save() {
+    // Saves and applies to the profile; the window stays open unless asked to close
+    async function commit(closeAfter: boolean) {
         try {
             setSaving(true);
             const savedData = { ...data };
@@ -1474,16 +1598,24 @@ function CustomProfileModal({ rootProps }: { rootProps: any; }) {
             updateCachedRealData();
             forceAccountPanelRerender();
 
+            setSavedJson(JSON.stringify(savedData));
             if (selectedAccountId === myId && savedData.publishOnSave) exportForPublish();
+            if (closeAfter) rootProps.onClose();
+            else showToast(t("Applied to your profile."));
         } catch (err) {
             console.error("[CustomProfile] save error:", err);
+            showToast(t("Couldn't save the profile - see the console."));
         } finally {
             setSaving(false);
-            rootProps.onClose();
         }
     }
 
     async function reset() {
+        if (!confirmReset) {
+            setConfirmReset(true);
+            setTimeout(() => setConfirmReset(false), 4000);
+            return;
+        }
         delete allAccountsData[selectedAccountId];
         delete allAccountsEnabled[selectedAccountId];
 
@@ -1568,143 +1700,167 @@ function CustomProfileModal({ rootProps }: { rootProps: any; }) {
         downloadForPublish(file);
     }
 
-    const accentHex = data.accentColor != null ? "#" + data.accentColor.toString(16).padStart(6, "0") : "";
-    const accentHex2 = data.accentColor2 != null ? "#" + data.accentColor2.toString(16).padStart(6, "0") : "";
-
     return (
-        <ModalRoot {...rootProps} size="medium">
+        <ModalRoot {...rootProps} size="large" className="cp2-modal">
             <ModalHeader separator={false}>
                 <div className="cp-header">
                     <EditIcon size={16} />
                     <span className="cp-header-title">{t("Custom Profile")}</span>
                 </div>
-                <div style={{ marginLeft: "auto", marginRight: 8, minWidth: 200 }}>
-                    <Select
-                        options={accounts.map((acc: any) => ({
-                            value: acc.id,
-                            label: acc.globalName || acc.username,
-                        }))}
-                        isSelected={(v: string) => v === selectedAccountId}
-                        select={(v: string) => setSelectedAccountId(v)}
-                        serialize={(v: string) => v}
-                        renderOptionLabel={(o: any) => (
-                            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                                <img
-                                    src={IconUtils.getUserAvatarURL(accounts.find((a: any) => a.id === o.value), false, 20)}
-                                    style={{ borderRadius: "50%", width: 20, height: 20 }}
-                                />
-                                {o.label}
-                            </div>
-                        )}
-                        renderOptionValue={(selected: any[]) => {
-                            const option = selected[0];
-                            if (!option) return "Select Account";
-                            return (
-                                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                                    <img
-                                        src={IconUtils.getUserAvatarURL(accounts.find((a: any) => a.id === option.value), false, 20)}
-                                        style={{ borderRadius: "50%", width: 20, height: 20 }}
-                                    />
-                                    {option.label}
-                                </div>
-                            );
-                        }}
-                    />
-                </div>
+                {accounts.length > 1 && (
+                    <div className="cp2-accounts" role="radiogroup" aria-label={t("Account")}>
+                        {accounts.map(acc => (
+                            <button
+                                key={acc.id}
+                                role="radio"
+                                aria-checked={acc.id === selectedAccountId}
+                                className={`cp2-account ${acc.id === selectedAccountId ? "cp2-account--on" : ""}`}
+                                onClick={() => setSelectedAccountId(acc.id)}
+                                title={acc.id === myId ? t("The account you're using") : t("Saved account")}
+                            >
+                                <img src={IconUtils.getUserAvatarURL(acc, false, 24)} alt="" />
+                                <span>{acc.globalName || acc.username}</span>
+                                {acc.id === myId && <i className="cp2-account-dot" />}
+                            </button>
+                        ))}
+                    </div>
+                )}
                 <ModalCloseButton onClick={rootProps.onClose} />
             </ModalHeader>
-            <ModalContent className="cp-content">
-                {/* Account selector bar removed since it's now a Select in the header */}
-                <Field label={t("Username")} value={data.username ?? ""} placeholder="my_username_00" onChange={v => set("username", v)} />
-                <Field label={t("Display name")} value={data.globalName ?? ""} placeholder="My Name" onChange={v => set("globalName", v)} />
-                <ImageUpload label={t("Profile picture")} value={data.avatar ?? ""} onChange={v => set("avatar", v)} editOnFile />
-                <Toggle label={t("I have Nitro!")} sublabel={t("Enables banner and profile color")} checked={data.nitro ?? false} onChange={v => set("nitro", v)} />
-                {data.nitro && <ImageUpload label={t("Banner")} value={data.banner ?? ""} onChange={v => set("banner", v)} editOnFile cropAspect={2.5} />}
-                <div className="cp-divider" />
-                <Field label={t("Bio")} value={data.bio ?? ""} placeholder={t("My description...")} onChange={v => set("bio", v)} />
-                <Field label={t("Pronouns")} value={data.pronouns ?? ""} placeholder={t("he/him")} onChange={v => set("pronouns", v)} />
-                <div className="cp-field">
-                    <SectionLabel>{t("Profile Theme")}</SectionLabel>
-                    <div className="cp-color-row" style={{ marginBottom: 6 }}>
-                        <span style={{ fontSize: 11, color: "var(--text-muted)", marginRight: 6 }}>{t("Primary")}</span>
-                        <input type="color" value={accentHex || "#5865f2"} onChange={e => {
-                            const n = parseInt(e.target.value.replace("#", ""), 16);
-                            if (!isNaN(n)) {
-                                set("accentColor", n);
-                                if (data.accentColor2 == null) set("accentColor2", deriveProfileAccentColor(n));
-                            }
-                        }} className="cp-color-swatch" />
-                        <input value={accentHex} placeholder="#5865f2" onChange={e => {
-                            const h = e.target.value.replace("#", "");
-                            const n = parseInt(h, 16);
-                            if (!isNaN(n) && h.length === 6) {
-                                set("accentColor", n);
-                                if (data.accentColor2 == null) set("accentColor2", deriveProfileAccentColor(n));
-                            } else if (!e.target.value || e.target.value === "#") {
-                                set("accentColor", undefined);
-                                set("accentColor2", undefined);
-                            }
-                        }} className="cp-input cp-color-input" />
-                        {data.accentColor != null && <button className="cp-clear-btn" onClick={() => { set("accentColor", undefined); set("accentColor2", undefined); }}><CloseIcon /></button>}
-                    </div>
-                    <div className="cp-color-row">
-                        <span style={{ fontSize: 11, color: "var(--text-muted)", marginRight: 6 }}>{t("Accent")}</span>
-                        <input type="color" value={accentHex2 || (data.accentColor != null ? "#" + deriveProfileAccentColor(data.accentColor).toString(16).padStart(6, "0") : "#1d3557")} onChange={e => { const n = parseInt(e.target.value.replace("#", ""), 16); if (!isNaN(n)) set("accentColor2", n); }} className="cp-color-swatch" />
-                        <input value={accentHex2} placeholder="#1d3557" onChange={e => { const h = e.target.value.replace("#", ""); const n = parseInt(h, 16); if (!isNaN(n) && h.length === 6) set("accentColor2", n); else if (!e.target.value || e.target.value === "#") set("accentColor2", undefined); }} className="cp-input cp-color-input" />
-                        {data.accentColor2 != null && <button className="cp-clear-btn" onClick={() => set("accentColor2", undefined)}><CloseIcon /></button>}
+
+            <ModalContent className="cp2-content">
+                <div className="cp2-body">
+                    <aside className="cp2-side">
+                        <ProfilePreview data={data} real={realUser} />
+                        <div className="cp2-side-note">{t("Preview - leave a field empty to keep your real one.")}</div>
+                    </aside>
+
+                    <div className="cp2-main">
+                        <div className="cp2-tabs" role="tablist">
+                            {CP_TABS.map(([id, label]) => (
+                                <button
+                                    key={id}
+                                    role="tab"
+                                    aria-selected={tab === id}
+                                    className={`cp2-tab ${tab === id ? "cp2-tab--on" : ""}`}
+                                    onClick={() => setTab(id)}
+                                >
+                                    {t(label)}
+                                </button>
+                            ))}
+                        </div>
+
+                        {tab === "identity" && (
+                            <>
+                                <Card title={t("Names")}>
+                                    <div className="cp2-grid">
+                                        <Field label={t("Display name")} value={data.globalName ?? ""} placeholder="My Name" onChange={v => set("globalName", v)} />
+                                        <Field label={t("Username")} value={data.username ?? ""} placeholder="my_username_00" onChange={v => set("username", v)} />
+                                    </div>
+                                    <Field label={t("Pronouns")} value={data.pronouns ?? ""} placeholder={t("he/him")} onChange={v => set("pronouns", v)} />
+                                </Card>
+                                <Card title={t("About me")}>
+                                    <Field label={t("Bio")} value={data.bio ?? ""} placeholder={t("My description...")} multiline onChange={v => set("bio", v)} />
+                                </Card>
+                                <Card title={t("Dates")} hint={t("Shown on your profile card as Member since.")}>
+                                    <div className="cp2-grid">
+                                        <Field label={t("Account creation date")} value={data.createdAt ?? ""} placeholder="2010-06-29" type="date" onChange={v => set("createdAt", v)} />
+                                        <Field label={t("Server join date")} value={data.guildJoinedAt ?? ""} placeholder="2020-06-07" type="date" onChange={v => set("guildJoinedAt", v)} />
+                                    </div>
+                                </Card>
+                            </>
+                        )}
+
+                        {tab === "look" && (
+                            <>
+                                <Card title={t("Picture")}>
+                                    <ImageUpload label={t("Profile picture")} value={data.avatar ?? ""} onChange={v => set("avatar", v)} editOnFile />
+                                    <AvatarDecorationPicker selected={data.decorationAsset} onChange={v => set("decorationAsset", v)} />
+                                </Card>
+                                <Card title={t("Banner and colours")} hint={t("A banner and colours need the Nitro look turned on.")}>
+                                    <Toggle label={t("I have Nitro!")} sublabel={t("Enables banner and profile color")} checked={data.nitro ?? false} onChange={v => set("nitro", v)} />
+                                    {data.nitro && <ImageUpload label={t("Banner")} value={data.banner ?? ""} onChange={v => set("banner", v)} editOnFile cropAspect={2.5} />}
+                                    <SectionLabel>{t("Profile Theme")}</SectionLabel>
+                                    <ColorField
+                                        label={t("Primary")}
+                                        value={data.accentColor}
+                                        fallback="#5865f2"
+                                        onChange={v => {
+                                            set("accentColor", v);
+                                            if (v == null) set("accentColor2", undefined);
+                                            else if (data.accentColor2 == null) set("accentColor2", deriveProfileAccentColor(v));
+                                        }}
+                                    />
+                                    <ColorField
+                                        label={t("Accent")}
+                                        value={data.accentColor2}
+                                        fallback={data.accentColor != null ? colorHex(deriveProfileAccentColor(data.accentColor)) : "#1d3557"}
+                                        onChange={v => set("accentColor2", v)}
+                                    />
+                                </Card>
+                                <Card title={t("Effects")}>
+                                    <ProfileEffectPicker selected={data.profileEffectId} onChange={v => set("profileEffectId", v)} />
+                                    <ProfileFramePicker selected={data.profileFrameId} onChange={v => set("profileFrameId", v)} />
+                                </Card>
+                            </>
+                        )}
+
+                        {tab === "badges" && (
+                            <Card title={t("Badges")} hint={t("Added next to your real badges - they don't replace them.")}>
+                                <BadgePicker
+                                    selected={data.badgeFlags ?? 0} onChange={v => set("badgeFlags", v)}
+                                    nitroType={nitroLevel} onNitroType={v => {
+                                        set("nitroLevel", v as any);
+                                        // Levels 1+ (Bronze to Opal) automatically enable Simulate Nitro
+                                        // Level 0 (Nitro without months) and None (-1) do not enable it
+                                        if (v >= 1) set("nitro", true);
+                                    }}
+                                    boostLevel={boostLevel} onBoostLevel={v => set("boostMonths", v)}
+                                    customIds={customIds} onCustomIds={v => set("customBadgeIds", v)}
+                                    oldName={oldName} onOldName={v => set("oldName", v)}
+                                />
+                            </Card>
+                        )}
+
+                        {tab === "share" && (
+                            <>
+                                <Card title={t("Other o2cord users")}>
+                                    <Toggle
+                                        label={t("Publish to others")}
+                                        sublabel={t("When on, saving also sends this profile to Callie so other o2cord users see it")}
+                                        checked={data.publishOnSave ?? false}
+                                        onChange={v => set("publishOnSave", v)}
+                                    />
+                                    <button className="cp-btn cp-btn-ghost" onClick={exportForPublish} title={t("Send this profile to Callie so other o2cord users see it")}>
+                                        {t("Publish now…")}
+                                    </button>
+                                    <Toggle
+                                        label={t("See everyone's Custom Profile")}
+                                        sublabel={t("Show the profiles other o2cord users published. Turn off to see everyone's real profile.")}
+                                        checked={seeAll}
+                                        onChange={v => { Settings.seeAllCustomProfile = v; setSeeAll(v); }}
+                                    />
+                                </Card>
+                                <Card title={t("Private details")} hint={t("Only changes what you see on your own screen.")}>
+                                    <div className="cp2-grid">
+                                        <Field label={t("Email address (local display)")} value={data.email ?? ""} placeholder="example@mail.com" onChange={v => set("email", v)} />
+                                        <Field label={t("Phone (local display)")} value={data.phone ?? ""} placeholder="+1 000 000 0000" onChange={v => set("phone", v)} />
+                                    </div>
+                                </Card>
+                            </>
+                        )}
                     </div>
                 </div>
-                <Field label={t("Account creation date")} value={data.createdAt ?? ""} placeholder="2010-06-29" type="date" onChange={v => set("createdAt", v)} />
-                <Field label={t("Server join date")} value={data.guildJoinedAt ?? ""} placeholder="2020-06-07" type="date" onChange={v => set("guildJoinedAt", v)} />
-                <Field label={t("Email address (local display)")} value={data.email ?? ""} placeholder="exemple@mail.com" onChange={v => set("email", v)} />
-                <Field label={t("Phone (local display)")} value={data.phone ?? ""} placeholder="+33 6 00 00 00 00" onChange={v => set("phone", v)} />
-                <div className="cp-divider" />
-                <BadgePicker
-                    selected={data.badgeFlags ?? 0} onChange={v => set("badgeFlags", v)}
-                    nitroType={nitroLevel} onNitroType={v => {
-                        set("nitroLevel", v as any);
-                        // Levels 1+ (Bronze to Opal) automatically enable Simulate Nitro
-                        // Level 0 (Nitro without months) and None (-1) do not enable it
-                        if (v >= 1) set("nitro", true);
-                    }}
-                    boostLevel={boostLevel} onBoostLevel={v => set("boostMonths", v)}
-                    customIds={customIds} onCustomIds={v => set("customBadgeIds", v)}
-                    oldName={oldName} onOldName={v => set("oldName", v)}
-                />
-                <div className="cp-divider" />
-                <ProfileEffectPicker
-                    selected={data.profileEffectId}
-                    onChange={v => set("profileEffectId", v)}
-                />
-                <ProfileFramePicker
-                    selected={data.profileFrameId}
-                    onChange={v => set("profileFrameId", v)}
-                />
-                <div className="cp-divider" />
-                <AvatarDecorationPicker
-                    selected={data.decorationAsset}
-                    onChange={v => set("decorationAsset", v)}
-                />
-                <div className="cp-divider" />
-                <Toggle
-                    label={t("Publish to others")}
-                    sublabel={t("Your choice — when on, saving also sends this profile to Callie so other o2cord users see it")}
-                    checked={data.publishOnSave ?? false}
-                    onChange={v => set("publishOnSave", v)}
-                />
-                <div className="cp-divider" />
-                <Toggle
-                    label={t("See everyone's Custom Profile")}
-                    sublabel={t("Show the profiles other o2cord users published. Turn off to see everyone's real profile.")}
-                    checked={seeAll}
-                    onChange={v => { Settings.seeAllCustomProfile = v; setSeeAll(v); }}
-                />
             </ModalContent>
-            <ModalFooter className="cp-footer">
-                <button className="cp-btn cp-btn-ghost" onClick={rootProps.onClose}>{t("Cancel")}</button>
-                <button className="cp-btn cp-btn-ghost" onClick={exportForPublish} title={t("Send this profile to Callie so other o2cord users see it")}>{t("Publish to others…")}</button>
-                <button className="cp-btn cp-btn-danger" onClick={reset}><TrashIcon /><span>{t("Reset")}</span></button>
-                <button className="cp-btn cp-btn-primary" onClick={save} disabled={saving}><SaveIcon /><span>{saving ? t("Saving...") : t("Save")}</span></button>
+
+            <ModalFooter className="cp-footer cp2-footer">
+                <button className={`cp-btn cp-btn-danger ${confirmReset ? "cp-btn-danger--armed" : ""}`} onClick={reset}>
+                    <TrashIcon /><span>{confirmReset ? t("Click again to reset") : t("Reset")}</span>
+                </button>
+                <span className={`cp2-status ${dirty ? "cp2-status--dirty" : ""}`}>{dirty ? t("Unsaved changes") : t("Up to date")}</span>
+                <button className="cp-btn cp-btn-ghost" onClick={rootProps.onClose}>{t("Close")}</button>
+                <button className="cp-btn cp-btn-ghost" onClick={() => commit(false)} disabled={saving || !dirty}>{t("Apply")}</button>
+                <button className="cp-btn cp-btn-primary" onClick={() => commit(true)} disabled={saving}><SaveIcon /><span>{saving ? t("Saving...") : t("Save")}</span></button>
             </ModalFooter>
         </ModalRoot>
     );

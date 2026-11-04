@@ -720,3 +720,422 @@
     place-items: center;
     font-size: 13px;
 }
+
+/* ═══ Custom Profile window (cp2): live preview on the left, tabs on the right ═══ */
+.cp2-modal {
+    width: 920px !important;
+    max-width: calc(100vw - 48px) !important;
+}
+
+.cp2-content {
+    padding: 4px 20px 12px !important;
+    overflow: hidden !important;
+}
+
+.cp2-body {
+    display: flex;
+    gap: 20px;
+    height: min(540px, calc(100vh - 230px));
+    min-height: 360px;
+}
+
+/* ── account chips in the header ── */
+.cp2-accounts {
+    display: flex;
+    gap: 6px;
+    margin: 0 8px 0 auto;
+    max-width: 55%;
+    overflow-x: auto;
+    scrollbar-width: none;
+}
+
+.cp2-account {
+    position: relative;
+    display: flex;
+    flex-shrink: 0;
+    align-items: center;
+    gap: 7px;
+    padding: 4px 10px 4px 4px;
+    border: 1.5px solid rgba(255, 255, 255, 0.08);
+    border-radius: 99px;
+    background: rgba(255, 255, 255, 0.04);
+    color: rgba(255, 255, 255, 0.75);
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.12s, border-color 0.12s;
+}
+
+.cp2-account img {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+}
+
+.cp2-account:hover {
+    background: rgba(255, 255, 255, 0.08);
+}
+
+.cp2-account--on {
+    border-color: var(--brand-500, #5865f2);
+    background: rgba(88, 101, 242, 0.18);
+    color: #fff;
+}
+
+.cp2-account-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #23a559;
+}
+
+/* ── live preview ── */
+.cp2-side {
+    display: flex;
+    flex: 0 0 280px;
+    flex-direction: column;
+    gap: 8px;
+    overflow-y: auto;
+    scrollbar-width: none;
+}
+
+.cp2-preview {
+    padding: 5px;
+    border-radius: 14px;
+    box-shadow: 0 8px 28px rgba(0, 0, 0, 0.45);
+}
+
+.cp2-preview-inner {
+    position: relative;
+    overflow: hidden;
+    border-radius: 10px;
+    background: #111214;
+}
+
+.cp2-preview-banner {
+    height: 100px;
+    background-position: center;
+    background-size: cover;
+}
+
+.cp2-preview-avatar-wrap {
+    position: absolute;
+    top: 58px;
+    left: 16px;
+    width: 84px;
+    height: 84px;
+}
+
+.cp2-preview-avatar {
+    width: 100%;
+    height: 100%;
+    border: 6px solid #111214;
+    border-radius: 50%;
+    object-fit: cover;
+    background: #111214;
+    box-sizing: border-box;
+}
+
+.cp2-preview-deco {
+    position: absolute;
+    inset: -6px;
+    width: calc(100% + 12px);
+    height: calc(100% + 12px);
+    pointer-events: none;
+}
+
+.cp2-preview-badges {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 4px;
+    margin: 8px 8px 0 110px;
+    min-height: 26px;
+}
+
+.cp2-preview-badges img {
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    object-fit: contain;
+}
+
+.cp2-preview-body {
+    padding: 14px 16px 16px;
+}
+
+.cp2-preview-name {
+    overflow: hidden;
+    color: #fff;
+    font-size: 20px;
+    font-weight: 700;
+    line-height: 1.2;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.cp2-preview-user {
+    margin-top: 2px;
+    color: rgba(255, 255, 255, 0.6);
+    font-size: 13px;
+}
+
+.cp2-preview-section {
+    margin-top: 12px;
+    padding: 10px 12px;
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.cp2-preview-label {
+    margin-bottom: 4px;
+    color: rgba(255, 255, 255, 0.55);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.4px;
+    text-transform: uppercase;
+}
+
+.cp2-preview-bio {
+    color: rgba(255, 255, 255, 0.9);
+    font-size: 13px;
+    line-height: 1.4;
+    overflow-wrap: anywhere;
+    white-space: pre-wrap;
+}
+
+.cp2-preview-extras {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    padding: 8px 6px 4px;
+    color: rgba(255, 255, 255, 0.85);
+    font-size: 11px;
+    font-weight: 600;
+}
+
+.cp2-preview-extras span {
+    padding: 2px 8px;
+    border-radius: 99px;
+    background: rgba(0, 0, 0, 0.3);
+}
+
+.cp2-side-note {
+    padding: 0 4px;
+    color: rgba(255, 255, 255, 0.4);
+    font-size: 11px;
+    line-height: 1.4;
+}
+
+/* ── tabs and cards ── */
+.cp2-main {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    min-width: 0;
+    overflow-y: auto;
+    padding-right: 6px;
+}
+
+.cp2-tabs {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    display: flex;
+    width: fit-content;
+    gap: 2px;
+    padding: 3px;
+    margin-bottom: 12px;
+    border-radius: 8px;
+    background: #1e1f22;
+}
+
+.cp2-tab {
+    padding: 6px 16px;
+    border: none;
+    border-radius: 6px;
+    background: transparent;
+    color: rgba(255, 255, 255, 0.55);
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background 0.12s, color 0.12s;
+}
+
+.cp2-tab:hover {
+    color: #fff;
+}
+
+.cp2-tab--on {
+    background: var(--brand-500, #5865f2);
+    color: #fff !important;
+}
+
+.cp2-card {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 14px 16px 6px;
+    margin-bottom: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.07);
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.035);
+}
+
+.cp2-card-title {
+    margin-bottom: 4px;
+    color: #fff;
+    font-size: 14px;
+    font-weight: 700;
+}
+
+.cp2-card-hint {
+    margin: -2px 0 8px;
+    color: rgba(255, 255, 255, 0.45);
+    font-size: 12px;
+}
+
+.cp2-card > .cp-btn {
+    align-self: flex-start;
+    margin-bottom: 14px;
+}
+
+.cp2-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0 12px;
+}
+
+.cp-textarea {
+    min-height: 84px;
+    resize: vertical;
+    line-height: 1.4;
+}
+
+/* ── colours ── */
+.cp2-color {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 10px;
+}
+
+.cp2-color-label {
+    width: 56px;
+    color: rgba(255, 255, 255, 0.55);
+    font-size: 12px;
+    font-weight: 700;
+}
+
+/* ── picture upload ── */
+.cp2-thumb {
+    position: relative;
+    display: grid;
+    flex-shrink: 0;
+    width: 72px;
+    height: 72px;
+    padding: 0;
+    place-items: center;
+    overflow: hidden;
+    border: 1.5px dashed rgba(255, 255, 255, 0.22);
+    border-radius: 50%;
+    background: rgba(0, 0, 0, 0.25);
+    color: rgba(255, 255, 255, 0.5);
+    font-size: 26px;
+    cursor: pointer;
+}
+
+.cp2-thumb--wide {
+    width: 120px;
+    height: 48px;
+    border-radius: 8px;
+}
+
+.cp2-thumb:hover {
+    border-color: var(--brand-500, #5865f2);
+    color: #fff;
+}
+
+.cp2-thumb img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.cp2-image-side {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    gap: 8px;
+    min-width: 0;
+}
+
+.cp2-image-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.cp2-mini {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 10px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 6px;
+    background: rgba(255, 255, 255, 0.06);
+    color: #fff;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.cp2-mini:hover {
+    background: rgba(255, 255, 255, 0.12);
+}
+
+.cp2-mini--danger {
+    color: #ed4245;
+}
+
+/* ── footer: Discord's footer runs right-to-left, this one reads normally ── */
+.cp2-footer {
+    flex-direction: row !important;
+    align-items: center;
+}
+
+.cp2-modal .cp-header {
+    flex: 1;
+}
+
+.cp2-status {
+    flex: 1;
+    color: rgba(255, 255, 255, 0.4);
+    font-size: 12px;
+    text-align: left;
+}
+
+.cp2-status--dirty {
+    color: #f0b232;
+}
+
+.cp-btn-danger--armed {
+    background: #ed4245;
+    color: #fff;
+}
+
+@media (max-width: 900px) {
+    .cp2-body {
+        flex-direction: column;
+        height: auto;
+        max-height: calc(100vh - 230px);
+        overflow-y: auto;
+    }
+
+    .cp2-side {
+        flex: none;
+    }
+
+    .cp2-main {
+        overflow: visible;
+    }
+}
