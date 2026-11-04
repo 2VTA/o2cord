@@ -213,6 +213,32 @@ if (IS_DEV && IS_DISCORD_DESKTOP) {
     }, 0);
 }
 
+// Since November 2026 Discord's webpack runtime creates modules as `{ id, exports }` - there is no
+// `loaded` flag anymore (older builds had `loaded: false` until the factory finished). Requiring
+// `loaded === true` made every search skip every module, so Flux, lodash, moment, ReactDOM... were
+// "not found" and Discord crashed. Only a module that says `loaded === false` is skipped now.
+// A module that is still being initialised can have exports that throw when read (not set up yet),
+// so every read in the searches below is guarded.
+function isSearchableModule(mod: any): boolean {
+    return mod != null && mod.loaded !== false && mod.exports != null;
+}
+
+function safeFilter(filter: FilterFn, value: any): boolean {
+    try {
+        return !!filter(value);
+    } catch {
+        return false;
+    }
+}
+
+function safeNested(exports: any, key: string): any {
+    try {
+        return exports[key];
+    } catch {
+        return undefined;
+    }
+}
+
 export function handleModuleNotFound(method: string, ...filter: unknown[]) {
     const err = new Error(`webpack.${method} found no module`);
     logger.error(err, "Filter:", filter);
@@ -233,17 +259,17 @@ export const find = traceFunction("find", function find(filter: FilterFn, { isIn
 
     for (const key in cache) {
         const mod = cache[key];
-        if (!mod?.loaded || mod.exports == null) continue;
+        if (!isSearchableModule(mod)) continue;
 
-        if (filter(mod.exports)) {
+        if (safeFilter(filter, mod.exports)) {
             return isWaitFor ? [mod.exports, key] : mod.exports;
         }
 
         if (typeof mod.exports !== "object" || topLevelOnly) continue;
 
         for (const nestedMod in mod.exports) {
-            const nested = mod.exports[nestedMod];
-            if (nested && filter(nested)) {
+            const nested = safeNested(mod.exports, nestedMod);
+            if (nested && safeFilter(filter, nested)) {
                 return isWaitFor ? [nested, key] : nested;
             }
         }
@@ -263,17 +289,17 @@ export function findAll(filter: FilterFn, { topLevelOnly = false }: { topLevelOn
     const ret = [] as any[];
     for (const key in cache) {
         const mod = cache[key];
-        if (!mod?.loaded || mod.exports == null) continue;
+        if (!isSearchableModule(mod)) continue;
 
-        if (filter(mod.exports))
+        if (safeFilter(filter, mod.exports))
             ret.push(mod.exports);
 
         if (typeof mod.exports !== "object" || topLevelOnly)
             continue;
 
         for (const nestedMod in mod.exports) {
-            const nested = mod.exports[nestedMod];
-            if (nested && filter(nested)) ret.push(nested);
+            const nested = safeNested(mod.exports, nestedMod);
+            if (nested && safeFilter(filter, nested)) ret.push(nested);
         }
     }
 
@@ -312,14 +338,14 @@ export const findBulk = traceFunction("findBulk", function findBulk(...filterFns
     outer:
     for (const key in cache) {
         const mod = cache[key];
-        if (!mod?.loaded || mod.exports == null) continue;
+        if (!isSearchableModule(mod)) continue;
 
         for (let j = 0; j < length; j++) {
             const filter = filters[j];
             // Already done
             if (filter === undefined) continue;
 
-            if (filter(mod.exports)) {
+            if (safeFilter(filter, mod.exports)) {
                 results[j] = mod.exports;
                 filters[j] = undefined;
                 if (++found === length) break outer;
@@ -330,8 +356,8 @@ export const findBulk = traceFunction("findBulk", function findBulk(...filterFns
                 continue;
 
             for (const nestedMod in mod.exports) {
-                const nested = mod.exports[nestedMod];
-                if (nested && filter(nested)) {
+                const nested = safeNested(mod.exports, nestedMod);
+                if (nested && safeFilter(filter, nested)) {
                     results[j] = nested;
                     filters[j] = undefined;
                     if (++found === length) break outer;
