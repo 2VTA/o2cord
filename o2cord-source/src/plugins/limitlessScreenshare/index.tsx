@@ -42,7 +42,7 @@ const CustomPresetList = ({ onChange, initialValue, group, id, list }: CustomPre
 export default definePlugin({
     name: "LimitlessScreenshare",
     description: "Adds a slider for screenshare resolution and fps.",
-    authors: [{ name: "KawaiianPizza", id: 0n }],
+    authors: [{ name: "aloshsaudi", id: 1542531988727140477n }],
     tags: ["Utility", "Voice"],
     settings,
     patches: [

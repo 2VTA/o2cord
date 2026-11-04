@@ -22,7 +22,9 @@ import { filters, mapMangledModuleLazy, waitFor } from "@webpack";
 export const Menu = {} as t.Menu;
 
 waitFor(filters.componentByCode('path:["empty"]'), m => Menu.Menu = m);
-waitFor(filters.componentByCode("SLIDER)", "handleSize:16"), m => Menu.MenuSliderControl = m);
+// Discord's newer menu slider dropped "handleSize:16" (it takes ref as a prop now); without a
+// match MenuSliderControl stayed undefined and every menu slider crashed React (error #130)
+waitFor(filters.componentByCode("SLIDER)", "onChangeEnd:"), m => Menu.MenuSliderControl = m);
 waitFor(filters.componentByCode(".SEARCH)", ".focus()", "query:"), m => Menu.MenuSearchControl = m);
 
 export const ContextMenuApi: t.ContextMenuApi = mapMangledModuleLazy('type:"CONTEXT_MENU_OPEN', {
