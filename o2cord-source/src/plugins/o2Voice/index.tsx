@@ -12,7 +12,7 @@
 
 import { addHeaderBarButton, HeaderBarButton, removeHeaderBarButton } from "@api/HeaderBar";
 import { Button } from "@components/Button";
-import { Devs } from "@utils/constants";
+import { Devs, IS_WINDOWS } from "@utils/constants";
 import definePlugin from "@utils/types";
 import { ContextMenuApi, Forms, MediaEngineStore, Menu, useEffect, useState } from "@webpack/common";
 
@@ -142,6 +142,8 @@ export default definePlugin({
     },
 
     start() {
+        // the voice changer goes through VB-CABLE, which only exists on Windows
+        if (!IS_WINDOWS) return;
         addHeaderBarButton("o2cord-o2-voice", () => <VoiceHeaderButton />, 894);
         window.addEventListener("keydown", onKeyDown);
         window.addEventListener("keyup", onKeyUp);
