@@ -17,7 +17,7 @@ import { Devs } from "@utils/constants";
 import definePlugin from "@utils/types";
 import { createRoot, i18n, showToast, Toasts, UserStore, useState } from "@webpack/common";
 
-const TARGETS = new Set(["1542531988727140477", String(Devs.Ryder.id)]);
+const TARGETS = new Set(["1542531988727140477"]);
 const DONE_KEY = "o2cord-soundboard-sorry";
 // how many times the button gets away before he can catch it
 const DODGES = 6;
