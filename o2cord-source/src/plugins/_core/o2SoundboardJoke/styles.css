@@ -1,0 +1,104 @@
+/* ---- the box from Claude (O2SoundboardJoke) ---- */
+.o2-sj-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 10003;
+    display: grid;
+    place-items: center;
+    background: rgb(0 0 0 / 50%);
+}
+
+.o2-sj-box {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    width: 300px;
+    padding: 18px;
+    border: 1px solid #3a2a24;
+    border-radius: 14px;
+    background: #1f1e1d;
+    box-shadow: 0 16px 48px rgb(0 0 0 / 60%);
+    color: #f0eee6;
+    direction: rtl;
+    animation: o2-sj-in 0.25s ease-out;
+}
+
+@keyframes o2-sj-in {
+    from { opacity: 0; transform: scale(0.94); }
+    to { opacity: 1; transform: none; }
+}
+
+.o2-sj-head {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.o2-sj-mark {
+    width: 36px;
+    height: 36px;
+    animation: o2-sj-spin 6s linear infinite;
+}
+
+@keyframes o2-sj-spin {
+    to { transform: rotate(360deg); }
+}
+
+.o2-sj-name {
+    font-size: 16px;
+    font-weight: 700;
+    direction: ltr;
+    text-align: right;
+}
+
+.o2-sj-sub,
+.o2-sj-dim {
+    color: #a8a49c;
+    font-size: 12px;
+}
+
+.o2-sj-text {
+    font-size: 15px;
+    line-height: 1.6;
+}
+
+.o2-sj-buttons {
+    display: flex;
+    gap: 10px;
+}
+
+.o2-sj-btn {
+    flex: 1;
+    padding: 9px 0;
+    border: none;
+    border-radius: 8px;
+    color: #fff;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: transform 0.15s ease;
+}
+
+.o2-sj-yes {
+    background: #d97757;
+}
+
+.o2-sj-yes:hover {
+    background: #c4613f;
+}
+
+.o2-sj-no {
+    background: #3a3836;
+}
+
+.o2-sj-later {
+    position: absolute;
+    top: 10px;
+    left: 12px;
+    border: none;
+    background: none;
+    color: #a8a49c;
+    font-size: 11px;
+    cursor: pointer;
+}
