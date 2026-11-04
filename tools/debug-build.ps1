@@ -2,11 +2,11 @@
 # baked in (not a placeholder), re-patches the target Discord channel if it
 # auto-updated since the last patch, THEN syncs the 4 live dist files into
 # the installed o2cord/dist folder, then fully restarts that channel with
-# --remote-debugging-port=9222 so it's ready for live CDP testing again.
+# --remote-debugging-port=9228 so it's ready for live CDP testing again.
 #
-# Defaults to PTB now - that's where most of the work happens going
-# forward (Ryder moved his day-to-day o2cord install from Canary to PTB).
-# Pass -Channel canary to target Canary instead; anything else this script
+# Defaults to Canary now (2026-11-04: Ryder uninstalled PTB and uses Canary day to day).
+# Pass -Channel ptb to target PTB again.
+# Pass -Channel ptb or -Channel canary to choose; anything else this script
 # touches (process name, install folder, --target flag for the installer)
 # derives from this one parameter.
 #
@@ -26,7 +26,7 @@
 
 param(
     [ValidateSet("ptb", "canary")]
-    [string] $Channel = "ptb"
+    [string] $Channel = "canary"
 )
 
 $ErrorActionPreference = "Stop"
@@ -168,5 +168,5 @@ Write-Host "== Launching $($LatestApp.Name) with debug port ==" -ForegroundColor
 $Exe = Join-Path $LatestApp.FullName "$ProcessName.exe"
 # Start from the app folder: Discord writes discord_utils.log into its
 # working directory, and a copy landing in src/plugins broke the build.
-Start-Process -FilePath $Exe -ArgumentList "--remote-debugging-port=9222" -WorkingDirectory $LatestApp.FullName
+Start-Process -FilePath $Exe -ArgumentList "--remote-debugging-port=9228" -WorkingDirectory $LatestApp.FullName
 Write-Host "Done. $ProcessName is restarting with the fresh build." -ForegroundColor Green
