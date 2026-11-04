@@ -1,8 +1,8 @@
 {
-    "version":  "1.3.76",
-    "hash":  "public-20261104064610",
+    "version":  "1.3.77",
+    "hash":  "public-20261104074501",
     "author":  "o2cord",
-    "message":  "Menu slider fix",
+    "message":  "Small fixes",
     "notes":  [
                   "Public o2cord update package",
                   "ussro2 backgrounds are loaded from backgrounds.json beside this manifest",
