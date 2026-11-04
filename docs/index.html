@@ -4,9 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>o2cord - Discord, your way</title>
-<meta name="description" content="o2cord is a free Discord client mod for Windows: themes, profile tools, Retro Terminal and more.">
+<meta name="description" content="o2cord is a free Discord client mod for Windows and Linux (beta): themes, profile tools, Retro Terminal and more.">
 <meta property="og:title" content="o2cord">
-<meta property="og:description" content="Discord, your way. A free client mod for Windows.">
+<meta property="og:description" content="Discord, your way. A free client mod for Windows and Linux (beta).">
 <meta property="og:image" content="https://2vta.github.io/o2cord/assets/og.png">
 <meta name="theme-color" content="#000000">
 <link rel="icon" href="assets/favicon.png">
@@ -65,6 +65,12 @@ h2 { margin: 0 0 8px; font: 700 28px var(--mono); }
 .steps li { counter-increment: s; display: flex; gap: 14px; align-items: flex-start; padding: 16px 18px; border: 1px solid var(--line); border-radius: 12px; background: var(--card); }
 .steps li::before { content: counter(s); flex: none; display: grid; place-items: center; width: 28px; height: 28px; border: 1px solid var(--line-strong); border-radius: 50%; font: 600 13px var(--mono); }
 .note { margin-top: 18px; color: var(--muted); font-size: 14px; }
+.os { margin: 44px 0 0; font: 600 18px var(--mono); }
+.os + .os-note { margin-top: 6px; }
+.codebox { display: flex; flex-direction: column; margin: 16px 0 18px; }
+.code { margin: 0; padding: 14px 18px; white-space: pre-wrap; overflow-wrap: anywhere; border: 1px solid var(--line-strong); border-radius: 12px; background: var(--card); color: var(--text); font: 14px/1.7 var(--mono); text-align: left; }
+.copy { align-self: flex-end; margin-bottom: 8px; padding: 4px 12px; border: 1px solid var(--line-strong); border-radius: 8px; background: transparent; color: var(--muted); font: 600 12px var(--mono); cursor: pointer; }
+.copy:hover { background: #151515; color: var(--text); }
 details { border: 1px solid var(--line); border-radius: 12px; background: var(--card); padding: 14px 18px; }
 details + details { margin-top: 10px; }
 summary { cursor: pointer; font-weight: 600; }
@@ -156,11 +162,12 @@ footer .row { display: flex; flex-wrap: wrap; gap: 8px 22px; }
 <main id="top">
   <div class="wrap hero">
     <h1 data-en="Discord, your way." data-ar="ديسكورد على كيفك.">Discord, your way.</h1>
-    <p class="lead" data-en="o2cord is a free client mod for Discord on Windows. Pick a theme, dress up your profile, turn Discord into an old terminal screen, and switch off the parts you don't want."
-       data-ar="o2cord إضافة مجانية لديسكورد على ويندوز. اختر ثيم، جمّل بروفايلك، حوّل ديسكورد لشاشة تيرمنال قديمة، واطفي الأشياء اللي ما تبيها.">
-       o2cord is a free client mod for Discord on Windows. Pick a theme, dress up your profile, turn Discord into an old terminal screen, and switch off the parts you don't want.</p>
+    <p class="lead" data-en="o2cord is a free client mod for Discord on Windows and Linux (beta). Pick a theme, dress up your profile, turn Discord into an old terminal screen, and switch off the parts you don't want."
+       data-ar="o2cord إضافة مجانية لديسكورد على ويندوز ولينكس (تجريبي). اختر ثيم، جمّل بروفايلك، حوّل ديسكورد لشاشة تيرمنال قديمة، واطفي الأشياء اللي ما تبيها.">
+       o2cord is a free client mod for Discord on Windows and Linux (beta). Pick a theme, dress up your profile, turn Discord into an old terminal screen, and switch off the parts you don't want.</p>
     <div class="actions">
       <a class="btn primary" id="download" href="https://github.com/2VTA/o2cord/releases/latest/download/o2cord-Installer-Public.exe" data-en="Download for Windows" data-ar="تحميل لويندوز">Download for Windows</a>
+      <a class="btn" href="#install-linux" data-en="Linux (beta)" data-ar="لينكس (تجريبي)">Linux (beta)</a>
       <a class="btn" href="https://discord.gg/f9xG4eTHb9" data-en="Join the Discord server" data-ar="ادخل السيرفر">Join the Discord server</a>
     </div>
     <div class="meta"><span id="version"></span><span data-en="Windows 10 / 11 · about 160 MB · Discord Stable, PTB or Canary" data-ar="ويندوز 10 / 11 · حوالي 160 ميجا · ديسكورد Stable أو PTB أو Canary">Windows 10 / 11 · about 160 MB · Discord Stable, PTB or Canary</span></div>
@@ -217,6 +224,20 @@ footer .row { display: flex; flex-wrap: wrap; gap: 8px 22px; }
         <li data-en="Open Discord, go to Settings and find the o2cord section." data-ar="افتح ديسكورد، وروح الإعدادات، ولقى قسم o2cord.">Open Discord, go to Settings and find the o2cord section.</li>
       </ol>
       <p class="note" data-en="Windows may show a blue 'Windows protected your PC' box because the installer isn't code-signed. Press More info, then Run anyway. o2cord updates itself after that." data-ar="ويندوز ممكن يطلع صندوق أزرق 'Windows protected your PC' لأن المثبّت غير موقّع. اضغط More info ثم Run anyway. وo2cord يحدّث نفسه بعدها.">Windows may show a blue "Windows protected your PC" box because the installer isn't code-signed. Press More info, then Run anyway. o2cord updates itself after that.</p>
+
+      <h3 class="os" id="install-linux" data-en="On Linux (beta)" data-ar="على لينكس (تجريبي)">On Linux (beta)</h3>
+      <p class="note os-note" data-en="Works with Discord from the .deb or .tar.gz on discord.com, or from your distro's package. Flatpak and Snap Discord aren't supported yet." data-ar="يشتغل مع ديسكورد من ملف .deb أو .tar.gz في discord.com، أو من حزمة توزيعتك. ديسكورد Flatpak وSnap مو مدعومين للحين.">Works with Discord from the .deb or .tar.gz on discord.com, or from your distro's package. Flatpak and Snap Discord aren't supported yet.</p>
+      <div class="codebox">
+        <button class="copy" type="button" id="copy-linux" data-en="Copy" data-ar="نسخ">Copy</button>
+        <pre class="code" dir="ltr" id="linux-cmd">curl -fsSLO https://2vta.github.io/o2cord/install.sh
+bash install.sh</pre>
+      </div>
+      <ol class="steps">
+        <li data-en="Open a terminal and run the two lines above. The first downloads the installer script, the second runs it - you can open install.sh and read it in between." data-ar="افتح تيرمنال وشغّل السطرين فوق. الأول ينزّل سكربت التثبيت، والثاني يشغّله - وتقدر تفتح install.sh وتقراه بينهم.">Open a terminal and run the two lines above. The first downloads the installer script, the second runs it - you can open install.sh and read it in between.</li>
+        <li data-en="If it asks for your password, that's only to put o2cord next to Discord's files, which belong to the system." data-ar="لو طلب كلمة السر، فهذا بس عشان يحط o2cord جنب ملفات ديسكورد، لأنها تابعة للنظام.">If it asks for your password, that's only to put o2cord next to Discord's files, which belong to the system.</li>
+        <li data-en="Restart Discord, open Settings and find the o2cord section." data-ar="سكّر ديسكورد وافتحه من جديد، وروح الإعدادات ولقى قسم o2cord.">Restart Discord, open Settings and find the o2cord section.</li>
+      </ol>
+      <p class="note" data-en="This is a beta - it hasn't been tried on every Linux setup yet. Windows-only parts don't work here (the O2 Voice changer, the acrylic and Mica window effects). If Discord updates and o2cord disappears, run the script again. To remove it: bash install.sh --uninstall. If something breaks, tell us on the Discord server." data-ar="هذي نسخة تجريبية - ما انجربت على كل أنواع لينكس للحين. الأشياء الخاصة بويندوز ما تشتغل هنا (مغيّر الصوت O2 Voice، وتأثيرات acrylic وMica للنافذة). لو ديسكورد تحدّث وراح o2cord، شغّل السكربت مرة ثانية. وللإزالة: bash install.sh --uninstall. ولو صار شي خربان قولنا في السيرفر.">This is a beta - it hasn't been tried on every Linux setup yet. Windows-only parts don't work here (the O2 Voice changer, the acrylic and Mica window effects). If Discord updates and o2cord disappears, run the script again. To remove it: bash install.sh --uninstall. If something breaks, tell us on the Discord server.</p>
     </div>
   </section>
 
@@ -226,7 +247,8 @@ footer .row { display: flex; flex-wrap: wrap; gap: 8px 22px; }
       <p class="sub"></p>
       <details><summary data-en="Is it free?" data-ar="هو مجاني؟">Is it free?</summary><p data-en="Yes." data-ar="إيه.">Yes.</p></details>
       <details><summary data-en="Can I check what it does?" data-ar="أقدر أشيّك وش يسوي؟">Can I check what it does?</summary><p data-en="The source code is public on GitHub, so you can read it yourself." data-ar="الكود مفتوح على GitHub، تقدر تقراه بنفسك.">The source code is public on GitHub, so you can read it yourself.</p></details>
-      <details><summary data-en="How do I remove it?" data-ar="كيف أشيله؟">How do I remove it?</summary><p data-en="Run the installer again and choose Uninstall." data-ar="شغّل المثبّت مرة ثانية واختر Uninstall.">Run the installer again and choose Uninstall.</p></details>
+      <details><summary data-en="Does it work on Linux?" data-ar="يشتغل على لينكس؟">Does it work on Linux?</summary><p data-en="Yes, as a beta - see Install above. Flatpak and Snap Discord aren't supported yet." data-ar="إيه، كنسخة تجريبية - شوف التثبيت فوق. ديسكورد Flatpak وSnap مو مدعومين للحين.">Yes, as a beta - see Install above. Flatpak and Snap Discord aren't supported yet.</p></details>
+      <details><summary data-en="How do I remove it?" data-ar="كيف أشيله؟">How do I remove it?</summary><p data-en="Windows: run the installer again and choose Uninstall. Linux: run bash install.sh --uninstall." data-ar="ويندوز: شغّل المثبّت مرة ثانية واختر Uninstall. لينكس: شغّل bash install.sh --uninstall.">Windows: run the installer again and choose Uninstall. Linux: run bash install.sh --uninstall.</p></details>
       <details><summary data-en="Is this allowed by Discord?" data-ar="ديسكورد يسمح فيه؟">Is this allowed by Discord?</summary><p data-en="Client mods go against Discord's Terms of Service, so use o2cord at your own risk. We're not affiliated with Discord." data-ar="إضافات الكلاينت ضد شروط خدمة ديسكورد، فاستخدم o2cord على مسؤوليتك. وما لنا علاقة بديسكورد.">Client mods go against Discord's Terms of Service, so use o2cord at your own risk. We're not affiliated with Discord.</p></details>
       <details><summary data-en="Something broke - where do I ask?" data-ar="صار شي خربان - وين أسأل؟">Something broke - where do I ask?</summary><p data-en="Join the Discord server and tell us what happened." data-ar="ادخل السيرفر وقولنا وش صار.">Join the Discord server and tell us what happened.</p></details>
     </div>
@@ -323,6 +345,16 @@ document.getElementById("lang").addEventListener("click", () => {
     apply();
 });
 apply();
+
+// copy the Linux commands
+document.getElementById("copy-linux").addEventListener("click", async () => {
+    const b = document.getElementById("copy-linux");
+    try {
+        await navigator.clipboard.writeText(document.getElementById("linux-cmd").textContent);
+        b.textContent = lang === "ar" ? "تم" : "Copied";
+        setTimeout(() => { b.textContent = b.dataset[lang]; }, 1500);
+    } catch { }
+});
 
 // show the current o2cord version next to the download button
 fetch(MANIFEST + "?t=" + Date.now()).then(r => r.json()).then(m => {

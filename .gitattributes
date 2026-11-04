@@ -1,0 +1,2 @@
+# the Linux installer must keep Unix line endings or bash can't run it
+*.sh text eol=lf
