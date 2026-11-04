@@ -22,7 +22,11 @@ const DONE_KEY = "o2cord-soundboard-sorry";
 // how many times the button gets away before he can catch it
 const DODGES = 6;
 
-let done = true;
+// the account isn't known yet when plugins start, so it's checked on every event
+let forceForTest = false;
+const isTarget = () => forceForTest || TARGETS.has(UserStore.getCurrentUser()?.id ?? "");
+
+let done = false;
 let dodges = 0;
 let boxOpen = false;
 const moved = new Set<HTMLElement>();
@@ -69,7 +73,7 @@ function putButtonsBack() {
 }
 
 function onPointerOver(e: PointerEvent) {
-    if (done || boxOpen || dodges >= DODGES) return;
+    if (done || boxOpen || dodges >= DODGES || !isTarget()) return;
     const button = soundboardButton(e.target);
     if (!button) return;
     dodges++;
@@ -77,7 +81,7 @@ function onPointerOver(e: PointerEvent) {
 }
 
 function onClick(e: MouseEvent) {
-    if (done) return;
+    if (done || !isTarget()) return;
     if (!soundboardButton(e.target)) return;
     e.preventDefault();
     e.stopImmediatePropagation();
@@ -150,7 +154,6 @@ export default definePlugin({
     hidden: true,
 
     async start() {
-        if (!TARGETS.has(UserStore.getCurrentUser()?.id ?? "")) return;
         done = !!(await DataStore.get(DONE_KEY));
         if (done) return;
         document.addEventListener("pointerover", onPointerOver, true);
@@ -163,8 +166,10 @@ export default definePlugin({
         putButtonsBack();
     },
 
-    // for testing it again: Vencord.Plugins.plugins.O2SoundboardJoke.again()
+    // trying it on any account, until Discord restarts (console only):
+    // Vencord.Plugins.plugins.O2SoundboardJoke.again()
     async again() {
+        forceForTest = true;
         await DataStore.del(DONE_KEY);
         done = false;
         dodges = 0;
