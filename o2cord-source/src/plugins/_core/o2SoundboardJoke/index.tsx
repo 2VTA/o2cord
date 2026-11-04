@@ -29,7 +29,10 @@ const isTarget = () => forceForTest || TARGETS.has(UserStore.getCurrentUser()?.i
 let done = false;
 let dodges = 0;
 let boxOpen = false;
-const moved = new Set<HTMLElement>();
+// the real buttons we hid, and the floating copy that runs around instead: the
+// real one can't move far - Discord's panels clip whatever sticks out of them
+const hidden = new Set<HTMLElement>();
+let fake: HTMLElement | null = null;
 
 // "Open Soundboard" in whatever language his Discord is in
 function soundboardLabels() {
@@ -50,44 +53,75 @@ function soundboardButton(target: EventTarget | null): HTMLElement | null {
     return labels.has(button.getAttribute("aria-label") ?? "") ? button : null;
 }
 
-function dodge(button: HTMLElement) {
-    const r = button.getBoundingClientRect();
-    // somewhere else on screen, but always fully on it
-    const dx = Math.random() * (window.innerWidth - r.width - 40) + 20 - r.left;
-    const dy = Math.random() * (window.innerHeight - r.height - 40) + 20 - r.top;
-    const [x0, y0] = (button.dataset.o2Dodge ?? "0,0").split(",").map(Number);
-    button.dataset.o2Dodge = `${x0 + dx},${y0 + dy}`;
-    button.style.transition = "transform 0.18s ease";
-    button.style.transform = `translate(${x0 + dx}px, ${y0 + dy}px)`;
-    button.style.zIndex = "1000";
-    moved.add(button);
+const isFake = (target: EventTarget | null) => !!fake && target instanceof Node && fake.contains(target);
+
+// the copy jumps somewhere else on screen (always fully on it)
+function moveFake() {
+    if (!fake) return;
+    const w = fake.offsetWidth, h = fake.offsetHeight;
+    fake.style.left = `${Math.round(Math.random() * (window.innerWidth - w - 40) + 20)}px`;
+    fake.style.top = `${Math.round(Math.random() * (window.innerHeight - h - 40) + 20)}px`;
+}
+
+function runAway(button: HTMLElement) {
+    if (!fake) {
+        const r = button.getBoundingClientRect();
+        fake = document.createElement("div");
+        fake.className = "o2-sj-fake";
+        fake.style.width = `${r.width}px`;
+        fake.style.height = `${r.height}px`;
+        fake.style.left = `${r.left}px`;
+        fake.style.top = `${r.top}px`;
+        // a copy of the button itself, so it looks like the real one running off
+        const copy = button.cloneNode(true) as HTMLElement;
+        copy.style.width = "100%";
+        copy.style.height = "100%";
+        fake.append(copy);
+        document.body.append(fake);
+        fake.getBoundingClientRect(); // place it first, then let it slide away
+    }
+    button.style.visibility = "hidden";
+    hidden.add(button);
+    moveFake();
 }
 
 function putButtonsBack() {
-    for (const b of moved) {
-        b.style.transform = "";
-        b.style.zIndex = "";
-        delete b.dataset.o2Dodge;
-    }
-    moved.clear();
+    for (const b of hidden) b.style.visibility = "";
+    hidden.clear();
+    fake?.remove();
+    fake = null;
 }
 
 function onPointerOver(e: PointerEvent) {
     if (done || boxOpen || dodges >= DODGES || !isTarget()) return;
+    if (isFake(e.target)) {
+        dodges++;
+        moveFake();
+        return;
+    }
     const button = soundboardButton(e.target);
     if (!button) return;
     dodges++;
-    dodge(button);
+    runAway(button);
 }
 
-function onClick(e: MouseEvent) {
+// caught it (the copy, or the real one once it stays put): no soundboard, the box instead.
+// Pressing is blocked too - Discord opens the soundboard on the press, before the click.
+function onPress(e: MouseEvent) {
     if (done || !isTarget()) return;
-    if (!soundboardButton(e.target)) return;
+    if (!isFake(e.target) && !soundboardButton(e.target)) return;
     e.preventDefault();
     e.stopImmediatePropagation();
-    openSorryBox();
+    if (e.type === "click") openSorryBox();
 }
 
+const PRESS_EVENTS = ["pointerdown", "mousedown", "mouseup", "click"] as const;
+
+function listen(on: boolean) {
+    const f = on ? document.addEventListener : document.removeEventListener;
+    f.call(document, "pointerover", onPointerOver as EventListener, true);
+    for (const t of PRESS_EVENTS) f.call(document, t, onPress as EventListener, true);
+}
 function ClaudeMark() {
     return (
         <svg className="o2-sj-mark" viewBox="0 0 24 24" aria-hidden="true">
@@ -156,13 +190,11 @@ export default definePlugin({
     async start() {
         done = !!(await DataStore.get(DONE_KEY));
         if (done) return;
-        document.addEventListener("pointerover", onPointerOver, true);
-        document.addEventListener("click", onClick, true);
+        listen(true);
     },
 
     stop() {
-        document.removeEventListener("pointerover", onPointerOver, true);
-        document.removeEventListener("click", onClick, true);
+        listen(false);
         putButtonsBack();
     },
 
@@ -173,7 +205,8 @@ export default definePlugin({
         await DataStore.del(DONE_KEY);
         done = false;
         dodges = 0;
-        document.addEventListener("pointerover", onPointerOver, true);
-        document.addEventListener("click", onClick, true);
+        putButtonsBack();
+        listen(false);
+        listen(true);
     }
 });

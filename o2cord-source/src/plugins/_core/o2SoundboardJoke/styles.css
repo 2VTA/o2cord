@@ -102,3 +102,12 @@
     font-size: 11px;
     cursor: pointer;
 }
+
+/* the floating copy of the soundboard button that runs around the screen */
+.o2-sj-fake {
+    position: fixed;
+    z-index: 10002;
+    display: flex;
+    transition: left 0.18s ease, top 0.18s ease;
+}
+
