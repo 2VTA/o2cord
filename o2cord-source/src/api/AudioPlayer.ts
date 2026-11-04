@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
-import { findByCodeLazy, findLazy } from "@webpack";
+import { findByCodeLazy, findLazy, wreq } from "@webpack";
 
 let defaultSounds: null | string[] = null;
 const findDefaultSounds = findLazy(module => module.resolve && module.id && module.keys().some(key => key.endsWith(".mp3")), false);
@@ -249,12 +249,40 @@ export function removeAudioProcessor(key: string): void {
     delete audioProcessorFunctions[key];
 }
 
-/** Returns an array of all internal Discord audio filenames. */
-export function defaultAudioNames(): string[] {
-    defaultSounds ??= (findDefaultSounds.keys() || []).map(key => {
-        const match = key.match(/((?:\w|-)+)\.mp3$/);
-        return match ? match[1] : null;
-    }).filter(Boolean) as string[];
+const soundName = (key: string) => key.match(/((?:\w|-)+)\.mp3$/)?.[1] ?? null;
 
-    return defaultSounds;
+// Discord's sounds are a webpack "context" module: `var i={"./activity_end.mp3":"440261",...}`.
+// While Discord is starting that module is often not loaded yet, so it can't be found with a
+// search - but its factory (the source) is already there and lists every file name.
+function soundNamesFromFactories(): string[] | null {
+    const factories = wreq?.m;
+    if (!factories) return null;
+    for (const id in factories) {
+        try {
+            const source = String(factories[id]);
+            if (source.length > 20000 || !source.includes(".mp3\"") || !source.includes("{\"./")) continue;
+            const names = [...source.matchAll(/"\.\/((?:\w|-)+)\.mp3"/g)].map(m => m[1]);
+            if (names.length > 5) return names;
+        } catch { /* a factory that can't be read is not the one */ }
+    }
+    return null;
+}
+
+/**
+ * Returns an array of all internal Discord audio filenames. Never throws: Discord creates its
+ * audio players while it is still loading, and an error here would stop Discord from starting.
+ * An empty answer is not remembered, so it is asked again once the sounds are available.
+ */
+export function defaultAudioNames(): string[] {
+    if (defaultSounds) return defaultSounds;
+
+    let names: string[] | null = null;
+    try {
+        names = ((findDefaultSounds.keys() || []) as string[]).map(soundName).filter(Boolean) as string[];
+    } catch { /* not loaded yet - read it from the factories below */ }
+
+    if (!names?.length) names = soundNamesFromFactories();
+    if (!names?.length) return [];
+
+    return (defaultSounds = names);
 }

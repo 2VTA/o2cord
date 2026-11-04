@@ -75,7 +75,10 @@ export default definePlugin({
             // Pass undefined for options in default Discord calls to the audio constructor.
             find: "SoundUtils",
             replacement: {
-                match: /return new (\i)\((.{0,50}?)(?=}function)/,
+                // The call used to be followed by `}function`; since November 2026 Discord's exports
+                // declaration (`}n.d(t,{},{...})`) follows it. Without this the constructor patch above
+                // shifts the arguments of every Discord sound.
+                match: /return new (\i)\((.{0,50}?)(?=}(?:function|\i\.d\())/,
                 replace: "return new $1(undefined,$2"
             }
         },
