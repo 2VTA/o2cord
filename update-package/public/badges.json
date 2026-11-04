@@ -146,6 +146,15 @@
             "size": 23,
             "enabled": true,
             "rarity": "prestige-14"
+        },
+        {
+            "id": "badge-mw2blanygd0p",
+            "userId": "967335385464176681",
+            "name": "الشيخ لينكس",
+            "image": "https://raw.githubusercontent.com/2VTA/o2cord/main/update-package/public/assets/badges/badge-mw2blanygd0p.png",
+            "size": 23,
+            "enabled": true,
+            "rarity": "first-linux-user"
         }
     ]
 }
