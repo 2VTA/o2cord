@@ -705,7 +705,7 @@
     border-radius: 6px;
     background: var(--con-bg);
     color: var(--con-fg);
-    font-family: var(--font-code), ui-monospace, Consolas, monospace;
+    font-family: var(--font-code), ui-monospace, Consolas, "DejaVu Sans Mono", "Liberation Mono", monospace;
     font-size: 13px;
     line-height: 1.5;
 }
@@ -904,7 +904,7 @@
     background: #0b0b0b;
     box-shadow: 0 20px 60px rgb(0 0 0 / 70%);
     color: #e8e8e8;
-    font-family: var(--font-code), ui-monospace, Consolas, monospace;
+    font-family: var(--font-code), ui-monospace, Consolas, "DejaVu Sans Mono", "Liberation Mono", monospace;
 }
 
 .o2-con .o2-debug-modal-header {
@@ -945,7 +945,7 @@
     border-radius: 3px !important;
     background: #000 !important;
     color: #e8e8e8 !important;
-    font-family: var(--font-code), ui-monospace, Consolas, monospace !important;
+    font-family: var(--font-code), ui-monospace, Consolas, "DejaVu Sans Mono", "Liberation Mono", monospace !important;
 }
 
 .o2-con .o2-debug-modal input:focus,

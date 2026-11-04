@@ -24,9 +24,9 @@ import { debounce } from "@shared/debounce";
 import { IpcEvents } from "@shared/IpcEvents";
 import { BrowserWindow, ipcMain, nativeTheme, shell, systemPreferences } from "electron";
 import monacoHtml from "file://monacoWin.html?minify&base64";
-import { FSWatcher, mkdirSync, readFileSync, watch, writeFileSync } from "fs";
+import { existsSync, FSWatcher, mkdirSync, readFileSync, watch, writeFileSync } from "fs";
 import { open, readdir, readFile } from "fs/promises";
-import { release } from "os";
+import { homedir, release } from "os";
 import { join, normalize } from "path";
 
 import { registerCspIpcHandlers } from "./csp/manager";
@@ -111,7 +111,17 @@ ipcMain.handle(IpcEvents.GET_THEME_SYSTEM_VALUES, () => {
 
 ipcMain.handle(IpcEvents.OPEN_THEMES_FOLDER, () => shell.openPath(THEMES_DIR));
 ipcMain.handle(IpcEvents.OPEN_SETTINGS_FOLDER, () => shell.openPath(SETTINGS_DIR));
-ipcMain.handle(IpcEvents.OPEN_O2CORD_FOLDER, () => shell.openPath(process.env.LOCALAPPDATA ? join(process.env.LOCALAPPDATA, "o2cord") : DATA_DIR));
+// where o2cord's own files live: %LOCALAPPDATA%\o2cord on Windows, ~/.local/share/o2cord on Linux
+// (the Linux installer puts them there); anywhere else, the settings folder
+function o2cordFolder() {
+    if (process.env.LOCALAPPDATA) return join(process.env.LOCALAPPDATA, "o2cord");
+    if (process.platform === "linux") {
+        const dir = join(process.env.XDG_DATA_HOME || join(homedir(), ".local", "share"), "o2cord");
+        if (existsSync(dir)) return dir;
+    }
+    return DATA_DIR;
+}
+ipcMain.handle(IpcEvents.OPEN_O2CORD_FOLDER, () => shell.openPath(o2cordFolder()));
 
 ipcMain.handle(IpcEvents.INIT_FILE_WATCHERS, ({ sender }) => {
     let quickCssWatcher: FSWatcher | undefined;

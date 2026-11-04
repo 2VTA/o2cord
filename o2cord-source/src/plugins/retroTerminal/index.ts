@@ -550,7 +550,7 @@ html, body { background: #0a0806 !important; }
     /* Fonts that all have the full-block and box-drawing glyphs at one width,
        so the letters line up - a retro font missing them would fall back
        per glyph and skew the rows. */
-    font-family: "Cascadia Mono", Consolas, "Courier New", monospace !important;
+    font-family: "Cascadia Mono", Consolas, "DejaVu Sans Mono", "Liberation Mono", "Courier New", monospace !important;
     /* Sized to the logo's width so a wide one still fits the 300px window
        (~0.55em per character in these fonts, 22px screen padding a side). */
     font-size: min(19px, calc((100vw - 44px) / ${(logoCols * 0.55).toFixed(2)}));

@@ -282,7 +282,7 @@ ${LOADER}::before,
 ${LOADER}::after {
     position: fixed;
     left: 52px;
-    font-family: "VT323", Consolas, monospace;
+    font-family: "VT323", Consolas, "DejaVu Sans Mono", "Liberation Mono", monospace;
     color: #fff;
     white-space: pre;
     text-shadow: ${osdShadow};
@@ -428,7 +428,7 @@ html, body { background: #06107a !important; }
     inset: 0 !important;
     overflow: hidden;
     background: radial-gradient(ellipse at 50% 45%, #1730d0 0%, ${VCR_BLUE} 60%, #06107a 100%) !important;
-    font-family: "VT323", Consolas, monospace !important;
+    font-family: "VT323", Consolas, "DejaVu Sans Mono", "Liberation Mono", monospace !important;
 }
 
 /* interlace lines, darker edges, and the head-switching strip along the bottom */
@@ -484,7 +484,7 @@ html, body { background: #06107a !important; }
     bottom: 26px;
     max-width: calc(100vw - 48px);
     text-align: left !important;
-    font-family: "VT323", Consolas, monospace !important;
+    font-family: "VT323", Consolas, "DejaVu Sans Mono", "Liberation Mono", monospace !important;
     font-size: 20px !important;
     line-height: 1.1 !important;
     text-transform: uppercase;
@@ -509,7 +509,7 @@ html, body { background: #06107a !important; }
 }
 
 .splash-build-override {
-    font-family: "VT323", Consolas, monospace !important;
+    font-family: "VT323", Consolas, "DejaVu Sans Mono", "Liberation Mono", monospace !important;
     color: #fff !important;
 }
 

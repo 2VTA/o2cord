@@ -63,7 +63,7 @@
     background: #000;
     border: 1px solid #e8e8e8;
     color: #fff;
-    font-family: "Consolas", "gg mono", monospace;
+    font-family: "Consolas", "gg mono", "DejaVu Sans Mono", "Liberation Mono", monospace;
     font-size: 11px;
     line-height: 16px;
     letter-spacing: 1px;

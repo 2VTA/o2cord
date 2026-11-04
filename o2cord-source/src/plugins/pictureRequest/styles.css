@@ -23,7 +23,7 @@
     background: var(--con-bg);
     box-shadow: 0 12px 40px rgb(0 0 0 / 60%);
     color: var(--con-fg);
-    font-family: var(--font-code), ui-monospace, Consolas, monospace;
+    font-family: var(--font-code), ui-monospace, Consolas, "DejaVu Sans Mono", "Liberation Mono", monospace;
     font-size: 13px;
     line-height: 1.5;
 }
