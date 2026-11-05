@@ -687,50 +687,58 @@ sealed class InstallerForm : Form
         Log($"{target.Variant.DisplayName} uninstalled.");
     }
 
+    // Files are written over the existing dist folder one by one instead of moving the folder away and
+    // putting a new one in its place. A Discord that is running (or starting) while the installer works
+    // always finds a complete dist, and a locked file (koffi.node of a running Discord) can't fail the install.
     private void ExtractDist(string targetDistDir)
     {
         Log("Extracting bundled o2cord files...");
         var parent = Path.GetDirectoryName(targetDistDir)!;
         Directory.CreateDirectory(parent);
-        var staging = Path.Combine(parent, "dist.staging-" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(staging);
+        Directory.CreateDirectory(targetDistDir);
 
         using var stream = Assembly.GetExecutingAssembly().GetManifestResourceStream("dist.zip")
             ?? throw new InvalidOperationException("Embedded o2cord payload was not found.");
         using var archive = new ZipArchive(stream, ZipArchiveMode.Read);
 
+        if (!archive.Entries.Any(e => e.FullName == "patcher.js") || !archive.Entries.Any(e => e.FullName == "renderer.js"))
+            throw new InvalidOperationException("The bundled o2cord payload is incomplete.");
+
+        var root = Path.GetFullPath(targetDistDir) + Path.DirectorySeparatorChar;
         foreach (var entry in archive.Entries)
         {
             if (string.IsNullOrWhiteSpace(entry.Name)) continue;
 
-            var destination = Path.GetFullPath(Path.Combine(staging, entry.FullName));
-            if (!destination.StartsWith(staging + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
+            var destination = Path.GetFullPath(Path.Combine(targetDistDir, entry.FullName));
+            if (!destination.StartsWith(root, StringComparison.OrdinalIgnoreCase))
                 throw new InvalidOperationException("The embedded payload contains an unsafe path.");
 
-            var destinationDir = Path.GetDirectoryName(destination);
-            if (!string.IsNullOrEmpty(destinationDir))
-                Directory.CreateDirectory(destinationDir);
-
-            entry.ExtractToFile(destination, true);
+            Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
+            var temp = destination + ".o2new";
+            try
+            {
+                entry.ExtractToFile(temp, true);
+                File.Move(temp, destination, true);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                try { File.Delete(temp); } catch { }
+                // native files of a running Discord are locked; they are the same version, so keep them
+                var native = destination.EndsWith(".node", StringComparison.OrdinalIgnoreCase)
+                    || destination.EndsWith(".dll", StringComparison.OrdinalIgnoreCase);
+                if (native && File.Exists(destination))
+                    Log($"Keeping {entry.FullName} (in use by a running Discord).");
+                else
+                    throw;
+            }
         }
 
-        if (!File.Exists(Path.Combine(staging, "patcher.js")) || !File.Exists(Path.Combine(staging, "renderer.js")))
-            throw new InvalidOperationException("The bundled o2cord payload is incomplete.");
-
-        var previous = targetDistDir + ".previous";
-        if (Directory.Exists(previous)) DeleteDirectory(previous);
-        if (Directory.Exists(targetDistDir)) Retry(() => Directory.Move(targetDistDir, previous), "Replacing previous o2cord files");
-
-        try
+        // leftovers of the old install method; best effort only
+        foreach (var leftover in Directory.GetDirectories(parent))
         {
-            Directory.Move(staging, targetDistDir);
-            if (Directory.Exists(previous)) DeleteDirectory(previous);
-        }
-        catch
-        {
-            if (!Directory.Exists(targetDistDir) && Directory.Exists(previous))
-                Directory.Move(previous, targetDistDir);
-            throw;
+            var name = Path.GetFileName(leftover);
+            if (!name.StartsWith("dist.", StringComparison.OrdinalIgnoreCase)) continue; // never the live dist folder itself
+            try { DeleteDirectory(leftover); } catch { }
         }
     }
 
