@@ -1342,3 +1342,132 @@
     background: rgba(255, 255, 255, 0.1);
     color: var(--text-default, #c0c0c0);
 }
+
+/* ── badge box in the look of Discord's "Your badges" window ── */
+.cp2-detail {
+    gap: 10px;
+    padding: 20px 16px 16px;
+}
+
+.cp2-detail-art {
+    width: 150px;
+    height: 150px;
+}
+
+.cp2-detail-name {
+    font-size: 28px;
+    font-style: italic;
+    font-weight: 900;
+    letter-spacing: 0.03em;
+    line-height: 1.1;
+    text-transform: uppercase;
+    text-shadow: 0 0 12px rgba(255, 255, 255, 0.35);
+}
+
+.cp2-detail-status {
+    color: var(--text-muted, #888);
+    font-size: 11px;
+}
+
+.cp2-detail-status--on {
+    color: #3ba55d;
+}
+
+.cp2-progress {
+    width: 100%;
+    padding: 14px 16px;
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.045);
+    text-align: left;
+}
+
+.cp2-progress-title {
+    margin-bottom: 10px;
+    color: var(--header-primary, #fff);
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.cp2-progress-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.cp2-progress-row > img {
+    width: 30px;
+    height: 30px;
+    flex: none;
+    object-fit: contain;
+}
+
+.cp2-progress-mid {
+    display: flex;
+    min-width: 0;
+    flex: 1;
+    flex-direction: column;
+    gap: 6px;
+    color: var(--header-primary, #fff);
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.cp2-bar {
+    height: 6px;
+    overflow: hidden;
+    border-radius: 6px;
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.cp2-bar > i {
+    display: block;
+    height: 100%;
+    border-radius: 6px;
+    background: var(--text-default, #c0c0c0);
+    transition: width 0.25s;
+}
+
+.cp2-progress-line {
+    height: 1px;
+    margin: 12px 0 10px;
+    background: rgba(255, 255, 255, 0.08);
+}
+
+.cp2-progress .cp2-detail-text {
+    max-width: none;
+    color: var(--header-primary, #e0e0e0);
+    font-size: 12px;
+    text-align: left;
+}
+
+.cp2-tier-grid {
+    display: grid;
+    width: 100%;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 6px 4px;
+    padding-top: 4px;
+}
+
+.cp2-tier-grid .cp2-tier {
+    width: auto;
+    padding: 8px 2px 6px;
+    font-size: 10px;
+    text-transform: none;
+}
+
+.cp2-tier b {
+    color: var(--header-primary, #e0e0e0);
+    font-size: 11px;
+    font-weight: 800;
+}
+
+.cp2-tier small {
+    color: var(--text-muted, #888);
+    font-size: 9px;
+    font-weight: 500;
+}
+
+.cp2-tier-grid .cp2-tier img {
+    width: 38px;
+    height: 38px;
+}

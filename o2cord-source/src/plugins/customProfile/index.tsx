@@ -1298,27 +1298,48 @@ function BadgePicker({ selected, onChange, nitroType, onNitroType, boostLevel, o
             {entries.map(e => <BadgeBtn key={e.id} label={e.label} icon={e.icon} active={e.on} focused={e.id === shown?.id} onClick={() => click(e)} />)}
         </div>
     );
-    const activeTier = shown?.tiers.find(x => x.on);
+    const activeIndex = shown ? shown.tiers.findIndex(x => x.on) : -1;
+    const activeTier = activeIndex >= 0 ? shown?.tiers[activeIndex] : undefined;
+    const nextTier = shown && shown.tiers.length ? shown.tiers[activeIndex + 1] : undefined;
+    const progressPct = shown && shown.tiers.length ? Math.round(((activeIndex + 1) / shown.tiers.length) * 100) : 0;
 
     return (
         <div className="cp-field">
             {shown && (
                 <div className="cp2-detail">
                     <div className="cp2-detail-art">{shown.art && <img src={shown.art} alt="" draggable={false} />}</div>
-                    <div className="cp2-detail-name">{shown.label}{activeTier ? ` · ${activeTier.name}` : ""}</div>
+                    <div className="cp2-detail-name">{shown.label}{activeTier ? ` ${activeTier.name}` : ""}</div>
                     <div className="cp2-detail-meta">
+                        <span className={`cp2-detail-status ${shown.on ? "cp2-detail-status--on" : ""}`}>{shown.on ? t("On your profile") : t("Not added")}</span>
                         {shown.rarity != null && <span className="cp2-chip">◆ {(RARITY_NAMES[shown.rarity] ?? "").toUpperCase()}</span>}
-                        <span className={`cp2-chip ${shown.on ? "cp2-chip--on" : ""}`}>{shown.on ? t("On your profile") : t("Not added")}</span>
                     </div>
-                    {shown.description && <div className="cp2-detail-text">{shown.description}</div>}
+
                     {shown.tiers.length > 0 && (
-                        <div className="cp2-tier-row">
+                        <div className="cp2-progress">
+                            <div className="cp2-progress-title">{t("Your progress")}</div>
+                            <div className="cp2-progress-row">
+                                <img src={(activeTier ?? shown.tiers[0]).icon} alt="" draggable={false} />
+                                <div className="cp2-progress-mid">
+                                    <span>{nextTier ? `${t("Next")}: ${nextTier.name}${nextTier.milestone ? ` · ${nextTier.milestone}` : ""}` : t("Highest level")}</span>
+                                    <div className="cp2-bar"><i style={{ width: `${progressPct}%` }} /></div>
+                                </div>
+                                <img src={(nextTier ?? shown.tiers[shown.tiers.length - 1]).icon} alt="" draggable={false} />
+                            </div>
+                            <div className="cp2-progress-line" />
+                            {shown.description && <div className="cp2-detail-text">{shown.description}</div>}
+                        </div>
+                    )}
+                    {shown.tiers.length === 0 && shown.description && <div className="cp2-detail-text">{shown.description}</div>}
+
+                    {shown.tiers.length > 0 && (
+                        <div className="cp2-tier-grid">
                             {shown.tiers.map(x => (
                                 <button key={x.key} type="button" className={`cp2-tier ${x.on ? "cp2-tier--on" : ""}`}
                                     title={x.milestone ? `${x.name} · ${x.milestone}` : x.name}
                                     onClick={() => { x.pick(); setFocusId(shown.id); }}>
                                     <img src={x.icon} alt="" draggable={false} />
-                                    <span>{x.name}</span>
+                                    <b>{x.name}</b>
+                                    {x.milestone && <small>{x.milestone}</small>}
                                 </button>
                             ))}
                         </div>
