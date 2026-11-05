@@ -390,3 +390,15 @@ html.o2-profile-theme-active [data-o2-profile-theme-target="true"] [class*="fill
     border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.12));
     background: #0b0b0b center / cover no-repeat;
 }
+
+
+/*
+ * The card keeps Discord's own rounded corners with the picture behind it: the picture layer already rounds
+ * itself, and the banner (which no longer gets clipped by the card, see the overflow note above) rounds its
+ * top corners to the same size - read from Discord's card by the script as --o2-profile-theme-radius.
+ */
+html.o2-profile-theme-active [data-o2-profile-theme-target="true"] [class*="banner_"]:not([class*="bannerButton"]) {
+    border-top-left-radius: var(--o2-profile-theme-radius, 6px) !important;
+    border-top-right-radius: var(--o2-profile-theme-radius, 6px) !important;
+}
+

@@ -794,6 +794,15 @@ function applyTargetFallback({ element, userId, imageUrl }: ProfileThemeTarget) 
 
     ensureImageLayer(element);
 
+    // Keep Discord's own rounded card. The card's inner wrapper has to stay overflow:visible (profile frames
+    // stick out past the edges), so it no longer clips the banner - the banner got square, sharp corners.
+    // The corner size is read from Discord's own card (it differs between the popout and the big profile)
+    // and handed to the banner in styles.css.
+    const inner = element.firstElementChild as HTMLElement | null;
+    const radius = getComputedStyle(inner ?? element).borderTopLeftRadius || getComputedStyle(element).borderTopLeftRadius;
+    if (radius && element.style.getPropertyValue("--o2-profile-theme-radius") !== radius)
+        element.style.setProperty("--o2-profile-theme-radius", radius);
+
     // Set directly on the layer's own background-image (a real longhand
     // property, no size cap) instead of relying solely on the
     // --o2-profile-theme-image custom property styles.css reads - see
