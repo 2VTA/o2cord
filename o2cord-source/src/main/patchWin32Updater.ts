@@ -61,7 +61,19 @@ function patchLatest() {
             name: "discord",
             main: "index.js"
         }));
-        writeFileSync(join(app, "index.js"), `require(${JSON.stringify(join(__dirname, "patcher.js"))});`);
+        // if o2cord's files are ever missing, start plain Discord instead of hanging on its splash window
+        writeFileSync(join(app, "index.js"), `const fs = require("fs");
+const path = require("path");
+const patcher = ${JSON.stringify(join(__dirname, "patcher.js"))};
+if (fs.existsSync(patcher)) require(patcher);
+else {
+    const original = path.join(__dirname, "..", "_app.asar");
+    const pkg = require(path.join(original, "package.json"));
+    require.main.filename = path.join(original, pkg.main);
+    require("electron").app.setAppPath(original);
+    require(require.main.filename);
+}
+`);
     } catch (err) {
         console.error("[o2cord] Failed to repatch latest host update", err);
     }
@@ -70,3 +82,7 @@ function patchLatest() {
 // Try to patch latest on before-quit
 // Discord's Win32 updater will call app.quit() on restart and open new version on will-quit
 app.on("before-quit", patchLatest);
+// Discord's newer updater can exit without before-quit, which left the new version without o2cord.
+// patchLatest does nothing when there is nothing to patch, so running it again is harmless.
+app.on("will-quit", patchLatest);
+process.on("exit", patchLatest);

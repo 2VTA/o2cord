@@ -745,8 +745,14 @@ sealed class InstallerForm : Form
             "const fs = require(\"fs\");\n" +
             "const path = require(\"path\");\n" +
             "const patcherPath = path.join(process.env.LOCALAPPDATA, \"o2cord\", \"dist\", \"patcher.js\");\n" +
-            "if (!fs.existsSync(patcherPath)) throw new Error(\"[o2cord] patcher.js not found: \" + patcherPath);\n" +
-            "require(patcherPath);\n";
+            "if (fs.existsSync(patcherPath)) require(patcherPath);\n" +
+            "else {\n" +
+            "    const original = path.join(__dirname, \"..\", \"_app.asar\");\n" +
+            "    const pkg = require(path.join(original, \"package.json\"));\n" +
+            "    require.main.filename = path.join(original, pkg.main);\n" +
+            "    require(\"electron\").app.setAppPath(original);\n" +
+            "    require(require.main.filename);\n" +
+            "}\n";
         File.WriteAllText(Path.Combine(appAsar, "index.js"), loader);
     }
 
