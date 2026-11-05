@@ -1195,12 +1195,13 @@ function Toggle({ label, checked, onChange, sublabel }: { label: string; checked
     );
 }
 
+// A badge as a square tile, like Discord's own "Your badges" window: just the icon, the name is in the
+// tooltip, and the ones you picked get an outline. Entries without an icon (the "None" choices) show their text.
 function BadgeBtn({ label, icon, active, onClick }: { label: string; icon?: string; active: boolean; onClick: () => void; }) {
     return (
-        <button onClick={onClick} className={`cp-badge ${active ? "cp-badge--on" : ""}`}
-            style={{ display: "flex", alignItems: "center", gap: 5 }}>
-            {icon && <img src={icon} alt="" style={{ width: 16, height: 16, objectFit: "contain", flexShrink: 0 }} />}
-            <span>{label}</span>
+        <button type="button" onClick={onClick} title={label} aria-label={label} aria-pressed={active}
+            className={`cp2-tile ${active ? "cp2-tile--on" : ""} ${icon ? "" : "cp2-tile--text"}`}>
+            {icon ? <img src={icon} alt="" draggable={false} /> : <span>{label}</span>}
         </button>
     );
 }
@@ -1216,14 +1217,14 @@ function BadgePicker({ selected, onChange, nitroType, onNitroType, boostLevel, o
     return (
         <div className="cp-field">
             <SectionLabel>{t("Badges")}</SectionLabel>
-            <div className="cp-badges">
+            <div className="cp2-tiles">
                 {BADGES.map(b => (
                     <BadgeBtn key={b.flag} label={b.label} icon={b.icon}
                         active={!!(selected & b.flag)} onClick={() => onChange(selected ^ b.flag)} />
                 ))}
             </div>
             <SectionLabel style={{ marginTop: 8 }}>{t("Evolving Nitro Badge")}</SectionLabel>
-            <div className="cp-badges">
+            <div className="cp2-tiles">
                 <BadgeBtn label={t("None")} active={nitroType === -1} onClick={() => onNitroType(-1)} />
                 {NITRO_LEVELS.map((n, i) => (
                     <BadgeBtn key={i} label={n.label} icon={n.icon} active={nitroType === i} onClick={() => {
@@ -1234,7 +1235,7 @@ function BadgePicker({ selected, onChange, nitroType, onNitroType, boostLevel, o
                 ))}
             </div>
             <SectionLabel style={{ marginTop: 8 }}>{t("Special Badges")}</SectionLabel>
-            <div className="cp-badges">
+            <div className="cp2-tiles">
                 <BadgeBtn label={t("Completed a quest")}
                     icon="https://cdn.discordapp.com/badge-icons/7d9ae358c8c5e118768335dbe68b4fb8.png"
                     active={customIds.includes("quest")}
@@ -1257,7 +1258,7 @@ function BadgePicker({ selected, onChange, nitroType, onNitroType, boostLevel, o
                 </div>
             )}
             <SectionLabel style={{ marginTop: 8 }}>{t("Boost Badge (Server Booster)")}</SectionLabel>
-            <div className="cp-badges">
+            <div className="cp2-tiles">
                 <BadgeBtn label={t("None")} active={boostLevel === -1} onClick={() => onBoostLevel(-1)} />
                 {BOOST_LABELS.map((lbl, i) => (
                     <BadgeBtn key={i} label={lbl} icon={BOOST_ICONS[i]} active={boostLevel === i} onClick={() => onBoostLevel(i)} />
