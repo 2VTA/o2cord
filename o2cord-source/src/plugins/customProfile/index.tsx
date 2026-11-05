@@ -21,6 +21,7 @@ import virtualMerge from "virtual-merge";
 import { sendRequest as sendToCallie } from "../callieRequests";
 import { PROFILE_EFFECTS, CustomProfileEffect } from "./profileEffects";
 import { PROFILE_FRAMES, CustomProfileFrame } from "./profileFrames";
+import { dirBadge, DirBadge, RARITY_NAMES } from "./badgeCatalog";
 
 const t = (text: string) => text;
 
@@ -43,23 +44,23 @@ const FLAG = {
 };
 
 const BADGES = [
-    { label: t("Staff Discord"), flag: FLAG.STAFF, icon: "https://cdn.discordapp.com/badge-icons/5e74e9b61934fc1f67c65515d1f7e60d.png" },
-    { label: t("Partenaire"), flag: FLAG.PARTNER, icon: "https://cdn.discordapp.com/badge-icons/3f9748e53446a137a052f3454e2de41e.png" },
-    { label: t("HypeSquad Events"), flag: FLAG.HYPESQUAD, icon: "https://cdn.discordapp.com/badge-icons/bf01d1073931f921909045f3a39fd264.png" },
-    { label: t("Bug Hunter Lvl 1"), flag: FLAG.BUG_HUNTER_1, icon: "https://cdn.discordapp.com/badge-icons/2717692c7dca7289b35297368a940dd0.png" },
-    { label: t("HypeSquad Bravery"), flag: FLAG.BRAVERY, icon: "https://cdn.discordapp.com/badge-icons/8a88d63823d8a71cd5e390baa45efa02.png" },
-    { label: t("HypeSquad Brilliance"), flag: FLAG.BRILLIANCE, icon: "https://cdn.discordapp.com/badge-icons/011940fd013da3f7fb926e4a1cd2e618.png" },
-    { label: t("HypeSquad Balance"), flag: FLAG.BALANCE, icon: "https://cdn.discordapp.com/badge-icons/3aa41de486fa12454c3761e8e223442e.png" },
-    { label: t("Early Supporter"), flag: FLAG.EARLY_SUPPORTER, icon: "https://cdn.discordapp.com/badge-icons/7060786766c9c840eb3019e725d2b358.png" },
-    { label: t("Former Moderator"), flag: FLAG.MOD_ALUMNI, icon: "https://cdn.discordapp.com/badge-icons/fee1624003e2fee35cb398e125dc479b.png" },
-    { label: t("Bug Hunter Lvl 2"), flag: FLAG.BUG_HUNTER_2, icon: "https://cdn.discordapp.com/badge-icons/848f79194d4be5ff5f81505cbd0ce1e6.png" },
-    { label: t("Verified Developer"), flag: FLAG.DEV_VERIFIED, icon: "https://cdn.discordapp.com/badge-icons/6df5892e0f35b051f8b61eace34f4967.png" },
+    { label: t("Staff Discord"), flag: FLAG.STAFF, dirId: 22, icon: "https://cdn.discordapp.com/badge-icons/5e74e9b61934fc1f67c65515d1f7e60d.png" },
+    { label: t("Partenaire"), flag: FLAG.PARTNER, dirId: 2, icon: "https://cdn.discordapp.com/badge-icons/3f9748e53446a137a052f3454e2de41e.png" },
+    { label: t("HypeSquad Events"), flag: FLAG.HYPESQUAD, dirId: 4, icon: "https://cdn.discordapp.com/badge-icons/bf01d1073931f921909045f3a39fd264.png" },
+    { label: t("Bug Hunter Lvl 1"), flag: FLAG.BUG_HUNTER_1, dirId: 8, icon: "https://cdn.discordapp.com/badge-icons/2717692c7dca7289b35297368a940dd0.png" },
+    { label: t("HypeSquad Bravery"), flag: FLAG.BRAVERY, dirId: 5, icon: "https://cdn.discordapp.com/badge-icons/8a88d63823d8a71cd5e390baa45efa02.png" },
+    { label: t("HypeSquad Brilliance"), flag: FLAG.BRILLIANCE, dirId: 6, icon: "https://cdn.discordapp.com/badge-icons/011940fd013da3f7fb926e4a1cd2e618.png" },
+    { label: t("HypeSquad Balance"), flag: FLAG.BALANCE, dirId: 7, icon: "https://cdn.discordapp.com/badge-icons/3aa41de486fa12454c3761e8e223442e.png" },
+    { label: t("Early Supporter"), flag: FLAG.EARLY_SUPPORTER, dirId: 11, icon: "https://cdn.discordapp.com/badge-icons/7060786766c9c840eb3019e725d2b358.png" },
+    { label: t("Former Moderator"), flag: FLAG.MOD_ALUMNI, dirId: 3, icon: "https://cdn.discordapp.com/badge-icons/fee1624003e2fee35cb398e125dc479b.png" },
+    { label: t("Bug Hunter Lvl 2"), flag: FLAG.BUG_HUNTER_2, dirId: 9, icon: "https://cdn.discordapp.com/badge-icons/848f79194d4be5ff5f81505cbd0ce1e6.png" },
+    { label: t("Verified Developer"), flag: FLAG.DEV_VERIFIED, dirId: 10, icon: "https://cdn.discordapp.com/badge-icons/6df5892e0f35b051f8b61eace34f4967.png" },
     { label: t("Active Developer"), flag: FLAG.ACTIVE_DEVELOPER, icon: "https://cdn.discordapp.com/badge-icons/6bdc42827a38498929a4920da12695d9.png" },
 ];
 
 const OLD_NAME_BADGE_ICON = "https://cdn.discordapp.com/badge-icons/6de6d34650760ba5551a79732e98ed60.png";
 
-const NITRO_LEVELS = [
+const NITRO_LEVELS_OLD = [
     { label: t("Nitro (0 mois)"), icon: "https://cdn.discordapp.com/badge-icons/2ba85e8026a8614b640c2837bcdfe21b.png" },
     { label: t("Bronze (1 mois)"), icon: "https://cdn.discordapp.com/badge-icons/4f33c4a9c64ce221936bd256c356f91f.png" },
     { label: t("Argent (2 mois)"), icon: "https://cdn.discordapp.com/badge-icons/4514fab914bdbfb4ad2fa23df76121a6.png" },
@@ -71,13 +72,17 @@ const NITRO_LEVELS = [
     { label: t("Opale (72 mois)"), icon: "https://cdn.discordapp.com/badge-icons/5b154df19c53dce2af92c9b61e6be5e2.png" },
 ];
 
+// Same nine levels, with the pictures Discord uses now (falls back to the old links).
+const NITRO_DIR = dirBadge(1);
+const NITRO_LEVELS = NITRO_LEVELS_OLD.map((l, i) => ({ label: l.label, icon: NITRO_DIR?.tiers[i]?.icon ?? l.icon }));
+
 const BOOST_LABELS_RAW = [
     "1 Mois", "2 Mois", "3 Mois", "6 Mois",
     "9 Mois", "12 Mois", "15 Mois", "18 Mois", "24 Mois"
 ];
 const BOOST_LABELS = BOOST_LABELS_RAW.map(l => t(l));
 const BOOST_MONTHS = [1, 2, 3, 6, 9, 12, 15, 18, 24];
-const BOOST_ICONS = [
+const BOOST_ICONS_OLD = [
     "https://cdn.discordapp.com/badge-icons/51040c70d4f20a921ad6674ff86fc95c.png", // 1 mois
     "https://cdn.discordapp.com/badge-icons/0e4080d1d333bc7ad29ef6528b6f2fb7.png", // 2 mois
     "https://cdn.discordapp.com/badge-icons/72bed924410c304dbe3d00a6e593ff59.png", // 3 mois
@@ -88,6 +93,8 @@ const BOOST_ICONS = [
     "https://cdn.discordapp.com/badge-icons/7142225d31238f6387d9f09efaa02759.png", // 18 mois
     "https://cdn.discordapp.com/badge-icons/ec92202290b48d0879b7413d2dde3bab.png", // 24 mois
 ];
+const BOOST_DIR = dirBadge(12);
+const BOOST_ICONS = BOOST_ICONS_OLD.map((icon, i) => BOOST_DIR?.tiers[i]?.icon ?? icon);
 
 const AVATAR_DECORATIONS = [
     { id: "1144307957425778779", label: "Hearts" },
@@ -284,6 +291,16 @@ function getCustomProfileBadges(data: CustomProfileData): ProfileBadge[] {
     if (customIds.includes("oldname")) {
         const oldNameText = data.oldName ? `Old username: ${data.oldName}` : "Old username";
         badges.push(makeProfileBadge("oldname", oldNameText, OLD_NAME_BADGE_ICON));
+    }
+
+    // Badges from Discord's catalogue: "dir:<id>" or "dir:<id>:<tier>"
+    for (const raw of customIds) {
+        if (!raw.startsWith("dir:")) continue;
+        const [, idText, tierKey] = raw.split(":");
+        const dir = dirBadge(Number(idText));
+        if (!dir) continue;
+        const tier = tierKey ? dir.tiers.find(x => x.key === tierKey) : undefined;
+        badges.push(makeProfileBadge(`dir_${idText}_${tierKey ?? ""}`, tier ? `${dir.name} - ${tier.name}` : dir.name, tier?.icon ?? dir.icon));
     }
 
     return badges;
@@ -1196,14 +1213,20 @@ function Toggle({ label, checked, onChange, sublabel }: { label: string; checked
 }
 
 // A badge as a square tile, like Discord's own "Your badges" window: just the icon, the name is in the
-// tooltip, and the ones you picked get an outline. Entries without an icon (the "None" choices) show their text.
-function BadgeBtn({ label, icon, active, onClick }: { label: string; icon?: string; active: boolean; onClick: () => void; }) {
+// tooltip, and the ones you picked get an outline.
+function BadgeBtn({ label, icon, active, focused, onClick }: { label: string; icon?: string; active: boolean; focused?: boolean; onClick: () => void; }) {
     return (
         <button type="button" onClick={onClick} title={label} aria-label={label} aria-pressed={active}
-            className={`cp2-tile ${active ? "cp2-tile--on" : ""} ${icon ? "" : "cp2-tile--text"}`}>
+            className={`cp2-tile ${active ? "cp2-tile--on" : ""} ${focused ? "cp2-tile--focus" : ""} ${icon ? "" : "cp2-tile--text"}`}>
             {icon ? <img src={icon} alt="" draggable={false} /> : <span>{label}</span>}
         </button>
     );
+}
+
+interface PickTier { key: string; name: string; icon: string; milestone: string; on: boolean; pick: () => void; }
+interface PickEntry {
+    id: string; label: string; icon?: string; art?: string; rarity?: number; description?: string; leveling?: string;
+    on: boolean; tiers: PickTier[]; toggle: () => void;
 }
 
 function BadgePicker({ selected, onChange, nitroType, onNitroType, boostLevel, onBoostLevel, customIds, onCustomIds, oldName, onOldName }: {
@@ -1214,39 +1237,101 @@ function BadgePicker({ selected, onChange, nitroType, onNitroType, boostLevel, o
     oldName: string; onOldName: (v: string) => void;
 }) {
     const hasOldName = customIds.includes("oldname");
+    const [focusId, setFocusId] = React.useState<string | null>(null);
+
+    const toggleCustom = (id: string) => onCustomIds(customIds.includes(id) ? customIds.filter(x => x !== id) : [...customIds, id]);
+
+    // an evolving badge: `current` is the picked tier's index (-1 = not on the profile)
+    const evolving = (d: DirBadge, current: number, setTier: (i: number) => void): PickEntry => {
+        const tier = current >= 0 ? d.tiers[current] : undefined;
+        return {
+            id: `dir:${d.id}`, label: d.name, icon: tier?.icon ?? d.icon, art: tier?.art ?? d.art, rarity: tier?.rarity ?? d.rarity,
+            description: d.description, leveling: d.leveling, on: current >= 0,
+            tiers: d.tiers.map((x, i) => ({ key: x.key, name: x.name, icon: x.icon, milestone: x.milestone, on: i === current, pick: () => setTier(i) })),
+            toggle: () => setTier(current >= 0 ? -1 : 0)
+        };
+    };
+    const customEvolving = (id: number) => {
+        const d = dirBadge(id);
+        if (!d) return null;
+        const current = d.tiers.findIndex(x => customIds.includes(`dir:${id}:${x.key}`));
+        return evolving(d, current, i => {
+            const rest = customIds.filter(x => x !== `dir:${id}` && !x.startsWith(`dir:${id}:`));
+            onCustomIds(i >= 0 ? [...rest, `dir:${id}:${d.tiers[i].key}`] : rest);
+        });
+    };
+    const simple = (id: string, d: DirBadge | undefined, label: string, icon: string, on: boolean, toggle: () => void): PickEntry => ({
+        id, label, icon, art: d?.art ?? icon, rarity: d?.rarity, description: d?.description, leveling: d?.leveling, on, tiers: [], toggle
+    });
+
+    const flagEntries: PickEntry[] = BADGES.map(b => {
+        const d = b.dirId ? dirBadge(b.dirId) : undefined;
+        return simple(`flag:${b.flag}`, d, b.label, b.icon, !!(selected & b.flag), () => onChange(selected ^ b.flag));
+    });
+
+    const nitroDir = dirBadge(1);
+    const boostDir = dirBadge(12);
+    const evolvingEntries = [
+        nitroDir && evolving(nitroDir, nitroType, onNitroType),
+        customEvolving(21), customEvolving(20), customEvolving(19), customEvolving(18), customEvolving(17),
+        boostDir && evolving(boostDir, boostLevel, onBoostLevel)
+    ].filter(Boolean) as PickEntry[];
+
+    const specialEntries: PickEntry[] = [
+        simple("dir:15", dirBadge(15), "Last Meadow", dirBadge(15)?.icon ?? "", customIds.includes("dir:15"), () => toggleCustom("dir:15")),
+        simple("quest", dirBadge(14), t("Completed a quest"), "https://cdn.discordapp.com/badge-icons/7d9ae358c8c5e118768335dbe68b4fb8.png", customIds.includes("quest"), () => toggleCustom("quest")),
+        simple("orbs", dirBadge(16), t("Orbs — Apprentice"), "https://cdn.discordapp.com/badge-icons/83d8a1eb09a8d64e59233eec5d4d5c2d.png", customIds.includes("orbs"), () => toggleCustom("orbs")),
+        simple("oldname", dirBadge(13), t("Old username"), OLD_NAME_BADGE_ICON, hasOldName, () => toggleCustom("oldname"))
+    ];
+
+    const all = [...flagEntries, ...evolvingEntries, ...specialEntries];
+    const shown = all.find(e => e.id === focusId) ?? all.find(e => e.on) ?? evolvingEntries[0] ?? all[0];
+
+    // first click picks it and shows it; clicking the one that is already shown takes it off again
+    const click = (e: PickEntry) => {
+        if (e.id === shown?.id && focusId === e.id) e.toggle();
+        else if (!e.on) e.toggle();
+        setFocusId(e.id);
+    };
+    const tiles = (entries: PickEntry[]) => (
+        <div className="cp2-tiles">
+            {entries.map(e => <BadgeBtn key={e.id} label={e.label} icon={e.icon} active={e.on} focused={e.id === shown?.id} onClick={() => click(e)} />)}
+        </div>
+    );
+    const activeTier = shown?.tiers.find(x => x.on);
+
     return (
         <div className="cp-field">
+            {shown && (
+                <div className="cp2-detail">
+                    <div className="cp2-detail-art">{shown.art && <img src={shown.art} alt="" draggable={false} />}</div>
+                    <div className="cp2-detail-name">{shown.label}{activeTier ? ` · ${activeTier.name}` : ""}</div>
+                    <div className="cp2-detail-meta">
+                        {shown.rarity != null && <span className="cp2-chip">◆ {(RARITY_NAMES[shown.rarity] ?? "").toUpperCase()}</span>}
+                        <span className={`cp2-chip ${shown.on ? "cp2-chip--on" : ""}`}>{shown.on ? t("On your profile") : t("Not added")}</span>
+                    </div>
+                    {shown.description && <div className="cp2-detail-text">{shown.description}</div>}
+                    {shown.tiers.length > 0 && (
+                        <div className="cp2-tier-row">
+                            {shown.tiers.map(x => (
+                                <button key={x.key} type="button" className={`cp2-tier ${x.on ? "cp2-tier--on" : ""}`}
+                                    title={x.milestone ? `${x.name} · ${x.milestone}` : x.name}
+                                    onClick={() => { x.pick(); setFocusId(shown.id); }}>
+                                    <img src={x.icon} alt="" draggable={false} />
+                                    <span>{x.name}</span>
+                                </button>
+                            ))}
+                        </div>
+                    )}
+                    <button type="button" className="cp2-mini" onClick={shown.toggle}>{shown.on ? t("Remove from profile") : t("Add to profile")}</button>
+                </div>
+            )}
             <SectionLabel>{t("Badges")}</SectionLabel>
-            <div className="cp2-tiles">
-                {BADGES.map(b => (
-                    <BadgeBtn key={b.flag} label={b.label} icon={b.icon}
-                        active={!!(selected & b.flag)} onClick={() => onChange(selected ^ b.flag)} />
-                ))}
-            </div>
-            <SectionLabel style={{ marginTop: 8 }}>{t("Evolving Nitro Badge")}</SectionLabel>
-            <div className="cp2-tiles">
-                <BadgeBtn label={t("None")} active={nitroType === -1} onClick={() => onNitroType(-1)} />
-                {NITRO_LEVELS.map((n, i) => (
-                    <BadgeBtn key={i} label={n.label} icon={n.icon} active={nitroType === i} onClick={() => {
-                        onNitroType(i);
-                        // Reset boost when selecting nitro type manually if desired,
-                        // but usually these are separate.
-                    }} />
-                ))}
-            </div>
-            <SectionLabel style={{ marginTop: 8 }}>{t("Special Badges")}</SectionLabel>
-            <div className="cp2-tiles">
-                <BadgeBtn label={t("Completed a quest")}
-                    icon="https://cdn.discordapp.com/badge-icons/7d9ae358c8c5e118768335dbe68b4fb8.png"
-                    active={customIds.includes("quest")}
-                    onClick={() => onCustomIds(customIds.includes("quest") ? customIds.filter(x => x !== "quest") : [...customIds, "quest"])} />
-                <BadgeBtn label={t("Orbs — Apprentice")}
-                    icon="https://cdn.discordapp.com/badge-icons/83d8a1eb09a8d64e59233eec5d4d5c2d.png"
-                    active={customIds.includes("orbs")}
-                    onClick={() => onCustomIds(customIds.includes("orbs") ? customIds.filter(x => x !== "orbs") : [...customIds, "orbs"])} />
-                <BadgeBtn label={t("Old username")} icon={OLD_NAME_BADGE_ICON} active={hasOldName}
-                    onClick={() => onCustomIds(hasOldName ? customIds.filter(x => x !== "oldname") : [...customIds, "oldname"])} />
-            </div>
+            {tiles(flagEntries)}
+            <SectionLabel style={{ marginTop: 8 }}>{t("Evolving badges")}</SectionLabel>
+            {tiles(evolvingEntries)}
+            <SectionLabel style={{ marginTop: 8 }}>{t("Special badges")}</SectionLabel>
+            {tiles(specialEntries)}
             {hasOldName && (
                 <div className="cp-field" style={{ marginTop: 6 }}>
                     <SectionLabel style={{ marginTop: 0 }}>{t("Old username displayed in tooltip")}</SectionLabel>
@@ -1257,13 +1342,6 @@ function BadgePicker({ selected, onChange, nitroType, onNitroType, boostLevel, o
                     </div>
                 </div>
             )}
-            <SectionLabel style={{ marginTop: 8 }}>{t("Boost Badge (Server Booster)")}</SectionLabel>
-            <div className="cp2-tiles">
-                <BadgeBtn label={t("None")} active={boostLevel === -1} onClick={() => onBoostLevel(-1)} />
-                {BOOST_LABELS.map((lbl, i) => (
-                    <BadgeBtn key={i} label={lbl} icon={BOOST_ICONS[i]} active={boostLevel === i} onClick={() => onBoostLevel(i)} />
-                ))}
-            </div>
         </div>
     );
 }

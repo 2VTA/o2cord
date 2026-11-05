@@ -1229,3 +1229,116 @@
     letter-spacing: 0.04em;
     text-transform: uppercase;
 }
+
+
+/* ── badge detail (like the right side of Discord's "Your badges") ── */
+.cp2-tile--focus {
+    box-shadow: 0 0 0 1px var(--text-default, #c0c0c0), 0 0 0 4px rgba(255, 255, 255, 0.08);
+}
+
+.cp2-detail {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 14px;
+    padding: 16px 14px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.03);
+    text-align: center;
+}
+
+.cp2-detail-art {
+    display: grid;
+    width: 128px;
+    height: 128px;
+    place-items: center;
+}
+
+.cp2-detail-art img {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+    filter: drop-shadow(0 0 14px rgba(255, 255, 255, 0.16));
+}
+
+.cp2-detail-name {
+    color: var(--header-primary, #fff);
+    font-size: 18px;
+    font-weight: 800;
+    letter-spacing: 0.02em;
+}
+
+.cp2-detail-meta {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 6px;
+}
+
+.cp2-chip {
+    padding: 2px 9px;
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    border-radius: 999px;
+    color: var(--text-default, #c0c0c0);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+}
+
+.cp2-chip--on {
+    border-color: #3ba55d;
+    color: #3ba55d;
+}
+
+.cp2-detail-text {
+    max-width: 360px;
+    color: var(--text-muted, #888);
+    font-size: 12px;
+    line-height: 1.45;
+}
+
+.cp2-tier-row {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 6px;
+    width: 100%;
+    padding-top: 10px;
+    border-top: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+.cp2-tier {
+    display: flex;
+    width: 74px;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    padding: 8px 4px 6px;
+    border: 1px solid transparent;
+    border-radius: 10px;
+    background: transparent;
+    color: var(--text-muted, #888);
+    cursor: pointer;
+    font-size: 9px;
+    font-weight: 700;
+    line-height: 1.2;
+    text-transform: capitalize;
+}
+
+.cp2-tier img {
+    width: 34px;
+    height: 34px;
+    object-fit: contain;
+}
+
+.cp2-tier:hover {
+    background: rgba(255, 255, 255, 0.07);
+}
+
+.cp2-tier--on {
+    border-color: var(--text-default, #c0c0c0);
+    background: rgba(255, 255, 255, 0.1);
+    color: var(--text-default, #c0c0c0);
+}
