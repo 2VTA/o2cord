@@ -37,6 +37,8 @@ export const CspPolicies: PolicyMap = {
     "jsdelivr.net": ImageAndCssSrc, // jsDelivr, used by very few themes
 
     "fonts.googleapis.com": CssSrc, // Google Fonts, used by many themes
+    "fonts.gstatic.com": CssSrc, // Google Fonts files, used by many themes and GifMaker's text fonts
+    "fonts.google.com": ConnectSrc, // Google Fonts catalogue (GifMaker's font list)
 
     "i.imgur.com": ImageSrc, // Imgur, used by some themes
     "i.ibb.co": ImageSrc, // ImgBB, used by some themes

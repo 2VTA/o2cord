@@ -148,6 +148,9 @@ export default definePlugin({
     ],
 
     async start() {
+        // With Klipy (Discord's own provider) there is nothing to preload - asking `this.provider` would throw.
+        if (!this.shouldReplace) return;
+
         cachedCategories = await this.provider.getCategories() ?? cachedCategories;
     },
 

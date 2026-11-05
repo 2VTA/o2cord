@@ -934,6 +934,47 @@ function SectionLabel({ children, style }: { children: React.ReactNode; style?: 
     return <div className="cp-section-label" style={style}>{children}</div>;
 }
 
+// A date typed as YYYY-MM-DD. The browser's own date box follows the system language (Arabic month
+// names, mirrored order) and `lang` can't change that, so this is a plain text box that formats as you type
+// and only reports a finished, real date (or an empty box).
+function isRealDate(v: string) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(v)) return false;
+    const [y, m, d] = v.split("-").map(Number);
+    const date = new Date(Date.UTC(y, m - 1, d));
+    return date.getUTCFullYear() === y && date.getUTCMonth() === m - 1 && date.getUTCDate() === d;
+}
+
+function DateInput({ value, placeholder, onChange }: { value: string; placeholder?: string; onChange: (v: string) => void; }) {
+    const [draft, setDraft] = React.useState(value);
+    // follow outside changes (Reset, loading a saved profile) but not our own half-typed text
+    React.useEffect(() => { if (value !== draft && (isRealDate(value) || value === "")) setDraft(value); }, [value]);
+
+    const format = (raw: string) => {
+        const digits = raw.replace(/\D/g, "").slice(0, 8);
+        return [digits.slice(0, 4), digits.slice(4, 6), digits.slice(6, 8)].filter(Boolean).join("-");
+    };
+    const invalid = draft.length === 10 && !isRealDate(draft);
+
+    return (
+        <input
+            className="cp-input"
+            dir="ltr"
+            inputMode="numeric"
+            maxLength={10}
+            style={invalid ? { borderColor: "var(--status-danger, #f23f43)" } : undefined}
+            title={invalid ? "That date doesn't exist" : undefined}
+            value={draft}
+            placeholder={placeholder ?? "YYYY-MM-DD"}
+            onChange={e => {
+                const next = format(e.target.value);
+                setDraft(next);
+                if (next === "") onChange("");
+                else if (isRealDate(next)) onChange(next);
+            }}
+        />
+    );
+}
+
 function Field({ label, value, placeholder, onChange, type = "text", multiline = false }: {
     label: string; value: string; placeholder?: string; onChange: (v: string) => void; type?: string; multiline?: boolean;
 }) {
@@ -942,8 +983,9 @@ function Field({ label, value, placeholder, onChange, type = "text", multiline =
             <SectionLabel>{label}</SectionLabel>
             {multiline
                 ? <textarea className="cp-input cp-textarea" rows={4} maxLength={190} value={value} placeholder={placeholder} onChange={e => onChange(e.target.value)} />
-                // dates stay left-to-right in every language, or the day/month/year jumble up
-                : <input className="cp-input" type={type} dir={type === "date" ? "ltr" : undefined} lang={type === "date" ? "en-US" : undefined} value={value} placeholder={placeholder} onChange={e => onChange(e.target.value)} />}
+                : type === "date"
+                    ? <DateInput value={value} placeholder={placeholder} onChange={onChange} />
+                    : <input className="cp-input" type={type} value={value} placeholder={placeholder} onChange={e => onChange(e.target.value)} />}
         </div>
     );
 }

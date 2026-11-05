@@ -60,7 +60,9 @@ export default definePlugin({
             // Nameplates
             find: ".MINI_PREVIEW,[",
             replacement: {
-                match: /animate:\i,loop:/,
+                // Only the call site (`animate:h,loop:!0===h&&...`). The same module also has destructuring
+                // patterns like `{animate:a,loop:s}=e`, where replacing with `true` is a syntax error.
+                match: /animate:\i,loop:(?=!0===)/,
                 replace: "animate:true,loop:true,_loop:"
             }
         }
