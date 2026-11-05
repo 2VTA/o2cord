@@ -24,7 +24,7 @@ import { ALOSH_PEEK, CHIBI_ART } from "./art";
 // who wears which frame (only Ryder for now): on his own client it is what he just picked in the
 // debug o2 tab, everywhere else what Callie published for him (the default until then)
 // Frames drawn for one person only - they never show in the debug o2 tab's list.
-// "checker": the purple checkered edge with the sticker, made for aloshsaudi.
+// "checker": her character peeking over the top of the card, made for aloshsaudi.
 const PERSONAL_FRAMES: Record<string, "checker"> = {
     "1542531988727140477": "checker"
 };
@@ -123,34 +123,12 @@ export function TerminalFrame({ host, tag = "O2" }: { host: HTMLElement; tag?: s
     );
 }
 
-// Checker (aloshsaudi): a purple checkered edge with a white outline, a light running round it, twinkling
-// marks in the corners, "JCJENSON IN SPAAAACE!!" on the bottom edge, and the upper part of the character
-// (cap, face, hand) peeking over the top of the card. The picture is drawn first so the edge covers where
-// it was cut.
-export function CheckerFrame({ host }: { host: HTMLElement; }) {
-    const size = useCardSize(host);
-    const pad = 5;
-    const w = size.w + pad * 2, h = size.h + pad * 2;
+// Peek (aloshsaudi): just her character with the white sticker outline, sitting on the top edge of the card.
+// The card keeps its own border and look - nothing else is drawn.
+export function CheckerFrame(_props: { host?: HTMLElement; }) {
     return (
-        <div className="o2-frame o2-frame-checker" aria-hidden="true" style={boxStyle(size.h)}>
+        <div className="o2-frame o2-frame-checker" aria-hidden="true">
             <img className="o2-checker-peek" src={ALOSH_PEEK} alt="" draggable={false} />
-            <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`}>
-                <defs>
-                    <pattern id="o2-checker-pattern" width="12" height="12" patternUnits="userSpaceOnUse">
-                        <rect width="12" height="12" fill="#2b1a66" />
-                        <rect width="6" height="6" fill="#7a4dff" />
-                        <rect x="6" y="6" width="6" height="6" fill="#7a4dff" />
-                    </pattern>
-                </defs>
-                <rect x="4" y="4" width={w - 8} height={h - 8} rx="12" fill="none" stroke="url(#o2-checker-pattern)" strokeWidth="8" />
-                <rect x="1" y="1" width={w - 2} height={h - 2} rx="14" fill="none" stroke="#fff" strokeWidth="2.5" />
-                <rect x="8" y="8" width={w - 16} height={h - 16} rx="9" fill="none" stroke="#fff" strokeWidth="1.5" />
-                <rect className="o2-checker-run" x="1" y="1" width={w - 2} height={h - 2} rx="14" fill="none" stroke="#d9c8ff" strokeWidth="3" pathLength={1000} strokeDasharray="60 940" />
-            </svg>
-            <span className="o2-checker-spark o2-checker-s1">&#10022;</span>
-            <span className="o2-checker-spark o2-checker-s2">&#10022;</span>
-            <span className="o2-checker-spark o2-checker-s3">&#10022;</span>
-            <span className="o2-checker-tag">JCJENSON IN SPAAAACE!!</span>
         </div>
     );
 }
