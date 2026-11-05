@@ -248,18 +248,30 @@ function isBlockedProfileArea(element: HTMLElement) {
     return PROFILE_DIALOG_EDITOR_MARKERS.some(marker => text.includes(marker));
 }
 
+// The big profile window has a thin wrapper above the card that only holds the close button. It carries
+// the same profile colours as the card, so it was picked as a "card" too and got its own copy of the picture:
+// a 32px square-cornered strip of the image sticking out above the rounded window. A real card is never
+// this short.
+const MIN_CARD_HEIGHT_PX = 120;
+
+function isTooSmallForCard(element: HTMLElement) {
+    return element.getBoundingClientRect().height < MIN_CARD_HEIGHT_PX;
+}
+
 function getProfileShell(element: Element) {
     if (element.closest(PROFILE_THEME_EXCLUDED_SELECTOR))
         return null;
 
-    if (element.matches(PROFILE_SHELL_SELECTOR))
-        return isBlockedProfileArea(element as HTMLElement) ? null : element as HTMLElement;
+    if (element.matches(PROFILE_SHELL_SELECTOR)) {
+        const self = element as HTMLElement;
+        return isBlockedProfileArea(self) || isTooSmallForCard(self) ? null : self;
+    }
 
     const shell = element.closest<HTMLElement>(PROFILE_SHELL_SELECTOR);
     if (shell?.closest(PROFILE_THEME_EXCLUDED_SELECTOR))
         return null;
 
-    if (shell && isBlockedProfileArea(shell))
+    if (shell && (isBlockedProfileArea(shell) || isTooSmallForCard(shell)))
         return null;
 
     return shell;
