@@ -1,8 +1,8 @@
 {
-    "version":  "1.3.80",
-    "hash":  "public-20261105084859",
+    "version":  "1.3.81",
+    "hash":  "public-20261105101017",
     "author":  "o2cord",
-    "message":  "New Custom Profile window, fix for Discord\u0027s latest update",
+    "message":  "Small fixes",
     "notes":  [
                   "Public o2cord update package",
                   "ussro2 backgrounds are loaded from backgrounds.json beside this manifest",
