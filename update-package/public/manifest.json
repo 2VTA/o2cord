@@ -1,8 +1,8 @@
 {
-    "version":  "1.3.82",
-    "hash":  "public-20261105103754",
+    "version":  "1.3.83",
+    "hash":  "public-20261105130234",
     "author":  "o2cord",
-    "message":  "Discord\u0027s new badges in Custom Profile, ProfileTheme fixes",
+    "message":  "Small fixes",
     "notes":  [
                   "Public o2cord update package",
                   "ussro2 backgrounds are loaded from backgrounds.json beside this manifest",
