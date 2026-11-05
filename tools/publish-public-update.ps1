@@ -30,7 +30,6 @@ $PrivatePlugins = @(
     @{ Dir = "accountSwitcher.desktop"; Name = "AccountSwitcher" },
     @{ Dir = "serverCloner"; Name = "ServerCloner" },
     @{ Dir = "FakeVoice"; Name = "FakeVoice" },
-    @{ Dir = "callieLauncher"; Name = "CallieLauncher" },
     @{ Dir = "pictureRequest"; Name = "PictureRequest" }
 )
 $PluginsDir = Join-Path $Source "src\plugins"
