@@ -6,14 +6,14 @@
 
 import "./styles.css";
 
-import { BadgePosition, ProfileBadge } from "@api/Badges";
+import { _getBadges, BadgePosition, ProfileBadge } from "@api/Badges";
 import { addContextMenuPatch, NavContextMenuPatchCallback, removeContextMenuPatch } from "@api/ContextMenu";
 import { addHeaderBarButton, HeaderBarButton, removeHeaderBarButton } from "@api/HeaderBar";
 import { DataStore } from "@api/index";
 import { Devs } from "@utils/constants";
 import { ModalCloseButton, ModalContent, ModalFooter, ModalHeader, ModalRoot, openModal } from "@utils/modal";
 import definePlugin from "@utils/types";
-import { AuthenticationStore, Button, FluxDispatcher, IconUtils, Menu, React, RestAPI, Select, showToast, SnowflakeUtils, UserStore } from "@webpack/common";
+import { AuthenticationStore, Button, FluxDispatcher, IconUtils, Menu, React, RestAPI, Select, showToast, SnowflakeUtils, UserProfileStore, UserStore } from "@webpack/common";
 import { Settings } from "@api/Settings";
 import { fetchWithGithubFallback } from "@utils/githubFallbackFetch";
 import virtualMerge from "virtual-merge";
@@ -1385,6 +1385,55 @@ function PickerModal({ rootProps, title, children }: { rootProps: any; title: st
     );
 }
 
+// Every badge on your own profile - Discord's real ones and the ones added here - as a list with names.
+// Discord's own "Your badges" window only knows Discord's catalogue, so the "+N" button opens this instead.
+function collectAllBadges(): { description: string; icon: string; }[] {
+    const all: { description: string; icon: string; }[] = [];
+    const seen = new Set<string>();
+    const add = (description: string, icon?: string) => {
+        if (!icon || seen.has(icon)) return;
+        seen.add(icon);
+        all.push({ description, icon });
+    };
+
+    const me = UserStore.getCurrentUser();
+    const real: any[] = (me ? (UserProfileStore as any)?.getUserProfile?.(me.id)?.badges : null) ?? [];
+    for (const b of real) {
+        const icon = b.iconSrc ?? (b.icon ? `https://cdn.discordapp.com/badge-icons/${b.icon}.png` : undefined);
+        if (shouldHideNativeBadge({ description: b.description, iconSrc: icon } as ProfileBadge, storedData)) continue;
+        add(b.description ?? "", icon);
+    }
+    for (const b of getCustomProfileBadges(storedData)) add(b.description ?? "", b.iconSrc);
+
+    // everything other plugins add (o2cord's own badges, donors, ...) - only the ones that are a picture
+    try {
+        if (me) for (const b of _getBadges({ userId: me.id, guildId: "" })) add(b.description ?? b.key ?? "", b.iconSrc);
+    } catch { /* the list is still useful without them */ }
+    return all;
+}
+
+function AllBadgesModal({ rootProps }: { rootProps: any; }) {
+    const badges = collectAllBadges();
+    return (
+        <ModalRoot {...rootProps} size="medium">
+            <ModalHeader separator={false}>
+                <div className="cp-header-title">{t("All badges")} ({badges.length})</div>
+                <ModalCloseButton onClick={rootProps.onClose} />
+            </ModalHeader>
+            <ModalContent className="cp-picker-modal-content">
+                <div className="cp2-allbadges">
+                    {badges.map((b, i) => (
+                        <div className="cp2-allbadge" key={i} title={b.description}>
+                            <img src={b.icon} alt="" draggable={false} />
+                            <span>{b.description}</span>
+                        </div>
+                    ))}
+                </div>
+            </ModalContent>
+        </ModalRoot>
+    );
+}
+
 function PickerSummaryButton({ label, thumbSrc, onClick }: { label: string; thumbSrc?: string; onClick: () => void; }) {
     return (
         <button type="button" className="cp-picker-summary-btn" onClick={onClick}>
@@ -2093,6 +2142,24 @@ export default definePlugin({
     dependencies: ["HeaderBarAPI", "ContextMenuAPI"],
 
     patches: [
+        {
+            // On your own profile the badge row opens Discord's "Your badges" window, which only lists Discord's
+            // own badges. The "+N" button opens a list of every badge (custom ones too) instead.
+            find: 'badgeAction:"PRESS_BADGE",position:',
+            replacement: [
+                {
+                    // the badge row of your own profile popout (the "+N" is a span inside it)
+                    match: /(?<=\.\.\.\i&&!\i\?\{onClick:)\(\)=>\i\(!\i\)(?=\}:null)/,
+                    replace: "vcEv=>$self.onBadgeRowClick(vcEv,$&)"
+                },
+                {
+                    // everywhere else (a message's avatar popout, the side panel) the "+N" is its own button
+                    // that opens Discord's badge window directly
+                    match: /(?<=onClick:function\(\)\{let \i=null!=(\i)\?\i\.\i\.getUser\(\i\):null;)(?=\(0,\i\.openBadgeDirectoryModal\)\(\{targetUserId:)/,
+                    replace: "if($self.openAllBadges($1))return;"
+                }
+            ]
+        },
         {
             // Inject the CustomProfile warning notice into DM welcome screens
             find: "getRecipientId()",
@@ -2866,6 +2933,30 @@ export default definePlugin({
             applyAvatarPatchEarly();
         }
 
+    },
+
+    // true = handled here (your own profile): show every badge, custom ones included
+    openAllBadges(userId: string) {
+        try {
+            if (isEnabled && userId === UserStore.getCurrentUser()?.id) {
+                openModal(props => <AllBadgesModal rootProps={props} />);
+                return true;
+            }
+        } catch { /* fall back to Discord's own window */ }
+        return false;
+    },
+
+    onBadgeRowClick(event: any, original: () => void) {
+        try {
+            const target = event?.target as HTMLElement | undefined;
+            if (isEnabled && target?.closest?.('[class*="overflowButton"], [class*="hiddenCount"]')) {
+                event.stopPropagation?.();
+                event.preventDefault?.();
+                openModal(props => <AllBadgesModal rootProps={props} />);
+                return;
+            }
+        } catch { /* fall back to Discord's own behaviour */ }
+        original();
     },
 
     userProfileBadge: {

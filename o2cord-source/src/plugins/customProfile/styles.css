@@ -1471,3 +1471,40 @@
     width: 38px;
     height: 38px;
 }
+
+
+/* ── "All badges" list (opened by the +N button on your profile) ── */
+.cp2-allbadges {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(104px, 1fr));
+    gap: 8px;
+    padding-bottom: 12px;
+}
+
+.cp2-allbadge {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    padding: 14px 8px 10px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.04);
+    text-align: center;
+}
+
+.cp2-allbadge img {
+    width: 40px;
+    height: 40px;
+    object-fit: contain;
+}
+
+.cp2-allbadge span {
+    display: -webkit-box;
+    overflow: hidden;
+    color: var(--text-default, #c0c0c0);
+    font-size: 11px;
+    line-height: 1.3;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 3;
+}
