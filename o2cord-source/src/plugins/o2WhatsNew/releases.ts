@@ -31,6 +31,21 @@ export interface Release {
 
 export const RELEASES: Release[] = [
     {
+        version: "1.3.80",
+        date: "November 5, 2026",
+        features: [
+            {
+                plugin: "CustomProfile",
+                title: "A brand new Custom Profile window",
+                text: "Rebuilt from scratch: a live preview of your card on the left, and Identity / Look / Badges / Share tabs on the right. Apply keeps the window open so you can keep tweaking, and Reset now asks before it wipes anything."
+            }
+        ],
+        fixes: [
+            { text: "Fixed o2cord not loading (stuck on Starting...) or Discord crashing after Discord's latest update." },
+            { plugin: "CustomProfile", text: "The fake \"Second Account?\" placeholder is gone - only your real accounts show up." }
+        ]
+    },
+    {
         version: "1.3.75",
         date: "November 2, 2026",
         features: [],
