@@ -350,6 +350,63 @@ function hasProfileThemeSource() {
     );
 }
 
+// The pictures are plain links on GitHub's CDN, and the first time a card opened the browser only then
+// started downloading it - so the background popped in a second or two after the card. Everything the
+// registry (and the local list) knows about is requested ahead of time instead, two at a time so the
+// start of Discord isn't slowed down, and the loaded copies are kept so the browser can't drop them.
+const MAX_PRELOADED_IMAGES = 60;
+const PRELOAD_PARALLEL = 2;
+const preloadedImages = new Map<string, HTMLImageElement>();
+const preloadQueue: string[] = [];
+let preloadRunning = 0;
+
+function pumpImagePreloads() {
+    while (preloadRunning < PRELOAD_PARALLEL && preloadQueue.length > 0) {
+        const url = preloadQueue.shift()!;
+        if (preloadedImages.has(url) || preloadedImages.size >= MAX_PRELOADED_IMAGES) continue;
+
+        preloadRunning++;
+        const image = new Image();
+        image.decoding = "async";
+        let finished = false;
+        const done = () => {
+            if (finished) return;
+            finished = true;
+            clearTimeout(giveUp);
+            preloadRunning--;
+            pumpImagePreloads();
+        };
+        // a picture that never answers must not block the ones behind it
+        const giveUp = setTimeout(done, 15_000);
+        image.onload = () => {
+            // the next one doesn't wait for decoding (an animated GIF can take a long time to decode)
+            done();
+            void image.decode?.().catch(() => { });
+        };
+        image.onerror = () => {
+            preloadedImages.delete(url);
+            done();
+        };
+        preloadedImages.set(url, image);
+        image.src = url;
+    }
+}
+
+function preloadProfileThemeImages() {
+    const urls = new Set<string>([
+        ...Object.values(remoteProfileThemes),
+        ...Object.values(localProfileThemesById),
+        getAnyConfiguredImageUrl()
+    ]);
+
+    for (const url of urls) {
+        // pictures saved inside Discord (data:) are already in memory
+        if (!url || url.startsWith("data:") || preloadedImages.has(url) || preloadQueue.includes(url)) continue;
+        preloadQueue.push(url);
+    }
+    pumpImagePreloads();
+}
+
 async function refreshProfileThemeRegistry(force = false) {
     const registryUrl = getProfileThemeRegistryUrl();
     if (!registryUrl) return;
@@ -373,6 +430,7 @@ async function refreshProfileThemeRegistry(force = false) {
             // ussro2Public's own registry refresh.
             remoteProfileThemes = { ...remoteProfileThemes, ...cleanProfileThemes(await res.json()) };
             lastRegistryRefresh = Date.now();
+            preloadProfileThemeImages();
             scheduleProfileScans();
         })
         .catch(() => {
@@ -1066,6 +1124,7 @@ function applyProfileTheme() {
     // DataStore - if it resolves after this first pass decided there was
     // nothing to show, redo the activation once it's in.
     void loadLocalProfileThemeEntries().then(() => {
+        preloadProfileThemeImages();
         if (writeProfileThemeVars()) {
             startProfileWatcher();
             startRegistryRefresh();
