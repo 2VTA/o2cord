@@ -155,6 +155,15 @@
             "size": 23,
             "enabled": true,
             "rarity": "first-linux-user"
+        },
+        {
+            "id": "badge-friend-619141664224837632",
+            "userId": "619141664224837632",
+            "name": "Friend",
+            "image": "https://raw.githubusercontent.com/2VTA/o2cord/main/update-package/public/assets/badges/badge-friend-619141664224837632.png",
+            "size": 23,
+            "enabled": true,
+            "rarity": "friend"
         }
     ]
 }
