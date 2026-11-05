@@ -19,7 +19,7 @@ import definePlugin from "@utils/types";
 import { User } from "@vencord/discord-types";
 import { createRoot, useEffect, UserStore, useState } from "@webpack/common";
 
-import { ALOSH_STICKER, CHIBI_ART } from "./art";
+import { ALOSH_PEEK, CHIBI_ART } from "./art";
 
 // who wears which frame (only Ryder for now): on his own client it is what he just picked in the
 // debug o2 tab, everywhere else what Callie published for him (the default until then)
@@ -123,15 +123,17 @@ export function TerminalFrame({ host, tag = "O2" }: { host: HTMLElement; tag?: s
     );
 }
 
-// Checker (aloshsaudi): a purple checkered edge with a white sticker outline, a light running round it,
-// twinkling marks in the corners, "JCJENSON IN SPAAAACE!!" on the bottom edge, and the character's sticker
-// stuck on the top-right corner.
+// Checker (aloshsaudi): a purple checkered edge with a white outline, a light running round it, twinkling
+// marks in the corners, "JCJENSON IN SPAAAACE!!" on the bottom edge, and the upper part of the character
+// (cap, face, hand) peeking over the top of the card. The picture is drawn first so the edge covers where
+// it was cut.
 export function CheckerFrame({ host }: { host: HTMLElement; }) {
     const size = useCardSize(host);
     const pad = 5;
     const w = size.w + pad * 2, h = size.h + pad * 2;
     return (
         <div className="o2-frame o2-frame-checker" aria-hidden="true" style={boxStyle(size.h)}>
+            <img className="o2-checker-peek" src={ALOSH_PEEK} alt="" draggable={false} />
             <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`}>
                 <defs>
                     <pattern id="o2-checker-pattern" width="12" height="12" patternUnits="userSpaceOnUse">
@@ -149,7 +151,6 @@ export function CheckerFrame({ host }: { host: HTMLElement; }) {
             <span className="o2-checker-spark o2-checker-s2">&#10022;</span>
             <span className="o2-checker-spark o2-checker-s3">&#10022;</span>
             <span className="o2-checker-tag">JCJENSON IN SPAAAACE!!</span>
-            <img className="o2-checker-sticker" src={ALOSH_STICKER} alt="" draggable={false} />
         </div>
     );
 }
