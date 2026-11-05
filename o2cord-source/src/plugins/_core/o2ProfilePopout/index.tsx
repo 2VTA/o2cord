@@ -19,11 +19,19 @@ import definePlugin from "@utils/types";
 import { User } from "@vencord/discord-types";
 import { createRoot, useEffect, UserStore, useState } from "@webpack/common";
 
-import { CHIBI_ART } from "./art";
+import { ALOSH_STICKER, CHIBI_ART } from "./art";
 
 // who wears which frame (only Ryder for now): on his own client it is what he just picked in the
 // debug o2 tab, everywhere else what Callie published for him (the default until then)
-export function frameFor(userId: string): Exclude<ProfileFrameId, "none"> | undefined {
+// Frames drawn for one person only - they never show in the debug o2 tab's list.
+// "checker": the purple checkered edge with the sticker, made for aloshsaudi.
+const PERSONAL_FRAMES: Record<string, "checker"> = {
+    "1542531988727140477": "checker"
+};
+
+export function frameFor(userId: string): Exclude<ProfileFrameId, "none"> | "checker" | undefined {
+    const personal = PERSONAL_FRAMES[userId];
+    if (personal) return personal;
     if (userId !== PROFILE_FRAME_OWNER_ID) return undefined;
     const choice = UserStore.getCurrentUser()?.id === userId ? getOwnProfileFrame() : getPublishedProfileFrame(userId) ?? "terminal";
     return choice === "none" ? undefined : choice;
@@ -115,6 +123,37 @@ export function TerminalFrame({ host, tag = "O2" }: { host: HTMLElement; tag?: s
     );
 }
 
+// Checker (aloshsaudi): a purple checkered edge with a white sticker outline, a light running round it,
+// twinkling marks in the corners, "JCJENSON IN SPAAAACE!!" on the bottom edge, and the character's sticker
+// stuck on the top-right corner.
+export function CheckerFrame({ host }: { host: HTMLElement; }) {
+    const size = useCardSize(host);
+    const pad = 5;
+    const w = size.w + pad * 2, h = size.h + pad * 2;
+    return (
+        <div className="o2-frame o2-frame-checker" aria-hidden="true" style={boxStyle(size.h)}>
+            <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`}>
+                <defs>
+                    <pattern id="o2-checker-pattern" width="12" height="12" patternUnits="userSpaceOnUse">
+                        <rect width="12" height="12" fill="#2b1a66" />
+                        <rect width="6" height="6" fill="#7a4dff" />
+                        <rect x="6" y="6" width="6" height="6" fill="#7a4dff" />
+                    </pattern>
+                </defs>
+                <rect x="4" y="4" width={w - 8} height={h - 8} rx="12" fill="none" stroke="url(#o2-checker-pattern)" strokeWidth="8" />
+                <rect x="1" y="1" width={w - 2} height={h - 2} rx="14" fill="none" stroke="#fff" strokeWidth="2.5" />
+                <rect x="8" y="8" width={w - 16} height={h - 16} rx="9" fill="none" stroke="#fff" strokeWidth="1.5" />
+                <rect className="o2-checker-run" x="1" y="1" width={w - 2} height={h - 2} rx="14" fill="none" stroke="#d9c8ff" strokeWidth="3" pathLength={1000} strokeDasharray="60 940" />
+            </svg>
+            <span className="o2-checker-spark o2-checker-s1">&#10022;</span>
+            <span className="o2-checker-spark o2-checker-s2">&#10022;</span>
+            <span className="o2-checker-spark o2-checker-s3">&#10022;</span>
+            <span className="o2-checker-tag">JCJENSON IN SPAAAACE!!</span>
+            <img className="o2-checker-sticker" src={ALOSH_STICKER} alt="" draggable={false} />
+        </div>
+    );
+}
+
 // Frames are found on screen rather than through one component: Discord shows
 // a profile card in several places (the popout when you click someone, your own
 // account popout bottom-left, ...), and every one of them is a .user-profile-popout
@@ -125,6 +164,21 @@ const retries = new WeakMap<HTMLElement, number>();
 let observer: MutationObserver | undefined;
 let scanQueued = false;
 
+// Some cards show a picture that carries no id (a data: link from CustomProfile / ProfileImages), so the
+// avatar can't tell whose card it is. React knows: the card is rendered for a user, found in the props of
+// the components around it.
+const SNOWFLAKE = /^\d{17,20}$/;
+function userIdFromReact(card: HTMLElement): string | undefined {
+    const key = Object.keys(card).find(k => k.startsWith("__reactFiber$"));
+    let fiber: any = key ? (card as any)[key] : null;
+    for (let depth = 0; fiber && depth < 40; depth++, fiber = fiber.return) {
+        const props = fiber.memoizedProps;
+        const id = props?.displayProfile?.userId ?? props?.user?.id ?? props?.userId;
+        if (typeof id === "string" && SNOWFLAKE.test(id)) return id;
+    }
+    return undefined;
+}
+
 function cardUserId(card: HTMLElement) {
     // your own account popout (bottom-left): always you - and its avatar is often a
     // picture CustomProfile swapped in, which carries no id to read
@@ -134,7 +188,7 @@ function cardUserId(card: HTMLElement) {
         const id = img.src.match(AVATAR_ID)?.[1];
         if (id) return id;
     }
-    return undefined;
+    return userIdFromReact(card);
 }
 
 function scan() {
@@ -164,7 +218,7 @@ function scan() {
         holder.style.cssText = "position:absolute !important;inset:0;z-index:5;pointer-events:none;";
         card.append(holder);
         const root = createRoot(holder);
-        const Frame = frame === "chibi" ? ChibiFrame : frame === "smoke" ? SmokeFrame : TerminalFrame;
+        const Frame = frame === "checker" ? CheckerFrame : frame === "chibi" ? ChibiFrame : frame === "smoke" ? SmokeFrame : TerminalFrame;
         root.render(<Frame host={card} />);
         mounted.set(card, { root, holder });
     }
