@@ -35,6 +35,44 @@ const RECREATE_DEBOUNCE_MS = 300;
 // morning". One-time messages keep sending whenever they are found overdue.
 const DAILY_GRACE_MS = 60 * 60 * 1000;
 
+// The PC's clock is often a few seconds off (Windows' time sync can be stopped), but Discord stamps a message
+// with ITS clock. A message planned for 12:34 that left at 12:34:00 on a PC clock running 4 seconds fast was
+// stamped 12:33 by Discord. So the scheduler asks Discord what time it is (the Date header of an API answer),
+// remembers how far the PC clock is off, and only sends once Discord's own clock has reached the minute - plus
+// a second of margin, because the header only has whole-second precision.
+let clockOffsetMs = 0; // PC clock minus Discord's clock
+const MAX_TRUSTED_CLOCK_OFFSET_MS = 2 * 60 * 1000;
+const SEND_MARGIN_MS = 1000;
+const CLOCK_RESYNC_MS = 10 * 60 * 1000;
+let clockSyncInterval: ReturnType<typeof setInterval> | null = null;
+let wakeTimer: ReturnType<typeof setTimeout> | null = null;
+
+async function syncClockOffset(): Promise<void> {
+    const samples: number[] = [];
+    for (let i = 0; i < 4; i++) {
+        try {
+            const before = Date.now();
+            const res = await fetch(`${location.origin}/api/v9/gateway`, { cache: "no-store" });
+            const after = Date.now();
+            const serverTime = Date.parse(res.headers.get("date") ?? "");
+            // the header is cut to whole seconds, so the real moment is about half a second later
+            if (!isNaN(serverTime)) samples.push((before + after) / 2 - (serverTime + 500));
+        } catch { /* try again below */ }
+        await new Promise(resolve => setTimeout(resolve, 250));
+    }
+    if (!samples.length) return;
+
+    samples.sort((a, b) => a - b);
+    const offset = Math.round(samples[Math.floor(samples.length / 2)]);
+    clockOffsetMs = Math.abs(offset) <= MAX_TRUSTED_CLOCK_OFFSET_MS ? offset : 0;
+    logger.info(`PC clock is ${(clockOffsetMs / 1000).toFixed(1)}s ahead of Discord's`);
+}
+
+/** The current time on Discord's clock. */
+function discordNow(): number {
+    return Date.now() - clockOffsetMs;
+}
+
 // Same clock time on the next day that is still ahead of `now` (setDate keeps the
 // local time of day across daylight-saving changes).
 function nextDailyOccurrence(base: number, now: number): number {
@@ -503,8 +541,8 @@ async function checkAndSendMessages(): Promise<void> {
     isProcessingMessages = true;
 
     try {
-        const now = Date.now();
-        const dueMessages = scheduledMessages.filter(m => m.scheduledTime <= now);
+        const now = discordNow();
+        const dueMessages = scheduledMessages.filter(m => m.scheduledTime + SEND_MARGIN_MS <= now);
 
         for (const msg of dueMessages) {
             if (msg.repeat === "daily") {
@@ -525,17 +563,34 @@ async function checkAndSendMessages(): Promise<void> {
         }
     } finally {
         isProcessingMessages = false;
+        scheduleWakeUp();
     }
+}
+
+// The regular check runs every few seconds; when the next message is due before that, wake up right at its time
+// instead of up to a whole interval late.
+function scheduleWakeUp(): void {
+    if (wakeTimer) { clearTimeout(wakeTimer); wakeTimer = null; }
+    if (!checkInterval || scheduledMessages.length === 0) return;
+
+    const nextDue = Math.min(...scheduledMessages.map(m => m.scheduledTime));
+    const waitMs = nextDue + SEND_MARGIN_MS - discordNow();
+    if (waitMs > 0 && waitMs < settings.store.checkIntervalSeconds * 1000)
+        wakeTimer = setTimeout(() => { wakeTimer = null; void checkAndSendMessages(); }, waitMs + 30);
 }
 
 export function startScheduler(): void {
     if (checkInterval) return;
-    checkAndSendMessages();
+    // learn the clock difference first so nothing leaves a few seconds early, then start checking
+    void syncClockOffset().finally(() => void checkAndSendMessages());
     checkInterval = setInterval(checkAndSendMessages, settings.store.checkIntervalSeconds * 1000);
+    clockSyncInterval = setInterval(() => void syncClockOffset(), CLOCK_RESYNC_MS);
 }
 
 export function stopScheduler(): void {
     if (checkInterval) { clearInterval(checkInterval); checkInterval = null; }
+    if (clockSyncInterval) { clearInterval(clockSyncInterval); clockSyncInterval = null; }
+    if (wakeTimer) { clearTimeout(wakeTimer); wakeTimer = null; }
 }
 
 export async function recreatePhantomMessages(): Promise<void> {
