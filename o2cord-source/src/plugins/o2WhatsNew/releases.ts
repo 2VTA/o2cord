@@ -31,6 +31,30 @@ export interface Release {
 
 export const RELEASES: Release[] = [
     {
+        version: "1.3.82",
+        date: "November 5, 2026",
+        features: [
+            {
+                plugin: "CustomProfile",
+                title: "Discord's new badges in Custom Profile",
+                text: "Game Variety, Game Time, Streaming, Account Age, Gifting and Last Meadow are here, each with all of its levels. Pick a badge and it opens in a big box like Discord's own Your badges window: the artwork, the rarity, what it is for, and every level to choose from. Nitro and Server Boosting got the same box."
+            },
+            {
+                plugin: "CustomProfile",
+                title: "See all your badges",
+                text: "On your own profile the +N button now opens a list of every badge you have - Discord's, the ones you added in Custom Profile and o2cord's own - with their names."
+            }
+        ],
+        fixes: [
+            { plugin: "CustomProfile", text: "Badges are square tiles now, dates are typed as YYYY-MM-DD (the old date box showed mirrored Arabic months) and the scrollbars are slim and match the theme." },
+            { plugin: "ProfileImages", text: "Profile backgrounds load faster, and the card keeps Discord's rounded corners - no more sharp square banner, and no stray strip above the big profile window." },
+            { plugin: "KeyboardSounds", text: "Keyboard sounds load again." },
+            { plugin: "GifProviderSwitcher", text: "No more error when the GIF provider is set to Klipy." },
+            { plugin: "AlwaysAnimate", text: "Nameplates animate again on Discord's newest version." },
+            { plugin: "GifMaker", text: "The font list loads again." }
+        ]
+    },
+    {
         version: "1.3.80",
         date: "November 5, 2026",
         features: [
