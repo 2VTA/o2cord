@@ -26,6 +26,9 @@
 #   bash install.sh --status        show what is installed and whether the service is running
 #   bash install.sh --list          only show the Discords found
 #   bash install.sh --uninstall     put the original app.asar back and remove the service
+#   bash install.sh --skip-update   stop Discord's "update available" screen from blocking you
+#                                   (sets SKIP_HOST_UPDATE in Discord's settings.json - close Discord first)
+#   bash install.sh --allow-update  turn that off again
 #   bash install.sh --help
 #
 # Run it as your normal user. It asks for your password (sudo) only when
@@ -53,7 +56,7 @@ ensure_tmp() { if [ -z "$TMP" ]; then TMP="$(mktemp -d)"; fi; }
 have_tty() { ( : < /dev/tty ) 2>/dev/null; }
 
 # ── "did you mean --target?" for typos ───────────────────────────────────────
-KNOWN_OPTIONS=(--all --target --list --status --uninstall --remove --repair --config --auto-repair --no-auto-repair --help)
+KNOWN_OPTIONS=(--all --target --list --status --uninstall --remove --repair --config --auto-repair --no-auto-repair --skip-update --allow-update --help)
 
 distance() { # edit distance between two short words
     local a="$1" b="$2" i j cost x y z m
@@ -505,6 +508,73 @@ service_status() {
 }
 
 # ── main ─────────────────────────────────────────────────────────────────────
+# ── skipping Discord's "update available" screen ─────────────────────────────
+# On Linux Discord won't open while a newer version exists: it shows an update screen
+# and waits for you to install the new package. Discord has a setting for this,
+# SKIP_HOST_UPDATE in its settings.json - this switches it on (or off again).
+# It only touches that one key; the rest of the file stays as it is, and the
+# first time a copy is kept next to it as settings.json.o2cord-backup.
+discord_config_dirs() { # the config folders of the Discords that have been started at least once
+    local base="${XDG_CONFIG_HOME:-$HOME/.config}" d
+    for d in discord discordptb discordcanary discorddevelopment; do
+        [ -d "$base/$d" ] && printf '%s\n' "$base/$d"
+    done
+    return 0
+}
+
+json_valid() { # $1 = file. Only checked when python3 or node is there; otherwise trusted.
+    if command -v python3 >/dev/null 2>&1; then python3 -c 'import json,sys; json.load(open(sys.argv[1], encoding="utf-8"))' "$1" 2>/dev/null; return $?; fi
+    if command -v node >/dev/null 2>&1; then node -e 'JSON.parse(require("fs").readFileSync(process.argv[1],"utf8"))' "$1" 2>/dev/null; return $?; fi
+    return 0
+}
+
+set_skip_host_update() { # $1 = settings.json, $2 = true|false
+    local f="$1" want="$2" tmp
+    tmp="$(mktemp)"
+    if [ ! -s "$f" ] || grep -Eq '^[[:space:]]*\{[[:space:]]*\}[[:space:]]*$' "$f"; then
+        printf '{\n  "SKIP_HOST_UPDATE": %s\n}\n' "$want" > "$tmp"
+    elif grep -q '"SKIP_HOST_UPDATE"' "$f"; then
+        sed -E 's/"SKIP_HOST_UPDATE"[[:space:]]*:[[:space:]]*(true|false)/"SKIP_HOST_UPDATE": '"$want"'/' "$f" > "$tmp"
+    else
+        # first "{" gets the new key right after it
+        sed -E '0,/\{/s//{\n  "SKIP_HOST_UPDATE": '"$want"',/' "$f" > "$tmp"
+    fi
+    if ! json_valid "$tmp"; then rm -f "$tmp"; return 1; fi
+    [ ! -f "$f" ] || [ -e "$f.o2cord-backup" ] || cp -p "$f" "$f.o2cord-backup"
+    cat "$tmp" > "$f"      # same file, same owner and permissions
+    rm -f "$tmp"
+}
+
+host_update_all() { # $1 = skip-update | allow-update
+    local want=true dir f n=0
+    [ "$1" = allow-update ] && want=false
+    if pgrep -x -i 'discord|discordptb|discordcanary' >/dev/null 2>&1; then
+        warn "Discord is running right now - it writes settings.json again when it closes and would undo this. Close Discord completely, then run this again."
+        exit 1
+    fi
+    while IFS= read -r dir; do
+        [ -n "$dir" ] || continue
+        f="$dir/settings.json"
+        if set_skip_host_update "$f" "$want"; then
+            ok "$(basename "$dir"): SKIP_HOST_UPDATE = $want"
+            n=$((n+1))
+        else
+            warn "$f: couldn't change it safely (left as it was)."
+        fi
+    done < <(discord_config_dirs)
+    if [ "$n" -eq 0 ]; then
+        say "I didn't find a Discord settings folder in ${XDG_CONFIG_HOME:-$HOME/.config} (Discord creates it the first time it starts)."
+        say "Start Discord once, close it, and run this again."
+        exit 1
+    fi
+    if [ "$want" = true ]; then
+        say "Start Discord again: it will no longer stop at the update screen."
+        say "${D}(Undo with: bash install.sh --allow-update)${N}"
+    else
+        say "Discord will ask you to update again when a new version comes out."
+    fi
+}
+
 main() {
     local ACTION=install ALL=0 TARGET="" AUTO=ask CONFIG="" d line i pick
     found_service=0
@@ -517,6 +587,8 @@ main() {
             --list) ACTION=list ;;
             --status) ACTION=status ;;
             --repair) ACTION=repair ;;
+            --skip-update) ACTION=skip-update ;;
+            --allow-update) ACTION=allow-update ;;
             --config) shift; [ $# -gt 0 ] || die "--config needs a file"; CONFIG="$1" ;;
             --config=*) CONFIG="${1#--config=}" ;;
             --all) ALL=1 ;;
@@ -547,6 +619,11 @@ main() {
         fi
     fi
     DIST_DIR="${O2CORD_DIST_DIR:-${XDG_DATA_HOME:-$HOME/.local/share}/o2cord/dist}"
+
+    if [ "$ACTION" = skip-update ] || [ "$ACTION" = allow-update ]; then
+        host_update_all "$ACTION"
+        return 0
+    fi
 
     if [ "$ACTION" = repair ]; then
         if [ -z "$CONFIG" ]; then
