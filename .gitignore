@@ -37,3 +37,5 @@ o2cord-source/src/plugins/serverCloner/
 # CallieLauncher runs Ryder's local bot folder - private
 o2cord-source/src/plugins/callieLauncher/
 
+# FakeVoice is debug-only (Ryder + debug o2 people) - never upload it
+o2cord-source/src/plugins/FakeVoice/
