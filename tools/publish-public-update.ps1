@@ -30,7 +30,8 @@ $PrivatePlugins = @(
     @{ Dir = "accountSwitcher.desktop"; Name = "AccountSwitcher" },
     @{ Dir = "serverCloner"; Name = "ServerCloner" },
     @{ Dir = "FakeVoice"; Name = "FakeVoice" },
-    @{ Dir = "pictureRequest"; Name = "PictureRequest" }
+    @{ Dir = "pictureRequest"; Name = "PictureRequest" },
+    @{ Dir = "fastDeleteChannels"; Name = "FastDeleteChannels" }
 )
 $PluginsDir = Join-Path $Source "src\plugins"
 $HoldDir = Join-Path (Split-Path -Parent $Root) "_held_private_plugins"

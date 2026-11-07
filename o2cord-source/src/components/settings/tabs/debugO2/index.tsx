@@ -86,16 +86,16 @@ const CALLIE_CHANNEL_ID = "1538034368751083550";
 
 const MANAGED_PLUGINS: ManagedPlugin[] = [
     {
-        name: "CallieLauncher",
-        description: "Top-bar button to start, stop or restart your local Callie bot"
-    },
-    {
         name: "ServerCloner",
         description: "Clone server roles, channels, permissions, icon, and emojis without token or relay sending"
     },
     {
         name: "FakeVoice",
         description: "Debug-only fake mute and fake deafen controls"
+    },
+    {
+        name: "FastDeleteChannels",
+        description: "Hold the key combo (Ctrl+Shift+Z by default) to show a trash icon on channels you can manage, click it to delete the channel"
     },
     {
         name: "PictureRequest",

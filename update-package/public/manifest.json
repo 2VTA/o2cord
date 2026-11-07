@@ -1,8 +1,8 @@
 {
-    "version":  "1.3.87",
-    "hash":  "public-20261107004555",
+    "version":  "1.3.88",
+    "hash":  "public-20261107162757",
     "author":  "o2cord",
-    "message":  "Small fixes",
+    "message":  "46 new plugins from Equicord (all off by default, none contact outside servers); CallieLauncher removed",
     "notes":  [
                   "Public o2cord update package",
                   "ussro2 backgrounds are loaded from backgrounds.json beside this manifest",

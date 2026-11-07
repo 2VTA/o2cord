@@ -39,3 +39,6 @@ o2cord-source/src/plugins/callieLauncher/
 
 # FakeVoice is debug-only (Ryder + debug o2 people) - never upload it
 o2cord-source/src/plugins/FakeVoice/
+
+# FastDeleteChannels is debug-only (Ryder + debug o2 people) - never upload it
+o2cord-source/src/plugins/fastDeleteChannels/
