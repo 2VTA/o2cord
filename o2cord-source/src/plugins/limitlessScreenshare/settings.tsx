@@ -8,6 +8,7 @@ import { definePluginSettings } from "@api/Settings";
 import { OptionType } from "@utils/types";
 
 import { SettingsPresetList } from "./SettingsPresetList";
+import { StreamDiagnostics } from "./StreamDiagnostics";
 
 // 0 FPS freezes (obviously) and anything less than 3p doesn't work
 export const COOLDOWN_MS = 1000;
@@ -43,6 +44,10 @@ export const settings = definePluginSettings({
         description: "Round resolution to the nearest 10p",
         default: false,
         type: OptionType.BOOLEAN
+    },
+    diagnosticsComponent: {
+        type: OptionType.COMPONENT,
+        component: () => <StreamDiagnostics />
     },
     resolutions: {
         type: OptionType.CUSTOM,
