@@ -164,6 +164,15 @@
             "size": 23,
             "enabled": true,
             "rarity": "friend"
+        },
+        {
+            "id": "badge-mw6ckmxny74n",
+            "userId": "160483451303100416",
+            "name": "solo",
+            "image": "https://raw.githubusercontent.com/2VTA/o2cord/main/update-package/public/assets/badges/badge-mw6ckmxny74n.gif",
+            "size": 23,
+            "enabled": true,
+            "rarity": "mythic"
         }
     ]
 }
