@@ -42,8 +42,6 @@
         "accentColor": 16711693,
         "accentColor2": 14624331,
         "nitro": true,
-        "decorationAsset": "o2-ink-ring",
-        "profileEffectId": "o2-ink-burst",
-        "profileFrameId": "o2-frame-vhs"
+        "decorationAsset": "o2-ink-ring"
     }
 }
