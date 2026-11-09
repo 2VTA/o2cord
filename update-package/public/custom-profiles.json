@@ -42,6 +42,7 @@
         "accentColor": 8454088,
         "accentColor2": 6422445,
         "nitro": true,
-        "decorationAsset": "1144307957425778779"
+        "decorationAsset": "o2-ink-ring",
+        "profileEffectId": "o2-ink-burst"
     }
 }
