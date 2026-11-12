@@ -9,8 +9,9 @@
  */
 
 import { Button } from "@components/Button";
+import { Devs } from "@utils/constants";
 import { chooseFile } from "@utils/web";
-import { Forms, useState } from "@webpack/common";
+import { Forms, UserStore, useState } from "@webpack/common";
 
 import { BOOT_ART } from "./bootArt";
 
@@ -73,8 +74,19 @@ export async function imageToBraille(file: Blob, invert = false): Promise<string
     return lines;
 }
 
+/** Text art pasted by Ryder, tidied: no carriage returns or tabs, no trailing spaces, no blank lines around it. */
+export function cleanTextArt(text: string): string {
+    const lines = text.replace(/\r/g, "").replace(/\t/g, "    ").split("\n").map(l => l.replace(/\s+$/, ""));
+    while (lines.length && !lines[0].trim()) lines.shift();
+    while (lines.length && !lines[lines.length - 1].trim()) lines.pop();
+    return lines.slice(0, 80).map(l => [...l].slice(0, 220).join("")).join("\n");
+}
+
+const isRyder = () => UserStore.getCurrentUser()?.id === String(Devs.Ryder.id);
+
 export function BootPictureSetting({ value, onChange }: { value: string; onChange(v: string): void; }) {
     const [art, setArt] = useState(value);
+    const [paste, setPaste] = useState("");
     const [invert, setInvert] = useState(false);
     const [busy, setBusy] = useState(false);
     const lines = art ? art.split("\n") : BOOT_ART;
@@ -107,6 +119,23 @@ export function BootPictureSetting({ value, onChange }: { value: string; onChang
                 <Button size="small" variant="dangerSecondary" disabled={!art} onClick={() => { setArt(""); onChange(""); }}>Back to the original</Button>
             </div>
             <Forms.FormText style={{ marginTop: 6 }}>"Dark parts lit" flips which parts light up - try it if your picture comes out mostly empty.</Forms.FormText>
+            {isRyder() && (
+                <div style={{ marginTop: 14 }}>
+                    <Forms.FormTitle>Your own text (only you see this)</Forms.FormTitle>
+                    <Forms.FormText>Paste any text or text art (braille, ASCII...) - it's shown exactly as pasted, and the boot screen shrinks the text to fit.</Forms.FormText>
+                    <textarea
+                        value={paste}
+                        onChange={e => setPaste(e.currentTarget.value)}
+                        spellCheck={false}
+                        placeholder="Paste your text here"
+                        style={{ width: "100%", height: 140, marginTop: 8, padding: 8, boxSizing: "border-box", resize: "vertical", borderRadius: 6, border: "1px solid #444", background: "#000", color: "#ddd", fontFamily: "Consolas, monospace", fontSize: 8, lineHeight: 1, whiteSpace: "pre", overflow: "auto" }}
+                    />
+                    <div style={{ display: "flex", gap: 8, marginTop: 6 }}>
+                        <Button size="small" disabled={!paste.trim()} onClick={() => { const next = cleanTextArt(paste); setArt(next); onChange(next); setPaste(""); }}>Use this text</Button>
+                        <Button size="small" variant="secondary" disabled={!art} onClick={() => setPaste(art)}>Edit the current one</Button>
+                    </div>
+                </div>
+            )}
         </section>
     );
 }

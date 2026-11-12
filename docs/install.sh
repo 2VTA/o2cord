@@ -726,7 +726,7 @@ main() {
         done
         remove_autorepair
         if [ "${#remaining[@]}" -gt 0 ]; then setup_autorepair "${remaining[@]}"; fi
-        say "${D}Your o2cord settings stay in ~/.config/Vencord and the program files in $DIST_DIR - delete them if you want everything gone.${N}"
+        say "${D}Your o2cord settings stay in ~/.config/o2cord (older versions: ~/.config/Vencord) and the program files in $DIST_DIR - delete them if you want everything gone.${N}"
         exit 0
     fi
 

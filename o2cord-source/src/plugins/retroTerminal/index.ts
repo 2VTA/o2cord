@@ -228,7 +228,8 @@ function getProfile(): Profile {
 
 function getBootArt(): readonly string[] {
     const custom = settings.store.bootArt;
-    return custom ? custom.split("\n") : BOOT_ART;
+    // pasted text can hold backslashes and quotes, which would end the CSS content string
+    return custom ? custom.split("\n").map(l => l.replace(/\\/g, "\\\\").replace(/"/g, "\\\"")) : BOOT_ART;
 }
 
 function hexToRgb(hex: string) {
@@ -392,7 +393,9 @@ function loaderCss(profile: Profile, font: typeof FONTS[string], mode: ColorMode
     const keyframes = stops.map(k => `    ${(k.at / elapsed * 100).toFixed(3)}% { height: ${k.height}; }`).join("\n");
 
     // ~40 lines: shrink the font on short screens so the prompt stays in view.
-    const fontSize = `min(24px, calc((100vh - 96px) / ${(n * 1.35).toFixed(2)}))`;
+    // ...and on narrow screens, so the widest line (wide text art) stays on screen too.
+    const widest = Math.max(...lines.map(l => [...l.s.replace(/\\(.)/g, "$1")].length));
+    const fontSize = `min(24px, calc((100vh - 96px) / ${(n * 1.35).toFixed(2)}), calc((100vw - 112px) / ${(widest * 0.62).toFixed(2)}))`;
     // Under the CRT effect layers normally; in "everything" mode above the
     // tint layers too, or the already-coloured text would be tinted twice.
     const z = mode === "all" ? 2147483647 : 2147483600;
@@ -1063,11 +1066,12 @@ export default definePlugin({
     startAt: StartAt.DOMContentLoaded,
 
     start() {
-        // VHS owns the whole screen too - they don't mix
-        const vhs = plugins.VHS;
-        if (vhs && isPluginEnabled("VHS")) {
-            if (vhs.started) stopPlugin(vhs);
-            Settings.plugins.VHS.enabled = false;
+        // VHS and SplatInk own the whole screen too - they don't mix
+        for (const name of ["VHS", "SplatInk"]) {
+            const other = plugins[name];
+            if (!other || !isPluginEnabled(name)) continue;
+            if (other.started) stopPlugin(other);
+            Settings.plugins[name].enabled = false;
         }
         pluginRunning = true;
         void activateEarly();

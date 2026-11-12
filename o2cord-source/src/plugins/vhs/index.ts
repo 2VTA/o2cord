@@ -727,10 +727,13 @@ function showBackgroundWhenLoaded() {
 
 /** RetroTerminal and VHS both own the whole screen - turning one on turns the other off. */
 function turnOffRetroTerminal() {
-    const retro = plugins.RetroTerminal;
-    if (!retro || !isPluginEnabled("RetroTerminal")) return;
-    if (retro.started) stopPlugin(retro);
-    Settings.plugins.RetroTerminal.enabled = false;
+    // SplatInk owns the whole screen too
+    for (const name of ["RetroTerminal", "SplatInk"]) {
+        const other = plugins[name];
+        if (!other || !isPluginEnabled(name)) continue;
+        if (other.started) stopPlugin(other);
+        Settings.plugins[name].enabled = false;
+    }
 }
 
 let subscribed = false;

@@ -75,11 +75,13 @@ function applyAllFromSettings() {
     }
 }
 
-export type ThemeChoice = "none" | "glass" | "retro" | "vhs";
+export type ThemeChoice = "none" | "glass" | "retro" | "vhs" | "splat";
 
 export const isOwner = () => UserStore.getCurrentUser()?.id === String(Devs.Ryder.id);
 
 export function currentTheme(): ThemeChoice {
+    // SplatInk is Ryder's private theme - only in his own build
+    if (plugins.SplatInk && Settings.plugins.SplatInk?.enabled) return "splat";
     if (Settings.plugins.VHS?.enabled) return "vhs";
     if (canUseRetro() && Settings.plugins.RetroTerminal?.enabled) return "retro";
     if (isOwner() && settings.store.enableTheme !== false) return "glass";
@@ -102,13 +104,14 @@ function setPluginEnabled(name: string, on: boolean) {
 }
 
 export function chooseTheme(choice: ThemeChoice) {
-    // VHS and RetroTerminal each switch the other off when they start
-    if (choice === "retro" || choice === "vhs") {
-        setPluginEnabled(choice === "retro" ? "RetroTerminal" : "VHS", true);
+    // VHS, RetroTerminal and SplatInk each switch the others off when they start
+    if (choice === "retro" || choice === "vhs" || choice === "splat") {
+        setPluginEnabled(choice === "retro" ? "RetroTerminal" : choice === "vhs" ? "VHS" : "SplatInk", true);
         return;
     }
     setPluginEnabled("RetroTerminal", false);
     setPluginEnabled("VHS", false);
+    setPluginEnabled("SplatInk", false);
     settings.store.enableTheme = choice === "glass";
     syncOwnerThemeClass();
 }

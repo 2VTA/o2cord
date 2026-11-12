@@ -107,8 +107,15 @@ interface ToastsExports {
     popToast(): void;
 }
 
+// Older Discord builds
 const ToastsExports = mapMangledModuleLazy(".currentToastMap.has(", {
     showToast: filters.byCode(".currentToastMap.has("),
+    popToast: filters.byCode(".delete(")
+});
+
+// Newer Discord builds (2026-11): the store is "{currentToastMap, queuedToastsMap}" and a toast is { text, variant, ... }
+const NewToastsExports = mapMangledModuleLazy("queuedToastsMap:new Map", {
+    showToast: filters.byCode("toastKey"),
     popToast: filters.byCode(".delete(")
 });
 
@@ -117,8 +124,12 @@ export function createToast(message: string, type: string, options?: ToastOption
         message,
         id: Toasts.genId(),
         type,
-        options
-    };
+        options,
+        // the same toast in the newer Discord format (ignored by the older one)
+        text: message,
+        ...(type === ToastType.SUCCESS ? { variant: "success" } : type === ToastType.FAILURE ? { variant: "critical" } : {}),
+        ...(options?.duration != null ? { duration: options.duration } : {})
+    } as ToastData;
 }
 
 export const Toasts = {
@@ -135,7 +146,16 @@ export const Toasts = {
  * Show a simple toast. If you need more options, use Toasts.show manually
  */
 export function showToast(message: string, type = ToastType.MESSAGE, options?: ToastOptions) {
-    Toasts.show(Toasts.create(message, type, options));
+    // A toast must never break the code that asked for it (a scheduled message that was already sent would
+    // be sent again if the "sent" toast threw), so every way of showing it is tried and failures are swallowed.
+    const toast = Toasts.create(message, type, options);
+    for (const show of [() => NewToastsExports.showToast(toast), () => Toasts.show(toast)]) {
+        try {
+            show();
+            return;
+        } catch { /* try the next way */ }
+    }
+    console.warn("[o2cord] couldn't show toast:", message);
 }
 
 export const UserUtils = {

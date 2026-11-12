@@ -31,6 +31,24 @@ export interface Release {
 
 export const RELEASES: Release[] = [
     {
+        version: "1.3.89",
+        date: "November 12, 2026",
+        features: [
+            {
+                plugin: "CustomProfile",
+                title: "Discord's whole shop in Custom Profile",
+                text: "The avatar decoration, profile effect and frame pickers now list everything from Discord's shop, and the \"I have Nitro\" switch is gone - nothing is locked any more."
+            }
+        ],
+        fixes: [
+            { plugin: "ScheduledMessages", text: "Fixed a scheduled message being sent again and again. A daily message now goes out once per day at its time, and the same message is never sent twice in a few minutes." },
+            { text: "Pop-up messages (toasts) show again on Discord's newest version." },
+            { plugin: "CustomProfile", text: "Profile frames show up on Discord's newest version. Publishing your profile now waits for approval before everyone sees it." },
+            { plugin: "Nameplate", text: "Custom nameplates are brighter and no longer look washed out." },
+            { text: "o2cord now keeps its settings in its own \"o2cord\" folder. Your old folder is copied over once and left untouched." }
+        ]
+    },
+    {
         version: "1.3.82",
         date: "November 5, 2026",
         features: [

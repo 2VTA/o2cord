@@ -61,8 +61,17 @@ const THEMES: { id: ThemeChoice; title: string; sub: string; }[] = [
     { id: "none", title: "Normal", sub: "Discord's own look" },
     { id: "glass", title: "Liquid Glass", sub: "Frosted glass panels" },
     { id: "retro", title: "Retro Terminal", sub: "Old CRT screen" },
-    { id: "vhs", title: "VHS", sub: "Old video tape" }
+    { id: "vhs", title: "VHS", sub: "Old video tape" },
+    { id: "splat", title: "Splat Ink", sub: "Ink, Callie and Marie" }
 ];
+
+// The theme behind each card that has its own settings (its gear button and a double-click open them).
+const THEME_PLUGIN: Partial<Record<ThemeChoice, string>> = { retro: "RetroTerminal", vhs: "VHS", splat: "SplatInk" };
+
+function openThemeSettings(id: ThemeChoice) {
+    const plugin = THEME_PLUGIN[id] && plugins[THEME_PLUGIN[id]!];
+    if (plugin) openPluginModal(plugin);
+}
 
 const available = (name: string) => !!plugins[name] && !plugins[name].hidden && !DEBUG_ONLY_PLUGINS.has(name);
 
@@ -85,7 +94,9 @@ export function ThemeCards({ onChange }: { onChange(): void; }) {
     const options = THEMES
         .filter(t => t.id !== "glass" || isOwner())
         .filter(t => t.id !== "retro" || canUseRetro())
-        .filter(t => t.id !== "vhs" || !!plugins.VHS);
+        .filter(t => t.id !== "vhs" || !!plugins.VHS)
+        // Ryder's private theme - only in his own build
+        .filter(t => t.id !== "splat" || !!plugins.SplatInk);
     return (
         <div className="o2-hub-themes">
             {options.map(t => (
@@ -95,12 +106,24 @@ export function ThemeCards({ onChange }: { onChange(): void; }) {
                     role="radio"
                     aria-checked={theme === t.id}
                     onClick={() => { chooseTheme(t.id); onChange(); }}
-                    // Double-click the retro / VHS card to open its own settings.
-                    onDoubleClick={t.id === "retro" ? () => openPluginModal(plugins.RetroTerminal) : t.id === "vhs" ? () => openPluginModal(plugins.VHS) : undefined}
-                    title={t.id === "retro" || t.id === "vhs" ? "Double-click for settings" : undefined}
+                    // Double-click a card with settings to open them (or use its gear button).
+                    onDoubleClick={THEME_PLUGIN[t.id] ? () => openThemeSettings(t.id) : undefined}
+                    title={THEME_PLUGIN[t.id] ? "Double-click for settings" : undefined}
                 >
                     <div className={`o2-hub-theme-preview o2-hub-theme-preview-${t.id}`} style={t.id === "retro" ? { color: profile.fg, background: profile.bg } : undefined}>
-                        {t.id === "retro" ? "> _" : t.id === "vhs" ? "PLAY ►" : null}
+                        {t.id === "retro" ? "> _" : t.id === "vhs" ? "PLAY ►" : t.id === "splat" ? "SPLAT!" : null}
+                        {THEME_PLUGIN[t.id] && (
+                            <Clickable
+                                className="o2-hub-theme-gear"
+                                aria-label={`${t.title} settings`}
+                                title="Settings"
+                                onClick={(e: React.MouseEvent) => { e.stopPropagation(); openThemeSettings(t.id); }}
+                            >
+                                <svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true">
+                                    <path fill="currentColor" d="M19.14 12.94a7.07 7.07 0 0 0 0-1.88l2.03-1.58a.5.5 0 0 0 .12-.64l-1.92-3.32a.5.5 0 0 0-.61-.22l-2.39.96a7 7 0 0 0-1.62-.94l-.36-2.54A.5.5 0 0 0 13.9 2.4h-3.84a.5.5 0 0 0-.49.42l-.36 2.54a7 7 0 0 0-1.62.94l-2.39-.96a.5.5 0 0 0-.61.22L2.67 8.88a.5.5 0 0 0 .12.64l2.03 1.58a7.07 7.07 0 0 0 0 1.88l-2.03 1.58a.5.5 0 0 0-.12.64l1.92 3.32a.5.5 0 0 0 .61.22l2.39-.96c.5.38 1.04.7 1.62.94l.36 2.54a.5.5 0 0 0 .49.42h3.84a.5.5 0 0 0 .49-.42l.36-2.54a7 7 0 0 0 1.62-.94l2.39.96a.5.5 0 0 0 .61-.22l1.92-3.32a.5.5 0 0 0-.12-.64zM12 15.5a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7z" />
+                                </svg>
+                            </Clickable>
+                        )}
                     </div>
                     <div className="o2-hub-theme-title">{t.title}{theme === t.id && <span className="o2-hub-muted"> · on</span>}</div>
                     <div className="o2-hub-muted">{t.sub}</div>

@@ -35,6 +35,14 @@ const RECREATE_DEBOUNCE_MS = 300;
 // morning". One-time messages keep sending whenever they are found overdue.
 const DAILY_GRACE_MS = 60 * 60 * 1000;
 
+// Anti-spam guards. A scheduled entry is NEVER sent twice within this time, no matter what the queue
+// says (a clock that is off, a save that did not land, two Discord windows with the same queue...).
+const MIN_RESEND_MS = 10 * 60 * 1000;
+// If the very same words from this account are already in the channel (posted just now, e.g. by another window
+// or by an earlier run that was cut off), the scheduler does not post them again.
+const DUPLICATE_WINDOW_MS = 3 * 60 * 1000;
+const lastSentById = new Map<string, number>();
+
 // The PC's clock is often a few seconds off (Windows' time sync can be stopped), but Discord stamps a message
 // with ITS clock. A message planned for 12:34 that left at 12:34:00 on a PC clock running 4 seconds fast was
 // stamped 12:33 by Discord. So the scheduler asks Discord what time it is (the Date header of an API answer),
@@ -78,7 +86,8 @@ function discordNow(): number {
 function nextDailyOccurrence(base: number, now: number): number {
     const next = new Date(base);
     for (let i = 0; i < 400 && next.getTime() <= now; i++) next.setDate(next.getDate() + 1);
-    return next.getTime();
+    // never hand back something that is not clearly in the future (a bad date would send again and again)
+    return next.getTime() > now ? next.getTime() : now + 24 * 60 * 60 * 1000;
 }
 
 export async function loadScheduledMessages(): Promise<void> {
@@ -393,9 +402,49 @@ async function addReactionsToMessage(channelId: string, messageId: string, react
     }
 }
 
-async function sendScheduledMessage(msg: ScheduledMessage): Promise<boolean> {
+/** True when the same words from this account were already posted in the channel moments ago. */
+async function alreadyPostedRecently(msg: ScheduledMessage): Promise<boolean> {
+    if (msg.attachments?.length || !msg.content.trim()) return false;
+    // the user queued the same words on purpose more than once for this minute: those are not duplicates
+    const minuteStart = Math.floor(msg.scheduledTime / 60000) * 60000;
+    const intended = scheduledMessages.filter(m =>
+        m.id !== msg.id && m.channelId === msg.channelId && m.content === msg.content
+        && m.scheduledTime >= minuteStart - 60000 && m.scheduledTime < minuteStart + 120000
+    ).length;
+    try {
+        const me = UserStore.getCurrentUser()?.id;
+        const res = await RestAPI.get({ url: Constants.Endpoints.MESSAGES(msg.channelId), query: { limit: 10 }, retries: 1 });
+        const recent = (res?.body as { author?: { id?: string; }; content?: string; timestamp?: string; }[] | undefined) ?? [];
+        const copies = recent.filter(m =>
+            m.author?.id === me && m.content === msg.content && Date.now() - Date.parse(m.timestamp ?? "") < DUPLICATE_WINDOW_MS
+        ).length;
+        return copies > intended;
+    } catch {
+        return false; // can't check: fall back on the other guards
+    }
+}
+
+async function sendScheduledMessage(msg: ScheduledMessage, force = false): Promise<boolean> {
     try {
         if (!ChannelStore.getChannel(msg.channelId)) return false;
+
+        // Spam guards: this exact entry already left a moment ago, or the words are already there.
+        // ("Send now" is the person asking for it, so it skips the checks.)
+        if (!force) {
+            const last = lastSentById.get(msg.id) ?? msg.lastSentAt ?? 0;
+            if (Date.now() - last < MIN_RESEND_MS) {
+                logger.warn(`Not sending ${msg.id} again: it was already sent ${Math.round((Date.now() - last) / 1000)}s ago`);
+                if (settings.store.showNotifications) showToast("Scheduled message skipped: it was just sent", Toasts.Type.MESSAGE);
+                return false;
+            }
+            if (await alreadyPostedRecently(msg)) {
+                logger.warn(`Not sending ${msg.id}: the same message is already in the channel`);
+                if (settings.store.showNotifications) showToast("Scheduled message skipped: the same message was just sent", Toasts.Type.MESSAGE);
+                return false;
+            }
+        }
+        lastSentById.set(msg.id, Date.now());
+        msg.lastSentAt = Date.now();
 
         const reactions = pendingReactions.get(msg.id) ?? msg.reactions ?? [];
         removePhantomMessage(msg);
@@ -507,13 +556,13 @@ export async function sendScheduledMessageNow(id: string): Promise<{ success: bo
 
     // A daily message keeps its schedule: "send now" just sends today's copy early.
     if (message.repeat === "daily") {
-        const sentNow = await sendScheduledMessage(message);
+        const sentNow = await sendScheduledMessage(message, true);
         await createPhantomMessage(message);
         return sentNow ? { success: true } : { success: false, error: "Failed to send scheduled message" };
     }
 
     await removeScheduledMessage(id);
-    const sent = await sendScheduledMessage(message);
+    const sent = await sendScheduledMessage(message, true);
     if (!sent) {
         return { success: false, error: "Failed to send scheduled message" };
     }
@@ -546,14 +595,19 @@ async function checkAndSendMessages(): Promise<void> {
 
         for (const msg of dueMessages) {
             if (msg.repeat === "daily") {
-                // Send (which also drops the old phantom), then move to the next day and
-                // stay in the queue - removed only when the person removes it.
-                if (now - msg.scheduledTime <= DAILY_GRACE_MS) await sendScheduledMessage(msg);
-                else removePhantomMessage(msg);
-
-                msg.scheduledTime = nextDailyOccurrence(msg.scheduledTime, Date.now());
+                // Move to the next day and SAVE FIRST, then send. If Discord is closed or crashes in the
+                // middle, the entry is already on tomorrow, so it can never go out twice. It stays in the
+                // queue - removed only when the person removes it.
+                const shouldSend = now - msg.scheduledTime <= DAILY_GRACE_MS;
+                const floor = Math.max(now, Date.now()) + 60 * 1000; // clearly ahead of BOTH clocks
+                msg.scheduledTime = nextDailyOccurrence(msg.scheduledTime, floor);
                 scheduledMessages.sort((a, b) => a.scheduledTime - b.scheduledTime);
                 await saveScheduledMessages();
+
+                if (shouldSend) {
+                    const sent = await sendScheduledMessage(msg); // also drops the old phantom
+                    if (sent) await saveScheduledMessages();
+                } else removePhantomMessage(msg);
                 await createPhantomMessage(msg);
                 continue;
             }

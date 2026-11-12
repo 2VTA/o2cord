@@ -203,6 +203,47 @@
         radial-gradient(ellipse at 50% 45%, #1730d0 0%, #0b1fae 60%, #06107a 100%);
 }
 
+/* Splat Ink: two ink splashes on night blue */
+.o2-hub-theme-preview-splat {
+    color: #fff;
+    font-family: "Lilita One", var(--font-display, sans-serif);
+    font-size: 15px;
+    letter-spacing: 0.04em;
+    text-shadow: 2px 2px 0 #f22d9a;
+    background:
+        radial-gradient(circle at 78% 38%, #b6f01f 0 15px, transparent 16px),
+        radial-gradient(circle at 89% 70%, #b6f01f 0 6px, transparent 7px),
+        radial-gradient(circle at 60% 80%, #f22d9a 0 18px, transparent 19px),
+        radial-gradient(circle at 46% 24%, #f22d9a 0 5px, transparent 6px),
+        #120c26;
+}
+
+/* the gear in the corner of a theme card with its own settings */
+.o2-hub-theme-preview {
+    position: relative;
+}
+
+.o2-hub-theme-gear {
+    position: absolute;
+    top: 5px;
+    right: 5px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    border-radius: 6px;
+    color: #fff;
+    background: rgba(0, 0, 0, 0.45);
+    opacity: 0.75;
+    cursor: pointer;
+}
+
+.o2-hub-theme-gear:hover {
+    opacity: 1;
+    background: rgba(0, 0, 0, 0.7);
+}
+
 .o2-hub-theme-title {
     margin-bottom: 2px;
     font-weight: 600;

@@ -28,10 +28,10 @@ import { CALLIE_ART } from "./art";
 
 const CALLIE_ID = "1538029895601623100";
 // Only used to ask Discord for Callie's online status.
-const O2CORD_GUILD_ID = "1473639169535512679";
+export const O2CORD_GUILD_ID = "1473639169535512679";
 const REPLY_TIMEOUT_MS = 25_000;
-const MAX_BYTES = 10 * 1024 * 1024;
-const PHRASE_MAX = 40;
+export const MAX_BYTES = 10 * 1024 * 1024;
+export const PHRASE_MAX = 40;
 
 type Kind = "nameplate" | "profile-theme" | "background" | "typing-phrase";
 
@@ -82,9 +82,9 @@ const KINDS: Record<Kind, KindInfo> = {
 //
 // Nothing here touches any token: sending goes through Discord's own message
 // helpers, which never expose it.
-const NL = String.fromCharCode(10);
+export const NL = String.fromCharCode(10);
 
-interface RequestResult {
+export interface RequestResult {
     ok: boolean;
     text: string;
     // shown as a "Join o2cord" button when the person has no server in common with Callie
@@ -95,10 +95,10 @@ interface RequestResult {
 
 // Lands in the o2cord server's read-only welcome channel.
 const INVITE_CODE = "f9xG4eTHb9";
-const O2CORD_INVITE = `https://discord.gg/${INVITE_CODE}`;
+export const O2CORD_INVITE = `https://discord.gg/${INVITE_CODE}`;
 
 // Opens Discord's own "join server" window right here; the browser only if that fails.
-function joinO2cord() {
+export function joinO2cord() {
     openInviteModal(INVITE_CODE).catch(() => VencordNative.native.openExternal(O2CORD_INVITE));
 }
 
@@ -106,7 +106,7 @@ function joinO2cord() {
 // kept per server: o2cord being in this list is what Discord's error 50278 means.
 const RestrictedGuilds = getUserSettingLazy<string[]>("privacy", "restrictedGuildIds")!;
 
-function allowDmsFromO2cord() {
+export function allowDmsFromO2cord() {
     const list = RestrictedGuilds.getSetting() ?? [];
     if (list.includes(O2CORD_GUILD_ID)) RestrictedGuilds.updateSetting(list.filter(id => id !== O2CORD_GUILD_ID));
 }
@@ -121,11 +121,11 @@ async function getCallieDm(): Promise<string | null> {
 }
 
 // Discord only lets you DM a bot you share a server with.
-const NO_SHARED_SERVER = "Discord won't let you message Callie. You need to be in a server with her - join the o2cord server first, then try again.";
+export const NO_SHARED_SERVER = "Discord won't let you message Callie. You need to be in a server with her - join the o2cord server first, then try again.";
 // 50278: a server in common exists, but it has "Allow direct messages from server
 // members" switched off in the person's own privacy settings, which Discord treats
 // as no server in common for DMs.
-const DMS_OFF_IN_SERVER = "Your privacy settings block DMs from o2cord server members, so Callie can't get your request. Allow them below (only for the o2cord server), then send again.";
+export const DMS_OFF_IN_SERVER = "Your privacy settings block DMs from o2cord server members, so Callie can't get your request. Allow them below (only for the o2cord server), then send again.";
 
 // Waits for Callie's answer in the DM.
 function waitForReply(channelId: string) {
@@ -148,7 +148,7 @@ function waitForReply(channelId: string) {
 
 // Stages the file the way Discord's own uploader does: ask for an upload slot,
 // PUT the bytes there, then attach it to the message by upload_filename.
-async function stageUpload(file: File, channelId: string) {
+export async function stageUpload(file: File, channelId: string) {
     const { body } = await RestAPI.post({
         url: `/channels/${channelId}/attachments`,
         body: { files: [{ filename: file.name, file_size: file.size, id: "0" }] }
@@ -187,7 +187,7 @@ export async function sendRequest(kind: Kind | "clear-typing-phrase" | "custom-p
 
 // Callie replies in Discord markdown - drop the formatting for the status
 // line.
-function plain(text: string) {
+export function plain(text: string) {
     return text.replace(/\*\*|`/g, "").replace(/<@!?\d+>/g, "you");
 }
 
@@ -222,7 +222,7 @@ function JoinGate() {
     );
 }
 
-function Preview({ file, aspect }: { file: File; aspect?: string; }) {
+export function Preview({ file, aspect }: { file: File; aspect?: string; }) {
     const [url, setUrl] = useState<string | null>(null);
     useEffect(() => {
         const u = URL.createObjectURL(file);
@@ -440,6 +440,36 @@ export function openCallieModal() {
     openModal(props => <CallieModal {...props} />);
 }
 
+// Ryder's private "Marie requests" window opens when this button is double-clicked. The MarieRequests plugin (which is
+// not part of the public build) hands its opener over here; without it nothing changes and a click opens Callie at once.
+let marieOpener: (() => void) | null = null;
+export function setMarieOpener(fn: (() => void) | null) { marieOpener = fn; }
+
+const DOUBLE_CLICK_MS = 300;
+let pendingClick: ReturnType<typeof setTimeout> | null = null;
+
+function onCallieButtonClick() {
+    if (!marieOpener) return openCallieModal();
+    // only when the private window exists: wait a moment to see whether a second click follows
+    if (pendingClick) return;
+    pendingClick = setTimeout(() => { pendingClick = null; openCallieModal(); }, DOUBLE_CLICK_MS);
+}
+
+function onCallieButtonDoubleClick() {
+    if (!marieOpener) return;
+    if (pendingClick) { clearTimeout(pendingClick); pendingClick = null; }
+    marieOpener();
+}
+
+function CallieButton() {
+    // "display: contents" keeps the layout exactly as it was; events still bubble up to this wrapper
+    return (
+        <div style={{ display: "contents" }} onDoubleClick={onCallieButtonDoubleClick}>
+            <HeaderBarButton icon={CallieIcon} tooltip="Callie requests" onClick={onCallieButtonClick} />
+        </div>
+    );
+}
+
 export default definePlugin({
     name: "CallieRequests",
     description: "Send nameplate, profile theme, background and typing phrase requests to Callie from anywhere, without typing commands.",
@@ -451,9 +481,10 @@ export default definePlugin({
         "Callie requests": openCallieModal
     },
     start() {
-        addHeaderBarButton("o2cord-callie", () => <HeaderBarButton icon={CallieIcon} tooltip="Callie requests" onClick={openCallieModal} />, 880);
+        addHeaderBarButton("o2cord-callie", () => <CallieButton />, 880);
     },
     stop() {
         removeHeaderBarButton("o2cord-callie");
+        if (pendingClick) { clearTimeout(pendingClick); pendingClick = null; }
     }
 });

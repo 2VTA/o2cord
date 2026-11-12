@@ -40,3 +40,12 @@ o2cord-source/src/plugins/FakeVoice/
 
 # FastDeleteChannels is debug-only (Ryder + debug o2 people) - never upload it
 o2cord-source/src/plugins/fastDeleteChannels/
+
+# SplatInk is Ryder's private theme - never upload it
+o2cord-source/src/plugins/splatInk/
+
+# RyderCosmetics is Ryder's private decoration + effect - never upload it
+o2cord-source/src/plugins/ryderCosmetics/
+
+# MarieRequests is Ryder's private Marie window - never upload it
+o2cord-source/src/plugins/marieRequests/

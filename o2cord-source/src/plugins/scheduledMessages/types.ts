@@ -32,6 +32,8 @@ export interface ScheduledMessage {
     // "daily": after each send it is rescheduled for the same clock time the next
     // day and stays in the queue until the person removes it. Unset = send once.
     repeat?: "daily";
+    // when it last went out - the anti-spam guard never sends the same entry twice within minutes
+    lastSentAt?: number;
 }
 
 export interface PhantomMessageData {

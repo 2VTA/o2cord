@@ -1508,3 +1508,44 @@
     -webkit-box-orient: vertical;
     -webkit-line-clamp: 3;
 }
+
+/* search box above the effect / frame / decoration pickers */
+.cp-picker-search {
+    width: 100%;
+    box-sizing: border-box;
+    margin: 0 0 6px;
+    padding: 8px 10px;
+    border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.1));
+    border-radius: 8px;
+    background: var(--background-base-lower, var(--background-tertiary));
+    color: var(--text-default, var(--text-normal));
+    font: inherit;
+    outline: none;
+}
+
+.cp-picker-search:focus {
+    border-color: var(--brand-500, #5865f2);
+}
+
+.cp-picker-count {
+    margin: 0 2px 8px;
+    font-size: 12px;
+    color: var(--text-muted);
+}
+
+/* the search box stays at the top while the list scrolls */
+.cp-picker-bar {
+    position: sticky;
+    top: 0;
+    z-index: 3;
+    padding-bottom: 4px;
+    background: var(--modal-background, var(--background-base-lowest, var(--background-primary)));
+}
+
+.cp-picker-bar .cp-picker-search {
+    margin-bottom: 4px;
+}
+
+.cp-picker-bar .cp-picker-count {
+    margin-bottom: 0;
+}

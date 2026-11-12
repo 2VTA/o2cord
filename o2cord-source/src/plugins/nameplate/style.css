@@ -10,3 +10,12 @@
     z-index: -1;
     pointer-events: none;
 }
+
+/* Discord draws a nameplate picture at 60% opacity and fades its left part to 30%, which made our custom ones look
+   washed out. Ours (the o2cord registry, or a local file) are brightened; Discord's own nameplates stay untouched. */
+[class*="nameplated"] [class*="container_"] > img[class*="img_"][src*="2VTA/o2cord"],
+[class*="nameplated"] [class*="container_"] > img[class*="img_"][src^="blob:"],
+[class*="nameplated"] [class*="container_"] > img[class*="img_"][src^="data:"] {
+    opacity: 0.95 !important;
+    mask-image: linear-gradient(to right, rgba(0, 0, 0, 0.75) 218px, rgb(0, 0, 0) 268px) !important;
+}

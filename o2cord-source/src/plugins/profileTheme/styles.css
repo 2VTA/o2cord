@@ -291,6 +291,18 @@ html.o2-profile-theme-active [data-o2-profile-theme-target="true"] [style*="coll
     pointer-events: none !important;
 }
 
+/*
+ * The boost above is for the FRONT pieces. A frame's BACK pieces (the glow / shadow behind the card) are meant to
+ * sit behind the card's content - Discord gives them z-index -1 - so they keep that: with the boost they were drawn
+ * over the card's text and buttons as a see-through coloured band, and the card looked broken.
+ */
+html.o2-profile-theme-active .o2-profile-theme-target [class*="profileFrameLayer"][class*="back_"],
+html.o2-profile-theme-active .o2-profile-theme-target [class*="profileFrameMask"][class*="back_"],
+html.o2-profile-theme-active [data-o2-profile-theme-target="true"] [class*="profileFrameLayer"][class*="back_"],
+html.o2-profile-theme-active [data-o2-profile-theme-target="true"] [class*="profileFrameMask"][class*="back_"] {
+    z-index: -1 !important;
+}
+
 html.o2-profile-theme-active .o2-profile-theme-target [class*="userProfileInner"],
 html.o2-profile-theme-active [data-o2-profile-theme-target="true"] [class*="userProfileInner"],
 html.o2-profile-theme-active .o2-profile-theme-target [class*="userPopoutInner"],

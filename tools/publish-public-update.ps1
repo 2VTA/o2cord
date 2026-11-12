@@ -31,7 +31,10 @@ $PrivatePlugins = @(
     @{ Dir = "serverCloner"; Name = "ServerCloner" },
     @{ Dir = "FakeVoice"; Name = "FakeVoice" },
     @{ Dir = "pictureRequest"; Name = "PictureRequest" },
-    @{ Dir = "fastDeleteChannels"; Name = "FastDeleteChannels" }
+    @{ Dir = "fastDeleteChannels"; Name = "FastDeleteChannels" },
+    @{ Dir = "splatInk"; Name = "SplatInk" },
+    @{ Dir = "ryderCosmetics"; Name = "RyderCosmetics" },
+    @{ Dir = "marieRequests"; Name = "MarieRequests" }
 )
 $PluginsDir = Join-Path $Source "src\plugins"
 $HoldDir = Join-Path (Split-Path -Parent $Root) "_held_private_plugins"

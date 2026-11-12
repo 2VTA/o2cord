@@ -22,7 +22,8 @@ export function syncOwnerThemeClass() {
     const enabled = isOwner
         && Settings.plugins.o2Settings?.enableTheme !== false
         && !Settings.plugins.RetroTerminal?.enabled
-        && !Settings.plugins.VHS?.enabled;
+        && !Settings.plugins.VHS?.enabled
+        && !Settings.plugins.SplatInk?.enabled;
     const has = document.documentElement.classList.contains("o2-owner-theme");
     if (enabled && !has) document.documentElement.classList.add("o2-owner-theme");
     if (!enabled && has) document.documentElement.classList.remove("o2-owner-theme");

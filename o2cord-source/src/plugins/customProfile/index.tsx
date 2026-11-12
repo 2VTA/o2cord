@@ -21,6 +21,8 @@ import virtualMerge from "virtual-merge";
 import { sendRequest as sendToCallie } from "../callieRequests";
 import { PROFILE_EFFECTS, CustomProfileEffect } from "./profileEffects";
 import { PROFILE_FRAMES, CustomProfileFrame } from "./profileFrames";
+import { FRAME_SIZES, PRIVATE_FRAMES } from "./ryderFrames";
+import { AVATAR_DECORATIONS, getCustomDecorationUrl, getCustomFrameThumb, getCustomLayerUrl, initShopCatalog, isPrivateId, onCatalogChange, registerCustomFrame, stopShopCatalog, unregisterCustom } from "./shopCatalog";
 import { dirBadge, DirBadge, RARITY_NAMES } from "./badgeCatalog";
 
 const t = (text: string) => text;
@@ -96,33 +98,17 @@ const BOOST_ICONS_OLD = [
 const BOOST_DIR = dirBadge(12);
 const BOOST_ICONS = BOOST_ICONS_OLD.map((icon, i) => BOOST_DIR?.tiers[i]?.icon ?? icon);
 
-const AVATAR_DECORATIONS = [
-    { id: "1144307957425778779", label: "Hearts" },
-    { id: "1144308196723408958", label: "Hearts Animated" },
-    { id: "1212569433839636530", label: "Lofi Cafe" },
-    { id: "1481387347642810480", label: "Winter" },
-    { id: "1343751617362661526", label: "Magic Orb" },
-    { id: "1373015260465987705", label: "Dragon" },
-    { id: "1333866045303423026", label: "Ghost" },
-    { id: "1144308439720394944", label: "Sakura Drift" },
-    { id: "1432550258126229565", label: "Neon" },
-    { id: "1462116613632426014", label: "Cyber City" },
-    { id: "1462116613682757888", label: "Retro" },
-    { id: "1144307629225672846", label: "Fire" },
-    { id: "1341506443718688768", label: "Void" },
-    { id: "1447654090640330763", label: "Celestial" },
-    { id: "1483857762890022923", label: "Snowy" },
-    { id: "1479561706672885811", label: "Ice" },
-    { id: "1212569856189407352", label: "Cozy" },
-    { id: "1485784028710830242", label: "New Year" },
-    { id: "1341506444150702080", label: "Abyss" },
-    { id: "1232071712695386162", label: "Spring" },
-    { id: "1220514048068812901", label: "Summer" },
-    { id: "1427463138634109026", label: "Autumn" },
-    { id: "1341506443865489408", label: "Darkness" },
-];
+// The decoration list (built-in + Discord's shop) lives in shopCatalog.ts
+
+/** What Discord keeps on a user for a decoration: it builds the picture from skuId; an "a_" asset means "can animate". */
+function decorationDataFor(id: string) {
+    const dec = AVATAR_DECORATIONS.find(d => d.id === id);
+    return { asset: (dec?.animated ? "a_" : "") + id, skuId: id };
+}
 
 function getDecorationUrl(assetId: string, animated = false): string {
+    const own = getCustomDecorationUrl(assetId, animated);
+    if (own) return own;
     return `https://cdn.discordapp.com/media/v1/collectibles-shop/${assetId}/${animated ? "animated" : "static"}`;
 }
 
@@ -333,7 +319,7 @@ function shouldHideNativeBadge(nativeBadge: ProfileBadge, data: CustomProfileDat
 }
 
 const LS_KEY_DATA = "NightcordCP_data";
-// #callie in the o2cord server - Callie publishes a customprofile-<id>.json posted there by Ryder
+// #callie in the o2cord server - Marie (Ryder's owner bot) publishes a customprofile-<id>.json posted there by Ryder
 const CALLIE_CHANNEL_ID = "1538034368751083550";
 
 const LS_KEY_ENABLED = "NightcordCP_enabled";
@@ -1434,6 +1420,32 @@ function AllBadgesModal({ rootProps }: { rootProps: any; }) {
     );
 }
 
+// The shop catalogue has hundreds of entries, so every picker gets a search box.
+function SearchableGrid<T>({ items, name, children }: { items: T[]; name: (item: T) => string; children: (visible: T[]) => React.ReactNode; }) {
+    const [query, setQuery] = React.useState("");
+    const q = query.trim().toLowerCase();
+    const visible = q ? items.filter(item => name(item).toLowerCase().includes(q)) : items;
+    const input = React.useRef<HTMLInputElement>(null);
+    // focus without letting the browser scroll the list to the input
+    React.useEffect(() => { input.current?.focus({ preventScroll: true }); }, []);
+    return (
+        <>
+            <div className="cp-picker-bar">
+                <input
+                    ref={input}
+                    className="cp-picker-search"
+                    value={query}
+                    placeholder={t("Search...")}
+                    spellCheck={false}
+                    onChange={e => setQuery(e.currentTarget.value)}
+                />
+                <div className="cp-picker-count">{visible.length} / {items.length}</div>
+            </div>
+            {children(visible)}
+        </>
+    );
+}
+
 function PickerSummaryButton({ label, thumbSrc, onClick }: { label: string; thumbSrc?: string; onClick: () => void; }) {
     return (
         <button type="button" className="cp-picker-summary-btn" onClick={onClick}>
@@ -1453,6 +1465,7 @@ function ProfileEffectPicker({ selected, onChange }: { selected?: string; onChan
     function openPicker() {
         openModal(props => (
             <PickerModal rootProps={props} title={t("Profile Effects")}>
+                <SearchableGrid items={PROFILE_EFFECTS} name={e => e.title}>{visible => (
                 <div className="cp-profile-effects-grid">
                     <button
                         type="button"
@@ -1461,7 +1474,7 @@ function ProfileEffectPicker({ selected, onChange }: { selected?: string; onChan
                     >
                         <span className="cp-profile-effect-none">{t("None")}</span>
                     </button>
-                    {PROFILE_EFFECTS.map(effect => (
+                    {visible.map(effect => (
                         <button
                             type="button"
                             key={effect.id}
@@ -1474,6 +1487,7 @@ function ProfileEffectPicker({ selected, onChange }: { selected?: string; onChan
                                     src={effect.thumbnailPreviewSrc ?? effect.staticFrameSrc ?? effect.reducedMotionSrc}
                                     alt={effect.title}
                                     className="cp-profile-effect-thumb"
+                                loading="lazy"
                                 />
                             ) : (
                                 <span className="cp-profile-effect-none">{effect.title}</span>
@@ -1482,6 +1496,7 @@ function ProfileEffectPicker({ selected, onChange }: { selected?: string; onChan
                         </button>
                     ))}
                 </div>
+                )}</SearchableGrid>
             </PickerModal>
         ));
     }
@@ -1495,6 +1510,8 @@ function ProfileEffectPicker({ selected, onChange }: { selected?: string; onChan
 }
 
 function getFrameThumbnailUrl(frame: CustomProfileFrame): string | undefined {
+    const own = getCustomFrameThumb(frame.skuId);
+    if (own) return own;
     const layer = frame.layers.find(l => l.type === "border") ?? frame.layers[0];
     if (!layer) return undefined;
     return `https://cdn.discordapp.com/media/v1/collectibles-shop/${frame.skuId}/${layer.id}/static`;
@@ -1506,6 +1523,7 @@ function ProfileFramePicker({ selected, onChange }: { selected?: string; onChang
     function openPicker() {
         openModal(props => (
             <PickerModal rootProps={props} title={t("Profile Frames")}>
+                <SearchableGrid items={PROFILE_FRAMES.filter(f => !isPrivateId(f.skuId))} name={fr => fr.title}>{visible => (
                 <div className="cp-profile-effects-grid">
                     <button
                         type="button"
@@ -1514,7 +1532,7 @@ function ProfileFramePicker({ selected, onChange }: { selected?: string; onChang
                     >
                         <span className="cp-profile-effect-none">{t("None")}</span>
                     </button>
-                    {PROFILE_FRAMES.map(frame => (
+                    {visible.map(frame => (
                         <button
                             type="button"
                             key={frame.skuId}
@@ -1526,11 +1544,13 @@ function ProfileFramePicker({ selected, onChange }: { selected?: string; onChang
                                 src={getFrameThumbnailUrl(frame)}
                                 alt={frame.title}
                                 className="cp-profile-effect-thumb"
+                                loading="lazy"
                             />
                             <span className="cp-profile-effect-name">{frame.title}</span>
                         </button>
                     ))}
                 </div>
+                )}</SearchableGrid>
             </PickerModal>
         ));
     }
@@ -1549,21 +1569,23 @@ function AvatarDecorationPicker({ selected, onChange }: { selected?: string; onC
     function openPicker() {
         openModal(props => (
             <PickerModal rootProps={props} title={t("Avatar Decoration")}>
+                <SearchableGrid items={AVATAR_DECORATIONS} name={d => d.label}>{visible => (
                 <div className="cp-badges" style={{ flexWrap: "wrap", gap: 6 }}>
                     <button onClick={() => { onChange(undefined); props.onClose(); }}
                         className={`cp-badge ${!selected ? "cp-badge--on" : ""}`} style={{ minWidth: 60 }}>
                         {t("None")}
                     </button>
-                    {AVATAR_DECORATIONS.map(dec => (
+                    {visible.map(dec => (
                         <button key={dec.id}
                             onClick={() => { onChange(selected === dec.id ? undefined : dec.id); props.onClose(); }}
                             className={`cp-badge ${selected === dec.id ? "cp-badge--on" : ""}`}
                             title={dec.label} style={{ padding: 3, lineHeight: 0, width: 52, height: 52, borderRadius: 6 }}>
-                            <img src={getDecorationUrl(dec.id)} alt={dec.label}
+                            <img src={getDecorationUrl(dec.id)} alt={dec.label} loading="lazy"
                                 style={{ width: 46, height: 46, objectFit: "contain", display: "block" }} />
                         </button>
                     ))}
                 </div>
+                )}</SearchableGrid>
             </PickerModal>
         ));
     }
@@ -1627,7 +1649,7 @@ function ProfilePreview({ data, real }: { data: CustomProfileData; real: any; })
     const avatar = data.avatar || realAvatar;
     const primary = colorHex(data.accentColor);
     const accent = colorHex(data.accentColor2);
-    const bannerImage = data.nitro && data.banner ? data.banner : "";
+    const bannerImage = data.banner ? data.banner : "";
     const name = data.globalName || real?.globalName || real?.username || "Your name";
     const user = data.username || real?.username || "";
     const badges = getCustomProfileBadges(data);
@@ -1841,9 +1863,10 @@ function CustomProfileModal({ rootProps }: { rootProps: any; }) {
         URL.revokeObjectURL(url);
     }
 
-    // Sends the profile straight to Callie (#callie), who publishes it for everyone - no file to
-    // download and attach by hand. Only Ryder's posts are read by Callie, so anyone else (and any
-    // failure to post) falls back to the old downloaded file.
+    // Ryder's own profile goes straight to #callie as a file, where MARIE (his owner bot) publishes it for
+    // everyone - no file to download and attach by hand. Anyone else sends theirs to CALLIE by direct message
+    // (she publishes it under the sender's own id, after Ryder or Alosh accept it). A failure to post falls
+    // back to the downloaded file.
     async function exportForPublish() {
         if (selectedAccountId !== myId) {
             showToast(t("Switch to your real account first — only your own profile can be published."));
@@ -1871,11 +1894,11 @@ function CustomProfileModal({ rootProps }: { rootProps: any; }) {
                         attachments: [{ id: "0", filename: file.name, uploaded_filename: slot.upload_filename }]
                     }
                 });
-                showToast(t("Sent to Callie - everyone sees your profile in a minute or so."));
+                showToast(t("Sent to Marie - everyone sees your profile in a minute or so."));
                 return;
             } catch (e: any) {
-                console.error("[CustomProfile] couldn't send to Callie", e);
-                showToast(t("Couldn't reach Callie - downloaded the file instead. Attach it in #callie."));
+                console.error("[CustomProfile] couldn't send to #callie", e);
+                showToast(t("Couldn't reach Marie - downloaded the file instead. Attach it in #callie."));
             }
         }
 
@@ -1968,9 +1991,8 @@ function CustomProfileModal({ rootProps }: { rootProps: any; }) {
                                     <ImageUpload label={t("Profile picture")} value={data.avatar ?? ""} onChange={v => set("avatar", v)} editOnFile />
                                     <AvatarDecorationPicker selected={data.decorationAsset} onChange={v => set("decorationAsset", v)} />
                                 </Card>
-                                <Card title={t("Banner and colours")} hint={t("A banner and colours need the Nitro look turned on.")}>
-                                    <Toggle label={t("I have Nitro!")} sublabel={t("Enables banner and profile color")} checked={data.nitro ?? false} onChange={v => set("nitro", v)} />
-                                    {data.nitro && <ImageUpload label={t("Banner")} value={data.banner ?? ""} onChange={v => set("banner", v)} editOnFile cropAspect={2.5} />}
+                                <Card title={t("Banner and colours")} hint={t("Shown on your profile - no Nitro switch needed.")}>
+                                    <ImageUpload label={t("Banner")} value={data.banner ?? ""} onChange={v => set("banner", v)} editOnFile cropAspect={2.5} />
                                     <SectionLabel>{t("Profile Theme")}</SectionLabel>
                                     <ColorField
                                         label={t("Primary")}
@@ -2134,6 +2156,93 @@ function fakeUser(user: any): any {
     } catch { return user; }
 }
 
+// ---- My designs: Ryder's own frames. Everybody's o2cord can DRAW them (they are registered for all, below),
+// but they are not in the normal Profile Frames list - Ryder picks them from the debug o2 window.
+async function publishOwnProfile(data: CustomProfileData) {
+    const myId = AuthenticationStore?.getId?.();
+    if (!myId || myId !== String(Devs.Ryder.id)) return;
+    const { copiedUserId: _drop, ...publishable } = data;
+    const file = new File([JSON.stringify(publishable, null, 2)], `customprofile-${myId}.json`, { type: "application/json" });
+    try {
+        const { body } = await RestAPI.post({
+            url: `/channels/${CALLIE_CHANNEL_ID}/attachments`,
+            body: { files: [{ filename: file.name, file_size: file.size, id: "0" }] }
+        });
+        const slot = body?.attachments?.[0];
+        if (!slot?.upload_url) throw new Error("no upload slot");
+        const put = await fetch(slot.upload_url, { method: "PUT", body: file });
+        if (!put.ok) throw new Error(`upload ${put.status}`);
+        await RestAPI.post({
+            url: `/channels/${CALLIE_CHANNEL_ID}/messages`,
+            body: {
+                content: "",
+                nonce: SnowflakeUtils.fromTimestamp(Date.now()),
+                attachments: [{ id: "0", filename: file.name, uploaded_filename: slot.upload_filename }]
+            }
+        });
+        showToast(t("Sent to Marie - everyone sees your profile in a minute or so."));
+    } catch (e) {
+        console.error("[CustomProfile] couldn't send to #callie", e);
+        showToast(t("Frame changed here, but couldn't reach Marie. Use Publish now… in Custom Profile."));
+    }
+}
+
+async function setMyFrame(id: string | undefined) {
+    const myId = AuthenticationStore?.getId?.();
+    if (!myId) return;
+    const next: CustomProfileData = { ...(allAccountsData[myId] ?? storedData) };
+    if (id) next.profileFrameId = id; else delete next.profileFrameId;
+    allAccountsData[myId] = next;
+    allAccountsEnabled[myId] = true;
+    storedData = next;
+    isEnabled = true;
+    saveDataSync(storedData, true);
+    cachedFakeUser = null;
+    cachedOriginalUser = null;
+    _dataVersion++;
+    publicProfilesCache.delete(myId);
+    saveAllDataSync();
+    DataStore.set(DS_ALL_DATA, allAccountsData).catch(() => { });
+    DataStore.set(DS_ALL_ENABLED, allAccountsEnabled).catch(() => { });
+    updateCachedRealData();
+    forceAccountPanelRerender();
+    await publishOwnProfile(next);
+}
+
+function MyDesignsModal({ rootProps }: { rootProps: any; }) {
+    const [picked, setPicked] = React.useState<string | undefined>(() => storedData.profileFrameId);
+    const [busy, setBusy] = React.useState(false);
+    async function choose(id: string | undefined) {
+        if (busy) return;
+        setBusy(true);
+        setPicked(id);
+        try { await setMyFrame(id); } finally { setBusy(false); }
+    }
+    return (
+        <PickerModal rootProps={rootProps} title="My designs">
+            <div className="cp-picker-count">Profile frames only you can pick. Everybody using o2cord sees the one you choose on your profile.</div>
+            <div className="cp-profile-effects-grid">
+                <button type="button" className={`cp-profile-effect-card ${!picked || isPrivateId(picked) ? "" : "cp-profile-effect-card--on"}`} onClick={() => choose(undefined)} disabled={busy}>
+                    <span className="cp-profile-effect-none">None</span>
+                </button>
+                {PRIVATE_FRAMES.map(f => (
+                    <button
+                        key={f.skuId}
+                        type="button"
+                        title={f.label}
+                        className={`cp-profile-effect-card ${picked === f.skuId ? "cp-profile-effect-card--on" : ""}`}
+                        onClick={() => choose(picked === f.skuId ? undefined : f.skuId)}
+                        disabled={busy}
+                    >
+                        <img src={f.thumb} alt={f.title} className="cp-profile-effect-thumb" draggable={false} />
+                        <span className="cp-profile-effect-name">{f.title}</span>
+                    </button>
+                ))}
+            </div>
+        </PickerModal>
+    );
+}
+
 export default definePlugin({
     name: "CustomProfile",
     enabledByDefault: true,
@@ -2159,6 +2268,25 @@ export default definePlugin({
                     replace: "if($self.openAllBadges($1))return;"
                 }
             ]
+        },
+        {
+            // Discord builds every collectibles picture (decorations, ...) through this one function.
+            // For a decoration that only exists in a private plugin (an "o2-" id) it returns that plugin's own picture.
+            find: "getCollectiblesItemAssetUrl:function",
+            replacement: {
+                match: /(getCollectiblesItemAssetUrl:function\((\i)\)\{let\{skuId:(\i),assetFormat:(\i),assetId:(\i)\}=\2;)/,
+                replace: "$1{const vcCp=$self.customCollectibleUrl($3,$4,$5);if(vcCp)return vcCp}"
+            }
+        },
+        {
+            // Discord looks a profile effect up by its sku in the shop's product list and draws nothing if it is not
+            // there. An effect that only exists here (an "o2-" id - Meggy, and private ones) is handed over instead.
+            find: /getProduct\(\i\);if\(\(0,\i\.\i\)\(\i\?\.items\[0\]\)\)return \i\.items\[0\]/,
+            all: true, // two modules carry this lookup: one for effects, one that the profile frame uses
+            replacement: {
+                match: /(\(\)=>\{if\(null==(\i)\)return;)(let \i=\i\.\i\.getProduct\(\2\))/,
+                replace: "$1const vcFx=$self.customEffect($2);if(vcFx)return vcFx;$3"
+            }
         },
         {
             // Inject the CustomProfile warning notice into DM welcome screens
@@ -2348,6 +2476,13 @@ export default definePlugin({
         applyProfileEffectPatch(clone, storedData.profileEffectId);
         applyProfileFramePatch(clone, storedData.profileFrameId);
 
+        // Discord's avatar code no longer asks getAvatarDecorationURL (and never hands it the user's id): it builds
+        // the picture address itself from user.avatarDecorationData.skuId. So the chosen decoration travels on the
+        // user object, as a decoration with its shop sku (see decorationDataFor).
+        if (storedData.decorationAsset) {
+            clone.avatarDecorationData = decorationDataFor(storedData.decorationAsset);
+        }
+
         // Override flags/nitro/boost so Discord doesn't show real native badges
         // Badges you pick are ADDED to your real ones - never instead of them.
         const wantedFlags = isEnabled ? ((realUser.publicFlags ?? 0) | (storedData.badgeFlags ?? 0)) : realUser.publicFlags;
@@ -2370,15 +2505,9 @@ export default definePlugin({
             } else {
                 clone.premiumGuildSince = null;
             }
-        } else if (isEnabled) {
-            // Si le plugin est activé mais Nitro simulation OFF
-            // On force la suppression des badges Nitro/Boost si demandés ou si simulés par erreur
-            if (storedData.nitro === false) {
-                clone.premiumType = 0;
-                clone.premiumSince = null;
-                clone.premiumGuildSince = null;
-            }
         }
+        // With the Nitro look off, your real Nitro / boost values stay exactly as Discord has them
+        // (they used to be forced to "no Nitro", which locked real Nitro features).
 
         // Save real values for next cloning cycle
         if (!realUser.__cp_isClone) {
@@ -2424,6 +2553,11 @@ export default definePlugin({
         applyProfileEffectPatch(clone, data.profileEffectId);
         applyProfileFramePatch(clone, data.profileFrameId);
 
+        // same as for your own account (see fakeUser): the decoration rides on the user object
+        if (data.decorationAsset && !(isPrivateId(data.decorationAsset) && !getCustomDecorationUrl(data.decorationAsset))) {
+            clone.avatarDecorationData = decorationDataFor(data.decorationAsset);
+        }
+
         const wantedFlags = (realUser.publicFlags ?? 0) | (data.badgeFlags ?? 0);
         clone.publicFlags = wantedFlags;
         clone.flags = wantedFlags;
@@ -2444,10 +2578,6 @@ export default definePlugin({
             } else {
                 clone.premiumGuildSince = null;
             }
-        } else if (data.nitro === false) {
-            clone.premiumType = 0;
-            clone.premiumSince = null;
-            clone.premiumGuildSince = null;
         }
 
         clone.__cp_fake_other = true;
@@ -2467,12 +2597,14 @@ export default definePlugin({
             applyProfileEffectPatch(merged, data.profileEffectId);
             applyProfileFramePatch(merged, data.profileFrameId);
 
+            // Colours and banner show without any "Nitro look" switch
+            const themeColors = getProfileThemeColors(data.accentColor, data.accentColor2);
+            if (themeColors) merged.themeColors = themeColors;
+
             if (data.nitro) {
                 merged.premiumType = data.nitro ? 2 : 0;
 
                 if (data.nitro) {
-                    const themeColors = getProfileThemeColors(data.accentColor, data.accentColor2);
-                    if (themeColors) merged.themeColors = themeColors;
                     const nl = data.nitroLevel ?? 0;
                     const LEVEL_MONTHS = [1, 2, 3, 6, 12, 24, 36, 72];
                     const since = new Date();
@@ -2494,11 +2626,9 @@ export default definePlugin({
                 }
 
                 merged.publicFlags = (profile.publicFlags ?? 0) | (data.badgeFlags ?? 0);
-            } else if (data.nitro === false) {
-                merged.premiumType = profile.premiumType ?? 0;
-                merged.premiumSince = null;
-                merged.premiumGuildSince = null;
             }
+            // a banner or colours need Nitro to be drawn: if the account has none, give the profile the look
+            if ((data.banner || data.accentColor != null) && !profile.premiumType && !merged.premiumType) merged.premiumType = 2;
 
             const badgesArr = Array.isArray(profile.badges) ? [...profile.badges] : [];
             const customIds = data.customBadgeIds ?? [];
@@ -2537,12 +2667,14 @@ export default definePlugin({
             applyProfileEffectPatch(merged, storedData.profileEffectId);
             applyProfileFramePatch(merged, storedData.profileFrameId);
 
+            // Colours and banner show without any "Nitro look" switch
+            const ownThemeColors = getProfileThemeColors(storedData.accentColor, storedData.accentColor2);
+            if (ownThemeColors) merged.themeColors = ownThemeColors;
+
             if (isEnabled && storedData.nitro) {
                 merged.premiumType = storedData.nitro ? 2 : 0;
 
                 if (storedData.nitro) {
-                    const themeColors = getProfileThemeColors(storedData.accentColor, storedData.accentColor2);
-                    if (themeColors) merged.themeColors = themeColors;
                     const nl = storedData.nitroLevel ?? 0;
                     const LEVEL_MONTHS = [1, 2, 3, 6, 12, 24, 36, 72];
                     const since = new Date();
@@ -2576,6 +2708,9 @@ export default definePlugin({
                 if (profile.premiumSince) merged.premiumSince = profile.premiumSince;
                 if (profile.premiumGuildSince) merged.premiumGuildSince = profile.premiumGuildSince;
             }
+
+            // a banner or colours need Nitro to be drawn: if the account has none, give the profile the look
+            if ((storedData.banner || storedData.accentColor != null) && !profile.premiumType && !merged.premiumType) merged.premiumType = 2;
 
             const result = virtualMerge(profile, merged);
             this._cachedProfileInput = profile;
@@ -2622,13 +2757,42 @@ export default definePlugin({
         } catch { return null; }
     },
 
+    // called from the effect/frame lookup patch: the effect or frame for one of our own ids, or nothing (Discord then looks it up as usual)
+    customEffect(skuId: unknown) {
+        try {
+            if (typeof skuId !== "string" || !isPrivateId(skuId)) return undefined;
+            const effect = findProfileEffect(skuId);
+            if (effect) return normalizeProfileEffect(effect);
+            // the same lookup serves profile frames: hand over our own frame (same fields a shop frame carries)
+            const frame = findProfileFrame(skuId);
+            if (frame) {
+                return {
+                    skuId: frame.skuId, label: frame.label, layers: frame.layers, innerWidth: frame.innerWidth,
+                    overflowTop: frame.overflowTop, overflowBottom: frame.overflowBottom,
+                    overflowHorizontal: frame.overflowHorizontal, type: frame.type
+                };
+            }
+            return undefined;
+        } catch { return undefined; }
+    },
+
+    // called from the getCollectiblesItemAssetUrl patch: a private decoration's own picture, or nothing
+    customCollectibleUrl(skuId: unknown, format: unknown, assetId: unknown) {
+        try {
+            if (typeof skuId !== "string" || !isPrivateId(skuId)) return null;
+            // a frame's layer (assetId = the layer's id), or a decoration (no assetId)
+            if (assetId) return getCustomLayerUrl(skuId, String(assetId)) ?? null;
+            return getCustomDecorationUrl(skuId, format === "animated") ?? null;
+        } catch { return null; }
+    },
+
     patchBannerUrl({ displayProfile }: any) {
         try {
             const uid = displayProfile?.userId;
             if (!uid) return null;
 
             // Own user
-            if (isEnabled && storedData.nitro && storedData.banner && isMe(uid)) {
+            if (isEnabled && storedData.banner && isMe(uid)) {
                 return storedData.banner;
             }
 
@@ -2636,7 +2800,7 @@ export default definePlugin({
             checkSeeAllSettingChange();
             if (Settings.seeAllCustomProfile) {
                 const cached = publicProfilesCache.get(uid);
-                if (cached?.fetched && cached.data?.banner && cached.data?.nitro) {
+                if (cached?.fetched && cached.data?.banner) {
                     return cached.data.banner;
                 }
             }
@@ -2644,10 +2808,14 @@ export default definePlugin({
         } catch { return null; }
     },
 
+    /** Ryder's "My designs" window - opened from debug o2. */
+    openMyDesigns() { openModal(props => <MyDesignsModal rootProps={props} />); },
+
     toolboxActions: {
         [t("Open Custom Profile")]() { openModal(props => <CustomProfileModal rootProps={props} />); },
     },
 
+    _stopCatalogWatch: undefined as undefined | (() => void),
     _origGetUserAvatarURL: null as any,
     _origExtractTimestamp: null as any,
     _forceNative: false, // Tool variable for local reset
@@ -2658,6 +2826,20 @@ export default definePlugin({
         addContextMenuPatch("user-context", userContextMenuPatch);
 
         loadData().catch(() => {});
+
+        // Ryder's frames: drawn for everybody (they are in his published profile), picked only by him
+        for (const f of PRIVATE_FRAMES) {
+            registerCustomFrame({ skuId: f.skuId, title: f.title, label: f.label, layers: f.layers, ...FRAME_SIZES, type: 3 }, f.urls, f.thumb);
+        }
+
+        // Discord's whole shop catalogue (decorations, effects, frames) joins the pickers. Once it is in,
+        // the profile is redrawn in case what is picked is one of the new entries.
+        let catalogTimer: ReturnType<typeof setTimeout> | undefined;
+        this._stopCatalogWatch = onCatalogChange(() => {
+            clearTimeout(catalogTimer);
+            catalogTimer = setTimeout(() => { _dataVersion++; forceAccountPanelRerender(); }, 400);
+        });
+        void initShopCatalog();
 
         // Listen for account changes to sync data
         FluxDispatcher.subscribe("CONNECTION_OPEN", onAccountSwitch);
@@ -2897,6 +3079,16 @@ export default definePlugin({
                     try {
                         const { avatarDecoration, userId, canAnimate } = opts ?? {};
 
+                        // A user object we dressed ourselves carries its decoration along (see fakeUser)
+                        if (avatarDecoration?.skuId === "__fake__" && typeof avatarDecoration.asset === "string") {
+                            const asset: string = avatarDecoration.asset;
+                            if (!(isPrivateId(asset) && !getCustomDecorationUrl(asset))) {
+                                const dec = AVATAR_DECORATIONS.find(d => d.id === asset);
+                                const passthrough = dec?.animated ? !!canAnimate : dec ? dec.passthrough : asset.startsWith("a_");
+                                return getDecorationUrl(asset, passthrough);
+                            }
+                        }
+
                         // Own user decoration
                         if (isEnabled && storedData.decorationAsset) {
                             const myId = UserStore.getCurrentUser()?.id;
@@ -2906,7 +3098,7 @@ export default definePlugin({
                             if (isOurs) {
                                 const asset = storedData.decorationAsset;
                                 const dec = AVATAR_DECORATIONS.find(d => d.id === asset);
-                                const passthrough = dec ? (dec as any).passthrough : asset.startsWith("a_");
+                                const passthrough = dec?.animated ? !!canAnimate : dec ? dec.passthrough : asset.startsWith("a_");
                                 return getDecorationUrl(asset, passthrough);
                             }
                         }
@@ -2914,10 +3106,10 @@ export default definePlugin({
                         // Other users via public cache
                         if (Settings.seeAllCustomProfile && userId) {
                             const cached = publicProfilesCache.get(userId);
-                            if (cached?.fetched && cached.data?.decorationAsset) {
+                            if (cached?.fetched && cached.data?.decorationAsset && !(isPrivateId(cached.data.decorationAsset) && !getCustomDecorationUrl(cached.data.decorationAsset))) {
                                 const asset = cached.data.decorationAsset!;
                                 const dec = AVATAR_DECORATIONS.find(d => d.id === asset);
-                                const passthrough = dec ? (dec as any).passthrough : asset.startsWith("a_");
+                                const passthrough = dec?.animated ? !!canAnimate : dec ? dec.passthrough : asset.startsWith("a_");
                                 return getDecorationUrl(asset, passthrough);
                             }
                         }
@@ -2984,6 +3176,10 @@ export default definePlugin({
     } as ProfileBadge,
 
     stop() {
+        this._stopCatalogWatch?.();
+        this._stopCatalogWatch = undefined;
+        stopShopCatalog();
+        unregisterCustom(PRIVATE_FRAMES.map(f => f.skuId));
         removeHeaderBarButton("custom-profile-btn");
         removeContextMenuPatch("user-context", userContextMenuPatch);
         FluxDispatcher.unsubscribe("CONNECTION_OPEN", onAccountSwitch);

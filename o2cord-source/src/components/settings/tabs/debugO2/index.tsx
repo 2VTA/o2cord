@@ -1148,6 +1148,22 @@ function DebugO2Tab() {
 
                 {isRealDebugOwner() && (
                     <section className="o2-con-section">
+                        <div className="o2-con-label">[ my designs ] <span className="o2-con-dim">your own profile frames · everyone sees the one you pick</span></div>
+                        <div className="o2-con-list">
+                            <div className="o2-con-row">
+                                <span className="o2-con-prompt">$</span>
+                                <span className="o2-con-row-main">
+                                    <span className="o2-con-row-title">Profile frames</span>
+                                    <span className="o2-con-row-sub">O2 Ink Drip, O2 Terminal, O2 VHS Tape, O2 Neon, O2 Glitch</span>
+                                </span>
+                                <Act label="Open my designs" onClick={() => (Plugins as any).CustomProfile?.openMyDesigns?.()}>open</Act>
+                            </div>
+                        </div>
+                    </section>
+                )}
+
+                {isRealDebugOwner() && (
+                    <section className="o2-con-section">
                         <div className="o2-con-label">[ access ] <span className="o2-con-dim">{accessIds.length} granted</span></div>
                         <div className="o2-con-list">
                             {accessIds.map(id => {
