@@ -11,11 +11,20 @@
     pointer-events: none;
 }
 
-/* Discord draws a nameplate picture at 60% opacity and fades its left part to 30%, which made our custom ones look
-   washed out. Ours (the o2cord registry, or a local file) are brightened; Discord's own nameplates stay untouched. */
-[class*="nameplated"] [class*="container_"] > img[class*="img_"][src*="2VTA/o2cord"],
-[class*="nameplated"] [class*="container_"] > img[class*="img_"][src^="blob:"],
-[class*="nameplated"] [class*="container_"] > img[class*="img_"][src^="data:"] {
+/* Discord draws a nameplate picture dimmed (60% in the member list, 40% in the account panel...) and fades the left of
+   the member-list ones, which made our custom nameplates look washed out. Ours (the o2cord registry, or a local file)
+   are brightened everywhere they show up; Discord's own nameplates stay untouched. */
+img[class*="img_"][src*="2VTA/o2cord"][src*="/nameplates/"],
+[class*="nameplated"] img[class*="img_"][src^="blob:"],
+[class*="nameplated"] img[class*="img_"][src^="data:"],
+[class*="account_"][class*="img_"][src^="blob:"],
+[class*="account_"][class*="img_"][src^="data:"] {
     opacity: 0.95 !important;
+}
+
+/* the member list also fades the left part of the picture - lighter, so the name stays readable */
+[class*="nameplated"] img[class*="img_"][src*="2VTA/o2cord"],
+[class*="nameplated"] img[class*="img_"][src^="blob:"],
+[class*="nameplated"] img[class*="img_"][src^="data:"] {
     mask-image: linear-gradient(to right, rgba(0, 0, 0, 0.75) 218px, rgb(0, 0, 0) 268px) !important;
 }
