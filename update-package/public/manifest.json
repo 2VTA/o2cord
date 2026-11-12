@@ -1,8 +1,8 @@
 {
-    "version":  "1.3.89",
-    "hash":  "public-20261112160432",
+    "version":  "1.3.90",
+    "hash":  "public-20261112161931",
     "author":  "o2cord",
-    "message":  "o2cord 1.3.89: Custom Profile shop + frames, scheduled-message spam fix, toasts, brighter nameplates, own data folder",
+    "message":  "o2cord 1.3.90 (background): custom nameplates brighter in the account panel too",
     "notes":  [
                   "Public o2cord update package",
                   "ussro2 backgrounds are loaded from backgrounds.json beside this manifest",
