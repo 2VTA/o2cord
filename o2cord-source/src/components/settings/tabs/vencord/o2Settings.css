@@ -205,3 +205,10 @@
     border-radius: 50%;
     flex-shrink: 0;
 }
+
+/* share code card */
+.o2s-share-parts { display: flex; flex-wrap: wrap; gap: 6px 18px; }
+.o2s-check { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; color: var(--text-default, #dbdee1); font-size: 13px; }
+.o2s-share-paste { align-items: flex-end; gap: 10px; }
+.o2s-textarea { flex: 1; min-width: 0; resize: vertical; padding: 8px 10px; border-radius: 8px; border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.08)); background: var(--input-background-default, rgba(0, 0, 0, 0.3)); color: var(--text-default, #dbdee1); font: 12px/16px monospace; outline: none; }
+.o2s-textarea:focus { border-color: var(--text-link, #5865f2); }

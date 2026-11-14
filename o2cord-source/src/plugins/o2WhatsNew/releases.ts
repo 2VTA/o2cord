@@ -31,6 +31,18 @@ export interface Release {
 
 export const RELEASES: Release[] = [
     {
+        version: "1.3.91",
+        date: "November 14, 2026",
+        features: [
+            {
+                plugin: "o2cord Settings",
+                title: "Share code",
+                text: "Backup now has a Share code card: copy your plugins, their settings and your theme links as one piece of text and send it to a friend. They paste it and it adds to their setup instead of replacing it. Tokens and private things are never put in the code, and Custom CSS is only included if you tick it."
+            }
+        ],
+        fixes: []
+    },
+    {
         version: "1.3.89",
         date: "November 12, 2026",
         features: [

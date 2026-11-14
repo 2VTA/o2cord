@@ -1,8 +1,8 @@
 {
-    "version":  "1.3.90",
-    "hash":  "public-20261112161931",
+    "version":  "1.3.91",
+    "hash":  "public-20261114221232",
     "author":  "o2cord",
-    "message":  "o2cord 1.3.90 (background): custom nameplates brighter in the account panel too",
+    "message":  "o2cord 1.3.91: Share code in Backup",
     "notes":  [
                   "Public o2cord update package",
                   "ussro2 backgrounds are loaded from backgrounds.json beside this manifest",

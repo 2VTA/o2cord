@@ -98,6 +98,10 @@ const MANAGED_PLUGINS: ManagedPlugin[] = [
         description: "Hold the key combo (Ctrl+Shift+Z by default) to show a trash icon on channels you can manage, click it to delete the channel"
     },
     {
+        name: "BackgroundMusic",
+        description: "Ryder only: plays a song in the background (YouTube link, audio link or a file on this PC) - the music note in the top bar"
+    },
+    {
         name: "PictureRequest",
         description: "Right-click someone > Picture request: send them a new picture or banner to accept"
     }

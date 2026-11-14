@@ -20,7 +20,79 @@ import "@components/settings/tabs/vencord/o2Settings.css";
 
 import { downloadSettingsBackup, uploadSettingsBackup } from "@api/SettingsSync/offline";
 import { SettingsTab, wrapTab } from "@components/settings/tabs/BaseTab";
-import { Clickable } from "@webpack/common";
+import { applyShareCode, makeShareCode, readShareCode, type SharePart } from "@api/SettingsSync/shareCode";
+import { copyToClipboard } from "@utils/clipboard";
+import { Clickable, Toasts, useState } from "@webpack/common";
+
+const toast = (type: string, message: string) => Toasts.show({ type, message, id: Toasts.genId() });
+
+const PART_LABELS: Array<[keyof SharePart, string]> = [
+    ["plugins", "Plugins and their settings"],
+    ["themes", "Theme links"],
+    ["css", "Custom CSS"]
+];
+
+// A short text you can send to a friend instead of a file. Anything that looks like a secret is left out.
+function ShareCodeCard() {
+    const [parts, setParts] = useState<SharePart>({ plugins: true, themes: true, css: false });
+    const [code, setCode] = useState("");
+    const [busy, setBusy] = useState(false);
+
+    const toggle = (key: keyof SharePart) => setParts({ ...parts, [key]: !parts[key] });
+    const describe = (s: { plugins: number; themes: number; css: boolean; }) =>
+        `${s.plugins} plugins, ${s.themes} theme links${s.css ? ", custom CSS" : ""}`;
+
+    const copy = async () => {
+        if (busy) return;
+        setBusy(true);
+        try {
+            const { code, summary } = await makeShareCode(parts);
+            await copyToClipboard(code);
+            toast(Toasts.Type.SUCCESS, `Code copied: ${describe(summary)}`);
+        } catch (err) {
+            toast(Toasts.Type.FAILURE, `Couldn't make the code: ${String(err)}`);
+        } finally { setBusy(false); }
+    };
+
+    const apply = async () => {
+        if (busy) return;
+        setBusy(true);
+        try {
+            const data = await readShareCode(code);
+            const done = await applyShareCode(data, parts);
+            setCode("");
+            toast(Toasts.Type.SUCCESS, `Applied ${describe(done)}. Restart to finish.`);
+        } catch (err) {
+            toast(Toasts.Type.FAILURE, String((err as Error)?.message ?? err));
+        } finally { setBusy(false); }
+    };
+
+    return (
+        <div className="o2s-card">
+            <div className="o2s-row">
+                <div>
+                    <div className="o2s-row-title">Share code</div>
+                    <div className="o2s-muted">One piece of text with your setup, to send to a friend. Tokens and private things are never included, and applying a code adds to your setup instead of replacing it.</div>
+                </div>
+            </div>
+            <div className="o2s-row o2s-share-parts">
+                {PART_LABELS.map(([key, label]) => (
+                    <label key={key} className="o2s-check">
+                        <input type="checkbox" checked={parts[key]} onChange={() => toggle(key)} /> {label}
+                    </label>
+                ))}
+            </div>
+            <div className="o2s-row">
+                <div className="o2s-muted">Copy yours</div>
+                <Clickable className="o2s-btn" onClick={copy}>Copy code</Clickable>
+            </div>
+            <div className="o2s-row o2s-share-paste">
+                <textarea className="o2s-textarea" placeholder="Paste a code here (it starts with o2cord1:)" value={code} onChange={e => setCode(e.target.value)} rows={3} spellCheck={false} />
+                <Clickable className="o2s-btn" onClick={apply}>Apply code</Clickable>
+            </div>
+        </div>
+    );
+}
 
 // o2cord: one simple card - what's saved, and the two buttons.
 function BackupAndRestoreTab() {
@@ -49,6 +121,7 @@ function BackupAndRestoreTab() {
                         <Clickable className="o2s-btn" onClick={() => uploadSettingsBackup()}>Load</Clickable>
                     </div>
                 </div>
+                <ShareCodeCard />
             </div>
         </SettingsTab>
     );
