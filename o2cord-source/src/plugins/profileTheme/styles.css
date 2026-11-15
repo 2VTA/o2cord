@@ -215,7 +215,13 @@ html.o2-profile-theme-active [data-o2-profile-theme-tall="true"] {
 html.o2-profile-theme-active [data-o2-profile-theme-layer="true"] {
     position: absolute !important;
     inset: 0 !important;
-    z-index: 0 !important;
+    /*
+     * Below the card's text, not level with it: in the big profile window the name, tag and bio are plain
+     * (not positioned) elements, and a positioned layer at z-index 0 is painted OVER those - the picture
+     * covered the name completely. -1 keeps it behind all of the card's content (the layer lives inside
+     * Discord's own inner wrapper, which is its own stacking context, so it still shows above the card).
+     */
+    z-index: -1 !important;
     pointer-events: none !important;
     /*
      * overflow/border-radius are scoped to this layer alone, not the whole
@@ -384,6 +390,22 @@ html.o2-profile-theme-active .o2-profile-theme-target [class*="banner"]:not([cla
 html.o2-profile-theme-active [data-o2-profile-theme-target="true"] [class*="banner"]:not([class*="bannerButton"]),
 html.o2-profile-theme-active .o2-profile-theme-target [class*="fill_b83360"],
 html.o2-profile-theme-active [data-o2-profile-theme-target="true"] [class*="fill_b83360"] {
+    background-color: transparent !important;
+}
+
+/*
+ * With the theme colours switched off above, the name tag and the section text of the big profile window
+ * ended up with a 16%-opaque black colour (invisible on the picture).
+ */
+html.o2-profile-theme-active [data-o2-profile-theme-kind="full"] [class*="userInfo_"],
+html.o2-profile-theme-active [data-o2-profile-theme-kind="full"] [class*="userTag_"],
+html.o2-profile-theme-active [data-o2-profile-theme-kind="full"] [class*="section_"] {
+    color: #f2f3f5 !important;
+}
+
+/* In the big window the picture runs behind the whole card, top included - the banner doesn't cover it. */
+html.o2-profile-theme-active [data-o2-profile-theme-kind="full"] [class*="banner_"]:not([class*="bannerButton"]) {
+    background-image: none !important;
     background-color: transparent !important;
 }
 

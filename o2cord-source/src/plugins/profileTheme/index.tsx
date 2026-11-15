@@ -34,6 +34,10 @@ const PUBLISH_CODE_PREFIX = "O2PROFILE_PUBLISH:";
 // background-image sidesteps the custom-property size cap entirely.
 const IMAGE_SCRIM_GRADIENT = "linear-gradient(180deg, rgba(0, 0, 0, 0.5) 0%, rgba(0, 0, 0, 0.15) 28%, rgba(0, 0, 0, 0.15) 62%, rgba(0, 0, 0, 0.45) 100%)";
 
+// The big profile window is 600px wide with small text (bio, roles, dates) straight on the picture, so it
+// gets a bit more scrim than the narrow popout - but kept light so the picture stays bright and clear.
+const FULL_IMAGE_SCRIM_GRADIENT = "linear-gradient(180deg, rgba(0, 0, 0, 0.32) 0%, rgba(0, 0, 0, 0.4) 35%, rgba(0, 0, 0, 0.46) 70%, rgba(0, 0, 0, 0.56) 100%)";
+
 const LOCAL_PROFILE_THEMES_KEY = "o2cord.debug.localProfileThemes";
 const LOCAL_PROFILE_THEMES_UPDATED_EVENT = "o2cord:debug-local-profile-themes-updated";
 const STYLE_ID = "o2-profile-theme-vars";
@@ -145,6 +149,8 @@ const PROFILE_TARGET_SELECTOR = [
     "[class*='accountPopout'] [class*='outer_c0bea0']",
     "[role='dialog'] [class*='outer_c0bea0']",
     "[class*='outer_c0bea0']",
+    // the big profile window: Discord renamed its hashed "outer_xxxxxx" class, this one doesn't change
+    "[class*='user-profile-modal']",
     "[class*='userProfileOuter']",
     "[class*='userPopoutOuter']",
     "[class*='themeContainer_ce8328']",
@@ -159,7 +165,8 @@ const PROFILE_SHELL_SELECTOR = [
     "[class*='userPopoutOuter']",
     "[class*='themeContainer_ce8328']",
     "[class*='custom-user-profile-theme']",
-    "[class*='user-profile-popout']"
+    "[class*='user-profile-popout']",
+    "[class*='user-profile-modal']"
 ].join(",");
 
 const PROFILE_FRAME_SELECTOR = [
@@ -823,7 +830,7 @@ function applyTargetFallback({ element, userId, imageUrl }: ProfileThemeTarget) 
     // else currently depends on removing it.
     const layer = element.querySelector<HTMLElement>(`[${IMAGE_LAYER_ATTR}]`);
     if (layer) {
-        const combinedImage = `${IMAGE_SCRIM_GRADIENT}, ${imageValue}`;
+        const combinedImage = `${kind === "full" ? FULL_IMAGE_SCRIM_GRADIENT : IMAGE_SCRIM_GRADIENT}, ${imageValue}`;
         if (layer.style.getPropertyValue("background-image") !== combinedImage)
             layer.style.setProperty("background-image", combinedImage, "important");
     }
