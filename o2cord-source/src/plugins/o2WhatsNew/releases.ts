@@ -31,6 +31,14 @@ export interface Release {
 
 export const RELEASES: Release[] = [
     {
+        version: "1.3.94",
+        date: "November 16, 2026",
+        features: [],
+        fixes: [
+            { plugin: "ProfileImages", text: "Profile images show in the small profile card (the one that opens when you click a name) for people who have a profile frame - the frame's dark backing used to cover the picture. The text on the picture is also a bit easier to read." }
+        ]
+    },
+    {
         version: "1.3.93",
         date: "November 16, 2026",
         features: [],

@@ -436,3 +436,14 @@ html.o2-profile-theme-active [data-o2-profile-theme-target="true"] [class*="bann
     border-top-right-radius: var(--o2-profile-theme-radius, 6px) !important;
 }
 
+
+/*
+ * A profile frame (custom or Discord's own) puts a solid dark backing under the card - a ::before of the
+ * frame container, painted after the picture layer. With a profile picture on the card that backing hid
+ * the picture completely (the mini profile showed a plain dark body). The picture is the card's background
+ * now, so the frame keeps its decoration but not its backing.
+ */
+html.o2-profile-theme-active [data-o2-profile-theme-target="true"]:has([data-o2-profile-theme-layer]) [class*="profileFrameContainer"]::before {
+    background: transparent !important;
+    background-color: transparent !important;
+}
