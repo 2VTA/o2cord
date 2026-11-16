@@ -151,6 +151,8 @@ const PROFILE_TARGET_SELECTOR = [
     "[class*='outer_c0bea0']",
     // the big profile window: Discord renamed its hashed "outer_xxxxxx" class, this one doesn't change
     "[class*='user-profile-modal']",
+    // the profile panel at the right of a DM: Discord renamed its hashed class too
+    "[class*='user-profile-sidebar']",
     "[class*='userProfileOuter']",
     "[class*='userPopoutOuter']",
     "[class*='themeContainer_ce8328']",
@@ -166,7 +168,8 @@ const PROFILE_SHELL_SELECTOR = [
     "[class*='themeContainer_ce8328']",
     "[class*='custom-user-profile-theme']",
     "[class*='user-profile-popout']",
-    "[class*='user-profile-modal']"
+    "[class*='user-profile-modal']",
+    "[class*='user-profile-sidebar']"
 ].join(",");
 
 const PROFILE_FRAME_SELECTOR = [

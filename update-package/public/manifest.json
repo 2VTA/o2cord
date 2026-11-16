@@ -1,8 +1,8 @@
 {
-    "version":  "1.3.92",
-    "hash":  "public-20261115150350",
+    "version":  "1.3.93",
+    "hash":  "public-20261116030223",
     "author":  "o2cord",
-    "message":  "o2cord 1.3.92: profile images in the big profile window",
+    "message":  "Publish o2cord 1.3.93: profile images show again in the DM side panel",
     "notes":  [
                   "Public o2cord update package",
                   "ussro2 backgrounds are loaded from backgrounds.json beside this manifest",

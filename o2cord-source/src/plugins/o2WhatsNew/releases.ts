@@ -31,6 +31,14 @@ export interface Release {
 
 export const RELEASES: Release[] = [
     {
+        version: "1.3.93",
+        date: "November 16, 2026",
+        features: [],
+        fixes: [
+            { plugin: "ProfileImages", text: "Profile images (animated ones too) show again in the profile panel at the right of a chat - Discord renamed that panel, so it was left without its picture." }
+        ]
+    },
+    {
         version: "1.3.92",
         date: "November 15, 2026",
         features: [],
