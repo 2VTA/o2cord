@@ -1,8 +1,8 @@
 {
-    "version":  "1.3.94",
-    "hash":  "public-20261116032222",
+    "version":  "1.3.95",
+    "hash":  "public-20261116113007",
     "author":  "o2cord",
-    "message":  "Publish o2cord 1.3.94: profile images show in the small profile card for people with a profile frame",
+    "message":  "Publish o2cord 1.3.95: the small profile card keeps the picture\u0027s own colours",
     "notes":  [
                   "Public o2cord update package",
                   "ussro2 backgrounds are loaded from backgrounds.json beside this manifest",

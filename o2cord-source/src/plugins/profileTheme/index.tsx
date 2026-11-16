@@ -32,7 +32,7 @@ const PUBLISH_CODE_PREFIX = "O2PROFILE_PUBLISH:";
 // preview of a sizeable image/GIF hit this. Mirroring the same gradient
 // scrim here and setting it directly on the layer element's real
 // background-image sidesteps the custom-property size cap entirely.
-const IMAGE_SCRIM_GRADIENT = "linear-gradient(180deg, rgba(0, 0, 0, 0.5) 0%, rgba(0, 0, 0, 0.46) 28%, rgba(0, 0, 0, 0.5) 62%, rgba(0, 0, 0, 0.6) 100%)";
+const IMAGE_SCRIM_GRADIENT = "linear-gradient(180deg, rgba(0, 0, 0, 0.4) 0%, rgba(0, 0, 0, 0.1) 28%, rgba(0, 0, 0, 0.1) 62%, rgba(0, 0, 0, 0.35) 100%)";
 
 // The big profile window is 600px wide with small text (bio, roles, dates) straight on the picture, so it
 // gets a bit more scrim than the narrow popout - but kept light so the picture stays bright and clear.

@@ -31,6 +31,14 @@ export interface Release {
 
 export const RELEASES: Release[] = [
     {
+        version: "1.3.95",
+        date: "November 16, 2026",
+        features: [],
+        fixes: [
+            { plugin: "ProfileImages", text: "In the small profile card the picture keeps its own colours again - it was too dark. The text on it stays readable with a soft shadow behind the letters." }
+        ]
+    },
+    {
         version: "1.3.94",
         date: "November 16, 2026",
         features: [],

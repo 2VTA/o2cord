@@ -447,3 +447,11 @@ html.o2-profile-theme-active [data-o2-profile-theme-target="true"]:has([data-o2-
     background: transparent !important;
     background-color: transparent !important;
 }
+
+/*
+ * The picture keeps its own colours (hardly any dark layer on it), so the small card keeps its text readable
+ * with a soft shadow behind the letters instead.
+ */
+html.o2-profile-theme-active [data-o2-profile-theme-target="true"][data-o2-profile-theme-kind="popout"] {
+    text-shadow: 0 0 4px rgba(0, 0, 0, 0.75), 0 1px 2px rgba(0, 0, 0, 0.6);
+}
