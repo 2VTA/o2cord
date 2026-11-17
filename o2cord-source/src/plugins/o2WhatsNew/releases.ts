@@ -31,6 +31,23 @@ export interface Release {
 
 export const RELEASES: Release[] = [
     {
+        version: "1.3.96",
+        date: "November 17, 2026",
+        features: [
+            {
+                plugin: "o2cord Settings",
+                title: "Vice City theme",
+                text: "Discord's limited-time Vice City colours (the purple-to-orange theme promoted by Rockstar Games), saved as an o2cord theme. Pick it on the o2cord page, next to the other themes - it keeps working after the promotion ends, and without Nitro."
+            }
+        ],
+        fixes: [
+            { plugin: "VoiceMessages", text: "The Preview in Send Voice Message shows again - a player with the waveform, play/pause and the time (Discord's update had made it empty)." },
+            { plugin: "o2cord Settings", text: "Backup > Apply code gives an answer every time now (it showed nothing when Discord's message popup failed), and tells you what happened right under the box. A code with broken lines or spaces from a chat still works." },
+            { plugin: "o2cord Settings", text: "Message popups across o2cord no longer fail after Discord's update." },
+            { plugin: "o2cord Settings", text: "Plugins > o2cord now lists every o2cord plugin, including the built-in ones (ProfileTheme, CallieRequests...)." }
+        ]
+    },
+    {
         version: "1.3.95",
         date: "November 16, 2026",
         features: [],

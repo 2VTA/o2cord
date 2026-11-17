@@ -1,8 +1,8 @@
 {
-    "version":  "1.3.95",
-    "hash":  "public-20261116113007",
+    "version":  "1.3.96",
+    "hash":  "public-20261117234051",
     "author":  "o2cord",
-    "message":  "Publish o2cord 1.3.95: the small profile card keeps the picture\u0027s own colours",
+    "message":  "Publish o2cord 1.3.96: Vice City theme, voice message preview, Apply code and message popups fixed, o2cord plugin filter",
     "notes":  [
                   "Public o2cord update package",
                   "ussro2 backgrounds are loaded from backgrounds.json beside this manifest",

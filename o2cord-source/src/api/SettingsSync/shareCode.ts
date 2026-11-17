@@ -54,10 +54,11 @@ function isSafe(obj: any): boolean {
 // ---- text <-> base64url, deflated so a big setup stays short ----
 
 async function pipe(bytes: Uint8Array, stream: CompressionStream | DecompressionStream): Promise<Uint8Array> {
+    // write and read at the same time, and wait for both - an unawaited write left a failed code hanging or unhandled
     const writer = stream.writable.getWriter();
-    writer.write(bytes as BufferSource);
-    writer.close();
-    return new Uint8Array(await new Response(stream.readable).arrayBuffer());
+    const writing = writer.write(bytes as BufferSource).then(() => writer.close());
+    const [out] = await Promise.all([new Response(stream.readable).arrayBuffer(), writing]);
+    return new Uint8Array(out);
 }
 
 function toB64Url(bytes: Uint8Array) {
@@ -104,7 +105,8 @@ export async function makeShareCode(parts: SharePart): Promise<{ code: string; s
 }
 
 export async function readShareCode(code: string): Promise<ShareData> {
-    const text = code.trim();
+    // spaces and line breaks can sneak in when a long code is pasted from a chat: they are never part of a code
+    const text = code.replace(/\s+/g, "");
     if (!text.startsWith(PREFIX)) throw new Error("This doesn't look like an o2cord share code");
     let data: ShareData;
     try {

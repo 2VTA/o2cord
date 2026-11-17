@@ -8,7 +8,9 @@
 .vc-vmsg-preview {
     color: var(--text-default);
     border-radius: 24px;
-    background-color: var(--background-base-lower);
+    /* a fixed tint: --background-base-lower is transparent under themes like Liquid Glass, which made the box vanish */
+    background-color: rgba(255, 255, 255, 0.07);
+    border: 1px solid rgba(255, 255, 255, 0.08);
     position: relative;
     display: flex;
     align-items: center;
@@ -17,7 +19,7 @@
 }
 
 .vc-vmsg-preview-indicator {
-    background: var(--control-secondary-background-default);
+    background: rgba(255, 255, 255, 0.28);
     width: 16px;
     height: 16px;
     border-radius: 50%;
@@ -47,4 +49,59 @@
 
 .vc-vmsg-error {
     color: var(--text-feedback-critical, #FF5C5C);
+}
+/* our own preview player (used when Discord's player can't be reached) */
+.vc-vmsg-player {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    height: 48px;
+    padding: 0 16px;
+    border-radius: 24px;
+    background-color: rgba(255, 255, 255, 0.07);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    color: var(--text-default);
+}
+
+.vc-vmsg-player-button {
+    flex: none;
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    border: 0;
+    cursor: pointer;
+    color: #fff;
+    background: var(--brand-500, #5865f2);
+    font-size: 11px;
+    line-height: 30px;
+    padding: 0;
+}
+
+.vc-vmsg-player-wave {
+    flex: 1;
+    min-width: 0;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    cursor: pointer;
+}
+
+.vc-vmsg-player-wave i {
+    flex: 1;
+    min-width: 1px;
+    max-width: 4px;
+    border-radius: 2px;
+    background: rgba(255, 255, 255, 0.3);
+}
+
+.vc-vmsg-player-wave i.vc-vmsg-bar-on {
+    background: var(--brand-500, #5865f2);
+}
+
+.vc-vmsg-player-time {
+    flex: none;
+    opacity: 0.8;
+    font-size: 80%;
+    font-family: var(--font-code);
 }

@@ -25,10 +25,13 @@ import { openWhatsNew } from "@plugins/o2WhatsNew";
 import { RELEASES } from "@plugins/o2WhatsNew/releases";
 import { canUseRetro, PROFILES as RETRO_PROFILES } from "@plugins/retroTerminal";
 import { classes } from "@utils/misc";
+import { GLASS_BACKDROPS, GLASS_COLORS, GLASS_DEFAULTS, GLASS_PRESETS } from "@utils/o2OwnerTheme";
 import { ModalCloseButton as LegacyClose, ModalRoot as LegacyRoot, ModalSize, openModal } from "@utils/modal";
 import { relaunch } from "@utils/native";
 import { DEBUG_ONLY_PLUGINS } from "@utils/o2Debug";
-import { Clickable, TextInput, UserStore, useState } from "@webpack/common";
+import { BaseText } from "@components/BaseText";
+import { RenderModalProps } from "@vencord/discord-types";
+import { Clickable, Forms, Modal, openModal as openDiscordModal, TextInput, UserStore, useState } from "@webpack/common";
 
 import { GRADES as VHS_GRADES } from "@plugins/vhs";
 import { chooseTheme, currentTheme, isOwner, settings, ThemeChoice, TOGGLES } from "./index";
@@ -60,6 +63,7 @@ const GROUPS: { title: string; names: string[]; }[] = [
 const THEMES: { id: ThemeChoice; title: string; sub: string; }[] = [
     { id: "none", title: "Normal", sub: "Discord's own look" },
     { id: "glass", title: "Liquid Glass", sub: "Frosted glass panels" },
+    { id: "vice", title: "Vice City", sub: "Discord's limited-time colours" },
     { id: "retro", title: "Retro Terminal", sub: "Old CRT screen" },
     { id: "vhs", title: "VHS", sub: "Old video tape" },
     { id: "splat", title: "Splat Ink", sub: "Ink, Callie and Marie" }
@@ -107,17 +111,17 @@ export function ThemeCards({ onChange }: { onChange(): void; }) {
                     aria-checked={theme === t.id}
                     onClick={() => { chooseTheme(t.id); onChange(); }}
                     // Double-click a card with settings to open them (or use its gear button).
-                    onDoubleClick={THEME_PLUGIN[t.id] ? () => openThemeSettings(t.id) : undefined}
-                    title={THEME_PLUGIN[t.id] ? "Double-click for settings" : undefined}
+                    onDoubleClick={THEME_PLUGIN[t.id] || t.id === "glass" ? () => (t.id === "glass" ? openGlassSettings() : openThemeSettings(t.id)) : undefined}
+                    title={THEME_PLUGIN[t.id] || t.id === "glass" ? "Double-click for settings" : undefined}
                 >
                     <div className={`o2-hub-theme-preview o2-hub-theme-preview-${t.id}`} style={t.id === "retro" ? { color: profile.fg, background: profile.bg } : undefined}>
                         {t.id === "retro" ? "> _" : t.id === "vhs" ? "PLAY ►" : t.id === "splat" ? "SPLAT!" : null}
-                        {THEME_PLUGIN[t.id] && (
+                        {(THEME_PLUGIN[t.id] || t.id === "glass") && (
                             <Clickable
                                 className="o2-hub-theme-gear"
                                 aria-label={`${t.title} settings`}
                                 title="Settings"
-                                onClick={(e: React.MouseEvent) => { e.stopPropagation(); openThemeSettings(t.id); }}
+                                onClick={(e: React.MouseEvent) => { e.stopPropagation(); if (t.id === "glass") openGlassSettings(); else openThemeSettings(t.id); }}
                             >
                                 <svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true">
                                     <path fill="currentColor" d="M19.14 12.94a7.07 7.07 0 0 0 0-1.88l2.03-1.58a.5.5 0 0 0 .12-.64l-1.92-3.32a.5.5 0 0 0-.61-.22l-2.39.96a7 7 0 0 0-1.62-.94l-.36-2.54A.5.5 0 0 0 13.9 2.4h-3.84a.5.5 0 0 0-.49.42l-.36 2.54a7 7 0 0 0-1.62.94l-2.39-.96a.5.5 0 0 0-.61.22L2.67 8.88a.5.5 0 0 0 .12.64l2.03 1.58a7.07 7.07 0 0 0 0 1.88l-2.03 1.58a.5.5 0 0 0-.12.64l1.92 3.32a.5.5 0 0 0 .61.22l2.39-.96c.5.38 1.04.7 1.62.94l.36 2.54a.5.5 0 0 0 .49.42h3.84a.5.5 0 0 0 .49-.42l.36-2.54a7 7 0 0 0 1.62-.94l2.39.96a.5.5 0 0 0 .61-.22l1.92-3.32a.5.5 0 0 0-.12-.64zM12 15.5a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7z" />
@@ -136,7 +140,7 @@ export function ThemeCards({ onChange }: { onChange(): void; }) {
 // The o2Settings switches as tiles - also used on the o2cord settings page.
 export function QuickSwitches({ onChange }: { onChange?(): void; }) {
     const [, setTick] = useState(0);
-    const store = settings.store as Record<string, boolean>;
+    const store = settings.store as unknown as Record<string, boolean>;
     return (
         <div className="o2-hub-tiles">
             {TOGGLES.map(({ key, title }) => (
@@ -172,6 +176,73 @@ function HomePage({ go, refresh }: { go(page: Page): void; refresh(): void; }) {
             )}
         </>
     );
+}
+
+const GLASS_SLIDERS: { key: keyof typeof GLASS_DEFAULTS; title: string; min: number; max: number; unit: string; }[] = [
+    { key: "glassBlur", title: "Blur", min: 0, max: 40, unit: "px" },
+    { key: "glassTint", title: "Darkness of the glass", min: 0, max: 90, unit: "%" },
+    { key: "glassEdge", title: "Shine on the edges", min: 0, max: 180, unit: "%" },
+    { key: "glassSat", title: "Colour boost", min: 100, max: 260, unit: "%" },
+    { key: "glassRadius", title: "Roundness", min: 0, max: 32, unit: "px" }
+];
+
+export function GlassControls({ refresh }: { refresh(): void; }) {
+    const st = Settings.plugins.o2Settings as Record<string, any>;
+    const value = (key: keyof typeof GLASS_DEFAULTS) => st[key] ?? GLASS_DEFAULTS[key];
+    return (
+        <section>
+            <div className="o2-hub-label">Glass look</div>
+            <div className="o2-hub-swatches">
+                {Object.entries(GLASS_PRESETS).map(([key, preset]) => (
+                    <Clickable key={key} className="o2-hub-swatch" onClick={() => { Object.assign(st, preset.values); if (key === "fast") settings.store.disableBlur = true; refresh(); }}>{preset.title}</Clickable>
+                ))}
+            </div>
+            <Switch on={!st.disableBlur} label="Blur behind the glass (heavier on the graphics card)" onToggle={() => { settings.store.disableBlur = !settings.store.disableBlur; refresh(); }} />
+            <div className="o2-hub-label">Glow behind the app</div>
+            <div className="o2-hub-swatches">
+                {Object.entries(GLASS_BACKDROPS).map(([key, b]) => (
+                    <Clickable key={key} className={classes("o2-hub-swatch", (st.glassBackdrop ?? "none") === key && "o2-hub-swatch-on")} onClick={() => { st.glassBackdrop = key; refresh(); }}>{b.title}</Clickable>
+                ))}
+            </div>
+            <div className="o2-hub-label">Glass colour</div>
+            <div className="o2-hub-swatches">
+                {GLASS_COLORS.map(c => (
+                    <Clickable key={c.title} className={classes("o2-hub-swatch", value("glassColor") === c.rgb && "o2-hub-swatch-on")} onClick={() => { st.glassColor = c.rgb; refresh(); }}>
+                        <span className="o2-hub-dot" style={{ background: `rgb(${c.rgb})`, boxShadow: "inset 0 0 0 2px rgba(255,255,255,0.4)" }} />{c.title}
+                    </Clickable>
+                ))}
+            </div>
+            <div className="o2-hub-sliders">
+                {GLASS_SLIDERS.map(sl => (
+                    <label key={sl.key} className="o2-hub-slider">
+                        <span>{sl.title}</span>
+                        <input type="range" min={sl.min} max={sl.max} value={Number(value(sl.key))} onChange={e => { st[sl.key] = Number(e.target.value); refresh(); }} />
+                        <span className="o2-hub-muted">{Number(value(sl.key))}{sl.unit}</span>
+                    </label>
+                ))}
+            </div>
+            <div className="o2-hub-muted">Lots of blur on a big screen is heavy for the graphics card. If Discord feels slow, pick "Light on the GPU" or lower the blur.</div>
+        </section>
+    );
+}
+
+function GlassModal({ transitionState, onClose }: RenderModalProps) {
+    const [, setTick] = useState(0);
+    return (
+        <Modal
+            transitionState={transitionState}
+            onClose={onClose}
+            size="md"
+            title={<BaseText tag="h1" weight="semibold" size="lg">Liquid Glass</BaseText>}
+            subtitle={<Forms.FormText>How the glass looks. Changes show straight away.</Forms.FormText>}
+        >
+            <GlassControls refresh={() => setTick(n => n + 1)} />
+        </Modal>
+    );
+}
+
+export function openGlassSettings() {
+    openDiscordModal(props => <GlassModal {...props} />);
 }
 
 function ThemesPage({ refresh }: { refresh(): void; }) {

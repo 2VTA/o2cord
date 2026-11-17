@@ -362,3 +362,13 @@
     font-weight: 600;
     cursor: pointer;
 }
+
+/* Liquid Glass sliders */
+.o2-hub-sliders { display: grid; gap: 10px; margin-top: 10px; }
+.o2-hub-slider { display: grid; grid-template-columns: 170px 1fr 56px; align-items: center; gap: 12px; font-size: 13px; }
+.o2-hub-slider input[type="range"] { width: 100%; accent-color: #8ab4ff; cursor: pointer; }
+
+/* Vice City card: the theme's own gradient */
+.o2-hub-theme-preview-vice {
+    background: linear-gradient(135deg, #4645ff 0%, #af01f3 33.33%, #ff6698 66.67%, #f89a03 100%);
+}

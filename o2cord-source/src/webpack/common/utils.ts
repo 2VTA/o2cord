@@ -137,7 +137,17 @@ export const Toasts = {
     Position: ToastPosition,
     genId: () => (Math.random() || Math.random()).toString(36).slice(2),
 
-    show: ToastsExports.showToast,
+    // Discord changed its toast function more than once; whichever one still works is used, and a toast never throws into the
+    // code that asked for it (the Backup "Apply code" button looked dead because its success toast threw)
+    show: (toast: any) => {
+        for (const run of [() => NewToastsExports.showToast(toast), () => ToastsExports.showToast(toast)]) {
+            try {
+                run();
+                return;
+            } catch { /* try the next way */ }
+        }
+        console.warn("[o2cord] couldn't show toast:", toast?.message);
+    },
     pop: ToastsExports.popToast,
     create: createToast,
 };

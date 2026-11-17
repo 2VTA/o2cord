@@ -26,6 +26,7 @@ import ErrorBoundary from "@components/ErrorBoundary";
 import { Paragraph } from "@components/Paragraph";
 import { SettingsTab, wrapTab } from "@components/settings/tabs/BaseTab";
 import { ChangeList } from "@utils/ChangeList";
+import { O2_PUBLIC_PLUGIN_NAMES } from "@utils/o2PluginList";
 import { classNameFactory } from "@utils/css";
 import { isTruthy } from "@utils/guards";
 import { Logger } from "@utils/Logger";
@@ -75,28 +76,7 @@ const enum SearchStatus {
 // plugins Ryder is credited on, not the curated set he actually wants this
 // filter to surface. Explicit allowlist instead, independent of authorship
 // credit (removing a plugin from here doesn't touch its real authors).
-const O2_PLUGIN_NAMES = new Set([
-    "ussro2Public",
-    "ProfileTheme",
-    "CustomProfile",
-    "NitroServer",
-    "FakePlaying",
-    "O2Presence",
-    "AntiMoveDeco",
-    "AppIcon",
-    "CustomTyping",
-    "Nameplate",
-    "ProfileImages",
-    "Widget",
-    "RetroTerminal",
-    "VHS",
-    "O2Voice",
-    "o2Settings",
-    "O2WhatsNew",
-    "O2WindowControls",
-    "CallieRequests",
-    "ProfileSong"
-]);
+const O2_PLUGIN_NAMES = O2_PUBLIC_PLUGIN_NAMES;
 
 function ExcludedPluginsList({ search }: { search: string; }) {
     const matchingExcludedPlugins = search
@@ -248,7 +228,9 @@ function PluginSettings() {
 
     const showApi = searchValue.status === SearchStatus.API_PLUGINS;
     for (const p of sortedPlugins) {
-        if (p.hidden || (!p.settings && p.name.endsWith("API") && !showApi))
+        // an o2cord plugin that is hidden from the normal list (it has its own page) is still listed under the "o2cord" filter
+        const hiddenButO2 = p.hidden && searchValue.status === SearchStatus.O2_PLUGINS && O2_PLUGIN_NAMES.has(p.name);
+        if ((p.hidden && !hiddenButO2) || (!p.settings && p.name.endsWith("API") && !showApi))
             continue;
 
         if (!pluginFilter(p)) continue;
@@ -358,19 +340,23 @@ function PluginSettings() {
                     : <ExcludedPluginsList search={search} />
                 }
 
-                {requiredPlugins.length > 0 && (
+                {requiredPlugins.length > 0 && (() => {
+                    // under the "o2cord" filter the built-in o2cord plugins are shown straight away (ProfileTheme, CallieRequests...)
+                    const expanded = showRequired || searchValue.status === SearchStatus.O2_PLUGINS;
+                    return (
                     <section>
                         <Clickable className="o2s-btn" onClick={() => setShowRequired(v => !v)}>
-                            {showRequired ? "Hide" : "Show"} built-in plugins ({requiredPlugins.length})
+                            {expanded ? "Hide" : "Show"} built-in plugins ({requiredPlugins.length})
                         </Clickable>
-                        {showRequired && (
+                        {expanded && (
                             <>
                                 <div className="o2s-muted o2s-gap">These keep o2cord working, so they can't be turned off.</div>
                                 <div className={cl("grid")}>{requiredPlugins}</div>
                             </>
                         )}
                     </section>
-                )}
+                    );
+                })()}
             </div>
         </SettingsTab>
     );

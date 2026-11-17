@@ -53,6 +53,9 @@ export interface VoiceMessageProps {
     waveform: string;
 }
 export let VoiceMessage: ComponentType<VoiceMessageProps> = () => null;
+/** true once the patch has handed us Discord's own voice-message player; if Discord changes and the patch no longer applies, the preview uses our own player */
+let voiceMessageReady = false;
+export const isVoiceMessageReady = () => voiceMessageReady;
 
 const VoiceRecorder = IS_DISCORD_DESKTOP ? VoiceRecorderDesktop : VoiceRecorderWeb;
 
@@ -92,6 +95,7 @@ export default definePlugin({
 
     set VoiceMessage(value) {
         VoiceMessage = value;
+        voiceMessageReady = typeof value === "function" || typeof value === "object";
     },
 
     contextMenus: {

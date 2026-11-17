@@ -19,7 +19,8 @@ import { definePluginSettings, Settings } from "@api/Settings";
 import { disableStyle, enableStyle } from "@api/Styles";
 import { canUseRetro, RETRO_AUTO_ENABLE_IDS } from "@plugins/retroTerminal";
 import { Devs } from "@utils/constants";
-import { syncOwnerThemeClass } from "@utils/o2OwnerTheme";
+import { applyGlassLook, syncOwnerThemeClass } from "@utils/o2OwnerTheme";
+import { syncViceCity } from "@utils/o2ViceCity";
 import definePlugin, { OptionType } from "@utils/types";
 import { FluxDispatcher, showToast, Toasts, UserStore } from "@webpack/common";
 
@@ -50,8 +51,22 @@ export const settings = definePluginSettings({
     hideQuests: { type: OptionType.BOOLEAN, description: "Hide the Quests entry in the DM sidebar", default: false, onChange: applyToggle("hideQuests", hideQuestsStyle) },
     hideNitroHome: { type: OptionType.BOOLEAN, description: "Hide the Nitro entry in the DM sidebar", default: false, onChange: applyToggle("hideNitroHome", hideNitroHomeStyle) },
     hideSpectators: { type: OptionType.BOOLEAN, description: "Hide the spectators list under your stream panel", default: false, onChange: applyToggle("hideSpectators", hideSpectatorsStyle) },
-    disableBlur: { type: OptionType.BOOLEAN, description: "Disable backdrop-filter blur everywhere (GPU-heavy)", default: false, onChange: applyToggle("disableBlur", disableBlurStyle) },
+    disableBlur: { type: OptionType.BOOLEAN, description: "Disable backdrop-filter blur everywhere (GPU-heavy)", default: false, onChange: (v: boolean) => { applyToggle("disableBlur", disableBlurStyle)(v); applyGlassLook(); } },
     disableAnimations: { type: OptionType.BOOLEAN, description: "Collapse animations/transitions to near-zero duration", default: false, onChange: applyToggle("disableAnimations", disableAnimationsStyle) },
+    glassBlur: { type: OptionType.NUMBER, description: "Liquid Glass: glassBlur", default: 22, hidden: true, onChange: () => applyGlassLook() },
+    glassSat: { type: OptionType.NUMBER, description: "Liquid Glass: glassSat", default: 170, hidden: true, onChange: () => applyGlassLook() },
+    glassTint: { type: OptionType.NUMBER, description: "Liquid Glass: glassTint", default: 30, hidden: true, onChange: () => applyGlassLook() },
+    glassEdge: { type: OptionType.NUMBER, description: "Liquid Glass: glassEdge", default: 100, hidden: true, onChange: () => applyGlassLook() },
+    glassRadius: { type: OptionType.NUMBER, description: "Liquid Glass: glassRadius", default: 20, hidden: true, onChange: () => applyGlassLook() },
+    glassBackdrop: { type: OptionType.STRING, description: "Liquid Glass: backdrop glow", default: "none", hidden: true, onChange: () => applyGlassLook() },
+    glassColor: { type: OptionType.STRING, description: "Liquid Glass: glass colour (r, g, b)", default: "18, 18, 24", hidden: true, onChange: () => applyGlassLook() },
+    viceCity: {
+        type: OptionType.BOOLEAN,
+        description: "Vice City colour theme (Discord's limited-time theme, saved)",
+        default: false,
+        hidden: true,
+        onChange: () => { syncViceCity(); syncOwnerThemeClass(); }
+    },
     enableTheme: {
         type: OptionType.BOOLEAN,
         description: "Enable o2Theme.css (the account-panel/call-controls color theme)",
@@ -68,14 +83,14 @@ function applyToggle(key: string, style: any) {
 }
 
 function applyAllFromSettings() {
-    const store = settings.store as Record<string, boolean>;
+    const store = settings.store as unknown as Record<string, boolean>;
     for (const { key, style } of TOGGLES) {
         if (store[key]) enableStyle(style);
         else disableStyle(style);
     }
 }
 
-export type ThemeChoice = "none" | "glass" | "retro" | "vhs" | "splat";
+export type ThemeChoice = "none" | "glass" | "retro" | "vhs" | "splat" | "vice";
 
 export const isOwner = () => UserStore.getCurrentUser()?.id === String(Devs.Ryder.id);
 
@@ -84,6 +99,7 @@ export function currentTheme(): ThemeChoice {
     if (plugins.SplatInk && Settings.plugins.SplatInk?.enabled) return "splat";
     if (Settings.plugins.VHS?.enabled) return "vhs";
     if (canUseRetro() && Settings.plugins.RetroTerminal?.enabled) return "retro";
+    if (settings.store.viceCity) return "vice";
     if (isOwner() && settings.store.enableTheme !== false) return "glass";
     return "none";
 }
@@ -104,6 +120,8 @@ function setPluginEnabled(name: string, on: boolean) {
 }
 
 export function chooseTheme(choice: ThemeChoice) {
+    // Vice City is a theme of its own: any other choice switches it off
+    if (choice !== "vice") settings.store.viceCity = false;
     // VHS, RetroTerminal and SplatInk each switch the others off when they start
     if (choice === "retro" || choice === "vhs" || choice === "splat") {
         setPluginEnabled(choice === "retro" ? "RetroTerminal" : choice === "vhs" ? "VHS" : "SplatInk", true);
@@ -112,6 +130,7 @@ export function chooseTheme(choice: ThemeChoice) {
     setPluginEnabled("RetroTerminal", false);
     setPluginEnabled("VHS", false);
     setPluginEnabled("SplatInk", false);
+    settings.store.viceCity = choice === "vice";
     settings.store.enableTheme = choice === "glass";
     syncOwnerThemeClass();
 }
@@ -138,6 +157,8 @@ export default definePlugin({
     autoEnableRetroOnce,
     start() {
         applyAllFromSettings();
+        applyGlassLook();
+        syncViceCity();
         FluxDispatcher.subscribe("CONNECTION_OPEN", autoEnableRetroOnce);
         void autoEnableRetroOnce();
     },

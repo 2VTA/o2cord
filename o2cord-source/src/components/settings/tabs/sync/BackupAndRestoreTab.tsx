@@ -26,6 +26,10 @@ import { Clickable, Toasts, useState } from "@webpack/common";
 
 const toast = (type: string, message: string) => Toasts.show({ type, message, id: Toasts.genId() });
 
+/** a step that never finishes must not lock the buttons for good */
+const withTimeout = <T,>(p: Promise<T>, ms = 15000) =>
+    Promise.race([p, new Promise<T>((_, reject) => setTimeout(() => reject(new Error("That took too long - try again")), ms))]);
+
 const PART_LABELS: Array<[keyof SharePart, string]> = [
     ["plugins", "Plugins and their settings"],
     ["themes", "Theme links"],
@@ -37,33 +41,45 @@ function ShareCodeCard() {
     const [parts, setParts] = useState<SharePart>({ plugins: true, themes: true, css: false });
     const [code, setCode] = useState("");
     const [busy, setBusy] = useState(false);
+    // the result stays on the card (a toast can be missed or hidden behind this window)
+    const [status, setStatus] = useState<{ ok: boolean; text: string; } | null>(null);
 
     const toggle = (key: keyof SharePart) => setParts({ ...parts, [key]: !parts[key] });
     const describe = (s: { plugins: number; themes: number; css: boolean; }) =>
         `${s.plugins} plugins, ${s.themes} theme links${s.css ? ", custom CSS" : ""}`;
 
     const copy = async () => {
-        if (busy) return;
+        if (busy) return setStatus({ ok: true, text: "Still working on the last step..." });
         setBusy(true);
+        setStatus({ ok: true, text: "Making the code..." });
         try {
-            const { code, summary } = await makeShareCode(parts);
-            await copyToClipboard(code);
+            const { code, summary } = await withTimeout(makeShareCode(parts));
+            await withTimeout(copyToClipboard(code));
+            setStatus({ ok: true, text: `Code copied: ${describe(summary)}` });
             toast(Toasts.Type.SUCCESS, `Code copied: ${describe(summary)}`);
         } catch (err) {
-            toast(Toasts.Type.FAILURE, `Couldn't make the code: ${String(err)}`);
+            const text = `Couldn't make the code: ${(err as Error)?.message ?? String(err)}`;
+            setStatus({ ok: false, text });
+            toast(Toasts.Type.FAILURE, text);
         } finally { setBusy(false); }
     };
 
     const apply = async () => {
-        if (busy) return;
+        if (busy) return setStatus({ ok: true, text: "Still working on the last step..." });
+        if (!code.trim()) return setStatus({ ok: false, text: "Paste a code first (it starts with o2cord1:)" });
         setBusy(true);
+        setStatus({ ok: true, text: "Applying..." });
         try {
-            const data = await readShareCode(code);
-            const done = await applyShareCode(data, parts);
+            const data = await withTimeout(readShareCode(code));
+            const done = await withTimeout(applyShareCode(data, parts));
             setCode("");
-            toast(Toasts.Type.SUCCESS, `Applied ${describe(done)}. Restart to finish.`);
+            const text = `Applied ${describe(done)}. Restart to finish.`;
+            setStatus({ ok: true, text });
+            toast(Toasts.Type.SUCCESS, text);
         } catch (err) {
-            toast(Toasts.Type.FAILURE, String((err as Error)?.message ?? err));
+            const text = String((err as Error)?.message ?? err);
+            setStatus({ ok: false, text });
+            toast(Toasts.Type.FAILURE, text);
         } finally { setBusy(false); }
     };
 
@@ -88,8 +104,9 @@ function ShareCodeCard() {
             </div>
             <div className="o2s-row o2s-share-paste">
                 <textarea className="o2s-textarea" placeholder="Paste a code here (it starts with o2cord1:)" value={code} onChange={e => setCode(e.target.value)} rows={3} spellCheck={false} />
-                <Clickable className="o2s-btn" onClick={apply}>Apply code</Clickable>
+                <Clickable className="o2s-btn" onClick={apply}>{busy ? "Working..." : "Apply code"}</Clickable>
             </div>
+            {status && <div className={"o2s-row o2s-share-status " + (status.ok ? "o2s-share-ok" : "o2s-share-bad")} role="status">{status.text}</div>}
         </div>
     );
 }
