@@ -44,8 +44,7 @@ o2cord-source/src/plugins/fastDeleteChannels/
 # BackgroundMusic is Ryder's private music player - never upload it
 o2cord-source/src/plugins/backgroundMusic/
 
-# SplatInk is Ryder's private theme - never upload it
-o2cord-source/src/plugins/splatInk/
+# SplatInk is in the public update, locked to two accounts (see splatInk/index.ts)
 
 # RyderCosmetics is Ryder's private decoration + effect - never upload it
 o2cord-source/src/plugins/ryderCosmetics/

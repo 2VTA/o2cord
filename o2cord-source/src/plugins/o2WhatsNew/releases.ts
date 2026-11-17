@@ -31,6 +31,14 @@ export interface Release {
 
 export const RELEASES: Release[] = [
     {
+        version: "1.3.97",
+        date: "November 18, 2026",
+        features: [],
+        fixes: [
+            { plugin: "o2cord Settings", text: "Small improvements to the theme cards." }
+        ]
+    },
+    {
         version: "1.3.96",
         date: "November 17, 2026",
         features: [

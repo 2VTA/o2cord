@@ -25,6 +25,7 @@ import { openWhatsNew } from "@plugins/o2WhatsNew";
 import { RELEASES } from "@plugins/o2WhatsNew/releases";
 import { canUseRetro, PROFILES as RETRO_PROFILES } from "@plugins/retroTerminal";
 import { classes } from "@utils/misc";
+import { splatAllowed } from "@plugins/splatInk";
 import { GLASS_BACKDROPS, GLASS_COLORS, GLASS_DEFAULTS, GLASS_PRESETS } from "@utils/o2OwnerTheme";
 import { ModalCloseButton as LegacyClose, ModalRoot as LegacyRoot, ModalSize, openModal } from "@utils/modal";
 import { relaunch } from "@utils/native";
@@ -100,7 +101,7 @@ export function ThemeCards({ onChange }: { onChange(): void; }) {
         .filter(t => t.id !== "retro" || canUseRetro())
         .filter(t => t.id !== "vhs" || !!plugins.VHS)
         // Ryder's private theme - only in his own build
-        .filter(t => t.id !== "splat" || !!plugins.SplatInk);
+        .filter(t => t.id !== "splat" || (!!plugins.SplatInk && splatAllowed()));
     return (
         <div className="o2-hub-themes">
             {options.map(t => (

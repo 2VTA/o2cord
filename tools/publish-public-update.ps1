@@ -32,7 +32,6 @@ $PrivatePlugins = @(
     @{ Dir = "FakeVoice"; Name = "FakeVoice" },
     @{ Dir = "pictureRequest"; Name = "PictureRequest" },
     @{ Dir = "fastDeleteChannels"; Name = "FastDeleteChannels" },
-    @{ Dir = "splatInk"; Name = "SplatInk" },
     @{ Dir = "ryderCosmetics"; Name = "RyderCosmetics" },
     @{ Dir = "marieRequests"; Name = "MarieRequests" },
     @{ Dir = "backgroundMusic"; Name = "BackgroundMusic" }
