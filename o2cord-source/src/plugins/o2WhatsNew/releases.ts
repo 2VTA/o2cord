@@ -31,6 +31,14 @@ export interface Release {
 
 export const RELEASES: Release[] = [
     {
+        version: "1.3.98",
+        date: "November 18, 2026",
+        features: [],
+        fixes: [
+            { plugin: "o2cord Settings", text: "Backup > Share code works through chat now: codes are much shorter (only what you changed), use letters and digits only so chat can't eat characters, are split into parts under Discord's 2000-character limit, and say exactly what went wrong if something is cut or changed. Old codes still apply." }
+        ]
+    },
+    {
         version: "1.3.97",
         date: "November 18, 2026",
         features: [],

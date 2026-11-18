@@ -24,6 +24,9 @@ const toastFailure = (err: any) =>
 
 const logger = new Logger("SettingsSync:Offline", "#39b7e0");
 
+/** Discord's file windows reject with "... canceled by user" when they are closed */
+const wasCancelled = (err: any) => /cancel/i.test(String((err as Error)?.message ?? err));
+
 function isSafeObject(obj: any) {
     if (obj == null || typeof obj !== "object") return true;
 
@@ -39,7 +42,10 @@ function isSafeObject(obj: any) {
     return true;
 }
 
-export async function importSettings(data: string) {
+/** what the Backup tab shows under the buttons */
+export interface BackupResult { ok: boolean; text: string; }
+
+export async function importSettings(data: string): Promise<number> {
     try {
         var parsed = JSON.parse(data);
     } catch (err) {
@@ -54,6 +60,7 @@ export async function importSettings(data: string) {
         Object.assign(PlainSettings, parsed.settings);
         await VencordNative.settings.set(parsed.settings);
         await VencordNative.quickCss.set(parsed.quickCss);
+        return Object.keys(parsed.settings?.plugins ?? {}).length;
     } else
         throw new Error("Invalid Settings. Is this even an o2cord Settings file?");
 }
@@ -64,50 +71,58 @@ export async function exportSettings({ minify }: { minify?: boolean; } = {}) {
     return JSON.stringify({ settings, quickCss }, null, minify ? undefined : 4);
 }
 
-export async function downloadSettingsBackup() {
-    const filename = `o2cord-settings-backup-${moment().format("YYYY-MM-DD")}.json`;
-    const backup = await exportSettings();
-    const data = new TextEncoder().encode(backup);
+export async function downloadSettingsBackup(): Promise<BackupResult> {
+    try {
+        const filename = `o2cord-settings-backup-${moment().format("YYYY-MM-DD")}.json`;
+        const backup = await exportSettings();
+        const data = new TextEncoder().encode(backup);
 
-    if (IS_DISCORD_DESKTOP) {
-        DiscordNative.fileManager.saveWithDialog(data, filename);
-    } else {
+        if (IS_DISCORD_DESKTOP) {
+            // the save window answers with the folder when the file was written, and with nothing when it is closed
+            const folder = await DiscordNative.fileManager.saveWithDialog(data, filename);
+            if (!folder) return { ok: false, text: "Nothing was saved (the save window was closed)." };
+            return { ok: true, text: `Done - saved ${filename}` };
+        }
         saveFile(new File([data], filename, { type: "application/json" }));
+        return { ok: true, text: `Done - saved ${filename}` };
+    } catch (err) {
+        if (wasCancelled(err)) return { ok: false, text: "Nothing was saved (the save window was closed)." };
+        logger.error(err);
+        return { ok: false, text: `Couldn't save the backup: ${(err as Error)?.message ?? String(err)}` };
     }
 }
 
-export async function uploadSettingsBackup(showToast = true): Promise<void> {
-    if (IS_DISCORD_DESKTOP) {
-        const [file] = await DiscordNative.fileManager.openFiles({
-            filters: [
-                { name: "o2cord Settings Backup", extensions: ["json"] },
-                { name: "all", extensions: ["*"] }
-            ]
-        });
-
-        if (file) {
-            try {
-                await importSettings(new TextDecoder().decode(file.data));
-                if (showToast) toastSuccess();
-            } catch (err) {
-                logger.error(err);
-                if (showToast) toastFailure(err);
-            }
+export async function uploadSettingsBackup(showToast = true): Promise<BackupResult> {
+    const load = async (text: string): Promise<BackupResult> => {
+        try {
+            const count = await importSettings(text);
+            if (showToast) toastSuccess();
+            return { ok: true, text: `Done - backup loaded (${count} plugins). Restart o2cord to apply it.` };
+        } catch (err) {
+            logger.error(err);
+            if (showToast) toastFailure(err);
+            return { ok: false, text: `Couldn't load that file: ${(err as Error)?.message ?? String(err)}` };
         }
-    } else {
-        const file = await chooseFile("application/json");
-        if (!file) return;
+    };
 
-        const reader = new FileReader();
-        reader.onload = async () => {
-            try {
-                await importSettings(reader.result as string);
-                if (showToast) toastSuccess();
-            } catch (err) {
-                logger.error(err);
-                if (showToast) toastFailure(err);
-            }
-        };
-        reader.readAsText(file);
+    try {
+        if (IS_DISCORD_DESKTOP) {
+            const [file] = await DiscordNative.fileManager.openFiles({
+                filters: [
+                    { name: "o2cord Settings Backup", extensions: ["json"] },
+                    { name: "all", extensions: ["*"] }
+                ]
+            });
+            if (!file) return { ok: false, text: "Nothing was loaded (no file was chosen)." };
+            return await load(new TextDecoder().decode(file.data));
+        }
+
+        const file = await chooseFile("application/json");
+        if (!file) return { ok: false, text: "Nothing was loaded (no file was chosen)." };
+        return await load(await file.text());
+    } catch (err) {
+        if (wasCancelled(err)) return { ok: false, text: "Nothing was loaded (no file was chosen)." };
+        logger.error(err);
+        return { ok: false, text: `Couldn't open the file: ${(err as Error)?.message ?? String(err)}` };
     }
 }

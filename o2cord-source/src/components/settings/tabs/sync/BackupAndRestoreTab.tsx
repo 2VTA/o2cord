@@ -18,7 +18,7 @@
 
 import "@components/settings/tabs/vencord/o2Settings.css";
 
-import { downloadSettingsBackup, uploadSettingsBackup } from "@api/SettingsSync/offline";
+import { type BackupResult, downloadSettingsBackup, uploadSettingsBackup } from "@api/SettingsSync/offline";
 import { SettingsTab, wrapTab } from "@components/settings/tabs/BaseTab";
 import { applyShareCode, makeShareCode, readShareCode, type SharePart } from "@api/SettingsSync/shareCode";
 import { copyToClipboard } from "@utils/clipboard";
@@ -45,18 +45,20 @@ function ShareCodeCard() {
     const [status, setStatus] = useState<{ ok: boolean; text: string; } | null>(null);
 
     const toggle = (key: keyof SharePart) => setParts({ ...parts, [key]: !parts[key] });
-    const describe = (s: { plugins: number; themes: number; css: boolean; }) =>
-        `${s.plugins} plugins, ${s.themes} theme links${s.css ? ", custom CSS" : ""}`;
+    const describe = (s: { plugins: number; themes: number; css: boolean; skipped?: number; }) =>
+        `${s.plugins} plugins, ${s.themes} theme links${s.css ? ", custom CSS" : ""}${s.skipped ? `, ${s.skipped} big items left out (use the backup file for those)` : ""}`;
 
     const copy = async () => {
         if (busy) return setStatus({ ok: true, text: "Still working on the last step..." });
         setBusy(true);
         setStatus({ ok: true, text: "Making the code..." });
         try {
-            const { code, summary } = await withTimeout(makeShareCode(parts));
+            const { code, parts: pieces, summary } = await withTimeout(makeShareCode(parts));
             await withTimeout(copyToClipboard(code));
-            setStatus({ ok: true, text: `Code copied: ${describe(summary)}` });
-            toast(Toasts.Type.SUCCESS, `Code copied: ${describe(summary)}`);
+            const many = pieces.length > 1 ? ` in ${pieces.length} parts - send each part as its own message (Discord stops at 2000 characters)` : "";
+            const text = `Code copied${many}: ${describe(summary)}`;
+            setStatus({ ok: true, text });
+            toast(Toasts.Type.SUCCESS, text);
         } catch (err) {
             const text = `Couldn't make the code: ${(err as Error)?.message ?? String(err)}`;
             setStatus({ ok: false, text });
@@ -66,7 +68,7 @@ function ShareCodeCard() {
 
     const apply = async () => {
         if (busy) return setStatus({ ok: true, text: "Still working on the last step..." });
-        if (!code.trim()) return setStatus({ ok: false, text: "Paste a code first (it starts with o2cord1:)" });
+        if (!code.trim()) return setStatus({ ok: false, text: "Paste a code first (it starts with o2cord2:)" });
         setBusy(true);
         setStatus({ ok: true, text: "Applying..." });
         try {
@@ -103,7 +105,7 @@ function ShareCodeCard() {
                 <Clickable className="o2s-btn" onClick={copy}>Copy code</Clickable>
             </div>
             <div className="o2s-row o2s-share-paste">
-                <textarea className="o2s-textarea" placeholder="Paste a code here (it starts with o2cord1:)" value={code} onChange={e => setCode(e.target.value)} rows={3} spellCheck={false} />
+                <textarea className="o2s-textarea" placeholder="Paste the code here (if it came in several parts, paste all of them)" value={code} onChange={e => setCode(e.target.value)} rows={5} spellCheck={false} />
                 <Clickable className="o2s-btn" onClick={apply}>{busy ? "Working..." : "Apply code"}</Clickable>
             </div>
             {status && <div className={"o2s-row o2s-share-status " + (status.ok ? "o2s-share-ok" : "o2s-share-bad")} role="status">{status.text}</div>}
@@ -113,6 +115,18 @@ function ShareCodeCard() {
 
 // o2cord: one simple card - what's saved, and the two buttons.
 function BackupAndRestoreTab() {
+    // the result stays under the buttons (a toast can be missed or hidden behind this window)
+    const [fileStatus, setFileStatus] = useState<BackupResult | null>(null);
+    const [fileBusy, setFileBusy] = useState(false);
+    const run = async (job: () => Promise<BackupResult>) => {
+        if (fileBusy) return;
+        setFileBusy(true);
+        setFileStatus(null);
+        try {
+            setFileStatus(await job());
+        } finally { setFileBusy(false); }
+    };
+
     return (
         <SettingsTab>
             <div className="o2s-page">
@@ -128,15 +142,16 @@ function BackupAndRestoreTab() {
                             <div className="o2s-row-title">Save a backup</div>
                             <div className="o2s-muted">Downloads a .json file</div>
                         </div>
-                        <Clickable className="o2s-btn" onClick={downloadSettingsBackup}>Save</Clickable>
+                        <Clickable className="o2s-btn" onClick={() => run(downloadSettingsBackup)}>Save</Clickable>
                     </div>
                     <div className="o2s-row">
                         <div>
                             <div className="o2s-row-title">Load a backup</div>
                             <div className="o2s-muted">Replaces your current o2cord settings</div>
                         </div>
-                        <Clickable className="o2s-btn" onClick={() => uploadSettingsBackup()}>Load</Clickable>
+                        <Clickable className="o2s-btn" onClick={() => run(() => uploadSettingsBackup(false))}>Load</Clickable>
                     </div>
+                    {fileStatus && <div className={"o2s-row o2s-share-status " + (fileStatus.ok ? "o2s-share-ok" : "o2s-share-bad")} role="status">{fileStatus.text}</div>}
                 </div>
                 <ShareCodeCard />
             </div>
