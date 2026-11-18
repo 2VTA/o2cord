@@ -215,5 +215,5 @@
 
 /* Share code: the result of the last Copy / Apply stays on the card */
 .o2s-share-status { font-size: 13px; padding-top: 0; }
-.o2s-share-ok { color: var(--text-default, #dbdee1); opacity: 0.85; }
+.o2s-share-ok { color: var(--status-positive, #23a55a); font-weight: 600; }
 .o2s-share-bad { color: var(--status-danger, #f23f43); }

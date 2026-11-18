@@ -42,6 +42,7 @@ function ShareCodeCard() {
     const [code, setCode] = useState("");
     const [busy, setBusy] = useState(false);
     // the result stays on the card (a toast can be missed or hidden behind this window)
+    const [copyStatus, setCopyStatus] = useState<{ ok: boolean; text: string; } | null>(null);
     const [status, setStatus] = useState<{ ok: boolean; text: string; } | null>(null);
 
     const toggle = (key: keyof SharePart) => setParts({ ...parts, [key]: !parts[key] });
@@ -49,19 +50,19 @@ function ShareCodeCard() {
         `${s.plugins} plugins, ${s.themes} theme links${s.css ? ", custom CSS" : ""}${s.skipped ? `, ${s.skipped} big items left out (use the backup file for those)` : ""}`;
 
     const copy = async () => {
-        if (busy) return setStatus({ ok: true, text: "Still working on the last step..." });
+        if (busy) return setCopyStatus({ ok: true, text: "Still working on the last step..." });
         setBusy(true);
-        setStatus({ ok: true, text: "Making the code..." });
+        setCopyStatus({ ok: true, text: "Making the code..." });
         try {
             const { code, parts: pieces, summary } = await withTimeout(makeShareCode(parts));
             await withTimeout(copyToClipboard(code));
             const many = pieces.length > 1 ? ` in ${pieces.length} parts - send each part as its own message (Discord stops at 2000 characters)` : "";
-            const text = `Code copied${many}: ${describe(summary)}`;
-            setStatus({ ok: true, text });
+            const text = `Done - code copied${many}: ${describe(summary)}`;
+            setCopyStatus({ ok: true, text });
             toast(Toasts.Type.SUCCESS, text);
         } catch (err) {
             const text = `Couldn't make the code: ${(err as Error)?.message ?? String(err)}`;
-            setStatus({ ok: false, text });
+            setCopyStatus({ ok: false, text });
             toast(Toasts.Type.FAILURE, text);
         } finally { setBusy(false); }
     };
@@ -75,7 +76,7 @@ function ShareCodeCard() {
             const data = await withTimeout(readShareCode(code));
             const done = await withTimeout(applyShareCode(data, parts));
             setCode("");
-            const text = `Applied ${describe(done)}. Restart to finish.`;
+            const text = `Done - applied ${describe(done)}. Restart o2cord to finish.`;
             setStatus({ ok: true, text });
             toast(Toasts.Type.SUCCESS, text);
         } catch (err) {
@@ -101,8 +102,11 @@ function ShareCodeCard() {
                 ))}
             </div>
             <div className="o2s-row">
-                <div className="o2s-muted">Copy yours</div>
-                <Clickable className="o2s-btn" onClick={copy}>Copy code</Clickable>
+                <div>
+                    <div className="o2s-muted">Copy yours</div>
+                    {copyStatus && <div className={"o2s-share-status " + (copyStatus.ok ? "o2s-share-ok" : "o2s-share-bad")} role="status">{copyStatus.text}</div>}
+                </div>
+                <Clickable className="o2s-btn" onClick={copy}>{busy ? "Working..." : "Copy code"}</Clickable>
             </div>
             <div className="o2s-row o2s-share-paste">
                 <textarea className="o2s-textarea" placeholder="Paste the code here (if it came in several parts, paste all of them)" value={code} onChange={e => setCode(e.target.value)} rows={5} spellCheck={false} />

@@ -31,6 +31,14 @@ export interface Release {
 
 export const RELEASES: Release[] = [
     {
+        version: "1.3.99",
+        date: "November 18, 2026",
+        features: [],
+        fixes: [
+            { plugin: "o2cord Settings", text: "Backup: a clear green Done message now shows right next to Copy code, under Apply code, and under Save and Load, so you can see it worked." }
+        ]
+    },
+    {
         version: "1.3.98",
         date: "November 18, 2026",
         features: [],
