@@ -1,3 +1,5 @@
+<p align="center"><img src="docs/assets/logo.svg" width="160" alt="o2cord"></p>
+
 # o2cord
 
 Custom o2cord source, installer, and public update files.
