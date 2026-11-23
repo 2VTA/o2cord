@@ -31,6 +31,21 @@ export interface Release {
 
 export const RELEASES: Release[] = [
     {
+        version: "1.3.100",
+        date: "November 23, 2026",
+        features: [
+            {
+                plugin: "PluginShare",
+                title: "Share a plugin with friends",
+                text: "Press the share button on any plugin card, pick friends in a Forward-style window and send. They get a message with a card and a switch for that plugin (and a Restart button if it needs one), so nobody has to search for the name."
+            }
+        ],
+        fixes: [
+            { plugin: "FakeNitro", text: "Soundboard sounds from other servers, custom call sounds and the 100-server limit in the join window work again after Discord's change. Discord's own servers can still refuse a join over the limit." },
+            { text: "Notices that plugins show only to you (command results and the like) now come from Callie instead of Clyde." }
+        ]
+    },
+    {
         version: "1.3.99",
         date: "November 18, 2026",
         features: [],

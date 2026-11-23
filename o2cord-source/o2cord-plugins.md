@@ -25,7 +25,8 @@ The list lives in one place, `src/utils/o2PluginList.ts` - the Plugins tab and t
 | 17 | **NitroServer** | Every server at max Boost tier, custom role icons and server banner (cosmetic) |
 | 18 | **AppIcon** | Change the picture on Discord's window and taskbar button |
 | 19 | **O2WindowControls** | Your own images on the window buttons |
-| 20 | **Widget** | A cosmetic two-card widget on your profile settings |
+| 20 | **PluginShare** | Send a plugin to friends: pick them in a Forward-style window, they get a card with its switch right in the message |
+| 21 | **Widget** | A cosmetic two-card widget on your profile settings |
 
 ## Themes
 

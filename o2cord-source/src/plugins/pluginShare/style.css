@@ -1,0 +1,133 @@
+.o2ps-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-top: 6px;
+}
+
+.o2ps-wrap {
+    max-width: 420px;
+}
+
+.o2ps-info {
+    height: 24px;
+    width: 24px;
+    padding: 0;
+    background: transparent;
+    margin-right: 8px;
+    color: var(--icon-muted);
+    cursor: pointer;
+}
+
+.o2ps-info:hover {
+    color: var(--interactive-icon-hover);
+}
+
+.o2ps-icon {
+    width: 24px;
+    height: 24px;
+}
+
+.o2ps-restart {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin-top: 4px;
+    padding: 6px 10px;
+    border-radius: 6px;
+    background: var(--background-base-lower, #1e1f22);
+    color: var(--text-default, #dbdee1);
+    font-size: 13px;
+}
+
+.o2ps-restart-btn {
+    padding: 3px 12px;
+    border-radius: 4px;
+    border: 0;
+    background: var(--brand-500, #5865f2);
+    color: #fff;
+    cursor: pointer;
+    font-size: 13px;
+}
+
+.o2ps-missing {
+    max-width: 420px;
+    padding: 8px 10px;
+    border-radius: 6px;
+    background: var(--background-base-lower, #1e1f22);
+    color: var(--text-muted, #949ba4);
+    font-size: 13px;
+}
+
+.o2ps-picker {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding-bottom: 16px;
+}
+
+.o2ps-friends {
+    max-height: 340px;
+    overflow-y: auto;
+}
+
+.o2ps-friend {
+    width: 100%;
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 6px 8px;
+    border-radius: 6px;
+    cursor: pointer;
+}
+
+.o2ps-friend:hover {
+    background: var(--background-modifier-hover, rgba(255, 255, 255, 0.06));
+}
+
+.o2ps-avatar {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    flex: none;
+}
+
+.o2ps-fname {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-width: 0;
+}
+
+.o2ps-fsub {
+    color: var(--text-muted, #949ba4);
+}
+
+.o2ps-empty {
+    padding: 16px;
+    text-align: center;
+    color: var(--text-muted, #949ba4);
+}
+
+.o2ps-status {
+    font-size: 13px;
+    color: var(--text-default, #dbdee1);
+}
+
+.o2ps-bad {
+    color: var(--text-danger, #f23f42);
+}
+
+.o2ps-actions {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+.o2ps-friend > [class*="checkboxWrapper"] {
+    flex: 0 0 auto;
+    width: auto;
+}

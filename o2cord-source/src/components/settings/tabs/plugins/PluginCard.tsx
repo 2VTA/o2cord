@@ -9,6 +9,8 @@ import { hasAnyVisibleSettings, isPluginEnabled, pluginRequiresRestart, startDep
 import { Settings } from "@api/Settings";
 import { CogWheel, InfoIcon } from "@components/Icons";
 import { AddonCard } from "@components/settings/AddonCard";
+import { openSharePicker } from "@plugins/pluginShare/Picker";
+import { canSharePlugin } from "@utils/o2PluginShare";
 import { isTestingPlugin } from "@utils/o2TestPlugins";
 import { Plugin } from "@utils/types";
 import { React, showToast, Toasts } from "@webpack/common";
@@ -90,16 +92,29 @@ export function PluginCard({ plugin, disabled, onRestartNeeded, onMouseEnter, on
             onMouseEnter={onMouseEnter}
             onMouseLeave={onMouseLeave}
             infoButton={
-                <button
-                    role="switch"
-                    onClick={() => openPluginModal(plugin, onRestartNeeded)}
-                    className={cl("info-button")}
-                >
-                    {hasAnyVisibleSettings(plugin)
-                        ? <CogWheel className={cl("info-icon")} />
-                        : <InfoIcon className={cl("info-icon")} />
-                    }
-                </button>
+                <>
+                    {canSharePlugin(plugin.name) && (
+                        <button
+                            onClick={() => openSharePicker(plugin.name)}
+                            className={cl("info-button")}
+                            title="Share this plugin with friends"
+                        >
+                            <svg className={cl("info-icon")} viewBox="0 0 24 24" width="24" height="24" fill="currentColor" aria-hidden="true">
+                                <path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81a3 3 0 1 0-3-3c0 .24.04.47.09.7L8.04 9.81A2.99 2.99 0 0 0 6 9a3 3 0 1 0 0 6c.79 0 1.5-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65a2.92 2.92 0 1 0 2.92-2.92z" />
+                            </svg>
+                        </button>
+                    )}
+                    <button
+                        role="switch"
+                        onClick={() => openPluginModal(plugin, onRestartNeeded)}
+                        className={cl("info-button")}
+                    >
+                        {hasAnyVisibleSettings(plugin)
+                            ? <CogWheel className={cl("info-icon")} />
+                            : <InfoIcon className={cl("info-icon")} />
+                        }
+                    </button>
+                </>
             } />
     );
 }

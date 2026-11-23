@@ -23,8 +23,8 @@ const MAX_VALUE = 1500; // longer values (pictures, sound files) are not put in 
 // plugins that exist only in the owner's build are never put in a code someone else will read. They are matched by a hash
 // of the name (not the name itself) so the public build never contains the private names.
 const hashName = (s: string) => { let x = 5381; for (const c of s.toLowerCase()) x = ((x * 33) ^ c.charCodeAt(0)) >>> 0; return x.toString(16); };
-const PRIVATE_HASHES = new Set(["e8eb0e01", "c7f27eb9", "e672eda", "fcc84a58", "b1c11a6c", "1d4fe6b3", "abc33a67", "de222fd5", "6bcd3a41", "ca35d261", "cadd05aa"]);
-const isPrivate = (name: string) => PRIVATE_HASHES.has(hashName(name));
+const PRIVATE_HASHES = new Set(["e8eb0e01", "c7f27eb9", "e672eda", "fcc84a58", "b1c11a6c", "1d4fe6b3", "abc33a67", "de222fd5", "6bcd3a41", "ca35d261", "cadd05aa", "5044d2e5"]);
+export const isPrivate = (name: string) => PRIVATE_HASHES.has(hashName(name));
 
 // option names that may hold a token, key or private link
 const SECRET_KEY = /token|secret|passw|webhook|api[-_ ]?key|cookie|authoriz|session|credential|bearer|license/i;

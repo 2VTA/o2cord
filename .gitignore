@@ -43,6 +43,8 @@ o2cord-source/src/plugins/fastDeleteChannels/
 
 # BackgroundMusic is Ryder's private music player - never upload it
 o2cord-source/src/plugins/backgroundMusic/
+# O2Camera is Ryder's private OBS-in-Discord plugin - never upload it
+o2cord-source/src/plugins/o2Camera/
 
 # SplatInk is in the public update, locked to two accounts (see splatInk/index.ts)
 

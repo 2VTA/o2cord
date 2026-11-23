@@ -102,6 +102,10 @@ const MANAGED_PLUGINS: ManagedPlugin[] = [
         description: "Ryder only: plays a song in the background (YouTube link, audio link or a file on this PC) - the music note in the top bar"
     },
     {
+        name: "FakeDM",
+        description: "Button in the text bar: put fake local messages (or a fake call) into a DM or group DM - only you see them"
+    },
+    {
         name: "PictureRequest",
         description: "Right-click someone > Picture request: send them a new picture or banner to accept"
     }

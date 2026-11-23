@@ -121,6 +121,12 @@ const settings = definePluginSettings({
         default: true,
         restartNeeded: true
     },
+    enableGuildCapBypass: {
+        description: "Join-server window: stop the client from blocking you at 100 servers. Discord's own servers still decide, so the join may be refused",
+        type: OptionType.BOOLEAN,
+        default: true,
+        restartNeeded: true
+    },
     enableSoundboardBypass: {
         description: "Open the Soundboard for everyone: sounds from other servers and your own join sound",
         type: OptionType.BOOLEAN,
@@ -424,6 +430,32 @@ export default definePlugin({
                 replace: "true"
             }
         },
+        // Discord moved the "can this person use X" checks into the product catalog module as small functions
+        // (function v(e){return f(r.bb.INCREASED_GUILD_LIMIT,e)}); these three are made to answer yes.
+            {
+                find: "ProductCatalog.tsx",
+                replacement: {
+                    match: /(?<=function \i\(\i\)\{)(?=return \i\(\i\.\i\.INCREASED_GUILD_LIMIT,\i\))/,
+                    replace: "return true;",
+                },
+                predicate: () => settings.store.enableGuildCapBypass
+            },
+            {
+                find: "ProductCatalog.tsx",
+                replacement: {
+                    match: /(?<=function \i\(\i\)\{)(?=return \i\(\i\.\i\.SOUNDBOARD_EVERYWHERE,\i\))/,
+                    replace: "return true;",
+                },
+                predicate: () => settings.store.enableSoundboardBypass
+            },
+            {
+                find: "ProductCatalog.tsx",
+                replacement: {
+                    match: /(?<=function \i\(\i\)\{)(?=return \i\(\i\.\i\.CUSTOM_CALL_SOUNDS,\i\))/,
+                    replace: "return true;",
+                },
+                predicate: () => settings.store.enableSoundboardBypass
+            },
         // Make all Soundboard sounds available
         {
             find: 'type:"GUILD_SOUNDBOARD_SOUND_CREATE"',

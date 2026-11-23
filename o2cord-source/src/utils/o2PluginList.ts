@@ -35,6 +35,7 @@ export const O2_PUBLIC_PLUGINS: O2PluginInfo[] = [
     { name: "NitroServer", summary: "Every server at max Boost tier, custom role icons and server banner (cosmetic)" },
     { name: "AppIcon", summary: "Change the picture on Discord's window and taskbar button" },
     { name: "O2WindowControls", summary: "Your own images on the window buttons" },
+    { name: "PluginShare", summary: "Send a plugin to friends: pick them in a Forward-style window, they get a card with its switch right in the message" },
     { name: "Widget", summary: "A cosmetic two-card widget on your profile settings" }
 ];
 

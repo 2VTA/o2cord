@@ -34,7 +34,9 @@ $PrivatePlugins = @(
     @{ Dir = "fastDeleteChannels"; Name = "FastDeleteChannels" },
     @{ Dir = "ryderCosmetics"; Name = "RyderCosmetics" },
     @{ Dir = "marieRequests"; Name = "MarieRequests" },
-    @{ Dir = "backgroundMusic"; Name = "BackgroundMusic" }
+    @{ Dir = "backgroundMusic"; Name = "BackgroundMusic" },
+    @{ Dir = "o2Camera"; Name = "O2Camera" },
+    @{ Dir = "fakeDM"; Name = "FakeDM" }
 )
 $PluginsDir = Join-Path $Source "src\plugins"
 $HoldDir = Join-Path (Split-Path -Parent $Root) "_held_private_plugins"
