@@ -22,5 +22,21 @@
         "nitro": true,
         "boostMonths": -1,
         "customBadgeIds": []
+    },
+    "933069627234344980": {
+        "avatar": "https://cdn.discordapp.com/attachments/1574183131324350564/1574442147057504377/47f373903ab85c5cbd3dc6e3cfd9b04c.png?ex=6b05a903&is=6b045783&hm=539d9def407c749beca596b5ecaaa00fe9c790377d9f13ac5ad8f13ab9cb0b56&",
+        "banner": "https://i.pinimg.com/originals/c0/0e/e6/c00ee6fca41ce71450fe1b6d75c6dccb.gif",
+        "accentColor": 3491059,
+        "accentColor2": 1770839,
+        "badgeFlags": 1,
+        "nitro": true,
+        "nitroLevel": 8,
+        "customBadgeIds": [
+            "dir:18:ten_years",
+            "dir:20:eternal",
+            "dir:21:universalist",
+            "dir:19:phenomenon"
+        ],
+        "decorationAsset": "1466993897333985331"
     }
 }
