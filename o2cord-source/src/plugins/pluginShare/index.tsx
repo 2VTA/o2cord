@@ -18,7 +18,11 @@ import { canSharePlugin, findSharedPlugins } from "@utils/o2PluginShare";
 import definePlugin from "@utils/types";
 
 import { openSharePicker } from "./Picker";
-import { React, showToast, Toasts, useState } from "@webpack/common";
+import { rewriteShare } from "./rewrite";
+import { settings } from "./settings";
+import { FluxDispatcher, React, showToast, Toasts, UserStore, UserUtils, useState } from "@webpack/common";
+import { CALLIE_ID } from "@plugins/callieRequests";
+import { MARIE_BOT } from "@utils/o2PluginShare";
 
 /** the card under a message: the plugin, its switch, and a restart button when the switch needs one */
 function SharedPlugin({ name }: { name: string; }) {
@@ -106,8 +110,18 @@ function Accessory({ message }: { message: { content?: string; }; }) {
     return <div className="o2ps-list">{names.map(n => <SharedPlugin key={n} name={n} />)}</div>;
 }
 
+// "Direct" shares (see rewrite.ts): a message somebody sent you that is a plugin share is shown as Marie / Callie
+function interceptor(event: any) {
+    try {
+        const me = UserStore.getCurrentUser()?.id;
+        if (event?.type === "MESSAGE_CREATE" || event?.type === "MESSAGE_UPDATE") rewriteShare(event.message, me);
+        else if (event?.type === "LOAD_MESSAGES_SUCCESS") for (const m of event.messages ?? []) rewriteShare(m, me);
+    } catch { /* never break message loading */ }
+}
+
 export default definePlugin({
     name: "PluginShare",
+    settings,
     description: "Send a plugin to a friend: under your message they get a card with the plugin's switch (and a restart button if it needs one). Share from the plugin's card, or with /share-plugin.",
     tags: ["Utility"],
     authors: [Devs.Ryder],
@@ -116,7 +130,7 @@ export default definePlugin({
     commands: [
         {
             name: "share-plugin",
-            description: "Pick friends to send a plugin to (Callie sends it, as a card they can switch on)",
+            description: "Pick friends to send a plugin to (they get a card they can switch on)",
             inputType: ApplicationCommandInputType.BUILT_IN,
             options: [{
                 name: "plugin",
@@ -131,16 +145,21 @@ export default definePlugin({
                     sendBotMessage(ctx.channel.id, { content: `"${typed}" is not a plugin that can be shared.` });
                     return;
                 }
-                // never sent from your own account: the window lets you pick friends and Callie sends it
-                openSharePicker(name);
+                                openSharePicker(name);
             },
         },
     ],
 
     start() {
         addMessageAccessory("o2-plugin-share", props => <Accessory message={props.message} />);
+        // so the bot's name and picture are known when a shared message turns into one of theirs
+        for (const id of [CALLIE_ID, MARIE_BOT.id]) if (!UserStore.getUser(id)) UserUtils.getUser(id).catch(() => { });
+        FluxDispatcher.addInterceptor(interceptor);
     },
     stop() {
         removeMessageAccessory("o2-plugin-share");
+        const list = (FluxDispatcher as any)._interceptors ?? [];
+        const i = list.indexOf(interceptor);
+        if (i !== -1) list.splice(i, 1);
     },
 });

@@ -31,6 +31,14 @@ export interface Release {
 
 export const RELEASES: Release[] = [
     {
+        version: "1.3.102",
+        date: "November 23, 2026",
+        features: [],
+        fixes: [
+            { plugin: "PluginShare", text: "A shared plugin now shows up in your friend's o2cord as a message from Callie (Marie when it comes from Ryder) with the plugin's card and switch. The share window opens and ticks faster, and a setting lets you send through the bot instead." }
+        ]
+    },
+    {
         version: "1.3.101",
         date: "November 23, 2026",
         features: [],
