@@ -14,8 +14,10 @@ import { CogWheel, InfoIcon } from "@components/Icons";
 import { AddonCard } from "@components/settings/AddonCard";
 import { openPluginModal } from "@components/settings/tabs/plugins/PluginModal";
 import { Devs } from "@utils/constants";
-import { canSharePlugin, findSharedPlugins, sharePluginText } from "@utils/o2PluginShare";
+import { canSharePlugin, findSharedPlugins } from "@utils/o2PluginShare";
 import definePlugin from "@utils/types";
+
+import { openSharePicker } from "./Picker";
 import { React, showToast, Toasts, useState } from "@webpack/common";
 
 /** the card under a message: the plugin, its switch, and a restart button when the switch needs one */
@@ -114,7 +116,7 @@ export default definePlugin({
     commands: [
         {
             name: "share-plugin",
-            description: "Send a plugin to a friend as a card they can switch on",
+            description: "Pick friends to send a plugin to (Callie sends it, as a card they can switch on)",
             inputType: ApplicationCommandInputType.BUILT_IN,
             options: [{
                 name: "plugin",
@@ -129,7 +131,8 @@ export default definePlugin({
                     sendBotMessage(ctx.channel.id, { content: `"${typed}" is not a plugin that can be shared.` });
                     return;
                 }
-                return { content: sharePluginText(name) };
+                // never sent from your own account: the window lets you pick friends and Callie sends it
+                openSharePicker(name);
             },
         },
     ],

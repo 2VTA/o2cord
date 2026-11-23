@@ -31,6 +31,14 @@ export interface Release {
 
 export const RELEASES: Release[] = [
     {
+        version: "1.3.101",
+        date: "November 23, 2026",
+        features: [],
+        fixes: [
+            { plugin: "PluginShare", text: "Sharing a plugin no longer sends from your own account: you pick friends and Callie sends them the message with the plugin's switch. The /share-plugin command opens the same window." }
+        ]
+    },
+    {
         version: "1.3.100",
         date: "November 23, 2026",
         features: [

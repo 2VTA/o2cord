@@ -37,3 +37,6 @@ export function findSharedPlugins(content: string | undefined | null): string[] 
     for (const m of content.matchAll(FIND)) if (!out.includes(m[1]) && out.length < 3) out.push(m[1]);
     return out;
 }
+
+/** Ryder's own shares go out through Marie (his bot); everybody else's through Callie */
+export const MARIE_BOT = { id: "1567843790868189224", name: "Marie" };

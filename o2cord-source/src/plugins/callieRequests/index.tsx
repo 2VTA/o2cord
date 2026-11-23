@@ -26,7 +26,7 @@ import { ChannelActionCreators, ChannelStore, FluxDispatcher, Forms, GuildStore,
 
 import { CALLIE_ART } from "./art";
 
-const CALLIE_ID = "1538029895601623100";
+export const CALLIE_ID = "1538029895601623100";
 // Only used to ask Discord for Callie's online status.
 export const O2CORD_GUILD_ID = "1473639169535512679";
 const REPLY_TIMEOUT_MS = 25_000;
@@ -112,12 +112,12 @@ export function allowDmsFromO2cord() {
 }
 
 // The DM channel with Callie, without navigating away from where the person is.
-async function getCallieDm(): Promise<string | null> {
-    const existing = ChannelStore.getDMFromUserId(CALLIE_ID);
+async function getCallieDm(botId = CALLIE_ID): Promise<string | null> {
+    const existing = ChannelStore.getDMFromUserId(botId);
     if (existing) return existing;
 
-    const id = await ChannelActionCreators.openPrivateChannel({ recipientIds: [CALLIE_ID], navigateToChannel: false });
-    return typeof id === "string" ? id : ChannelStore.getDMFromUserId(CALLIE_ID) ?? null;
+    const id = await ChannelActionCreators.openPrivateChannel({ recipientIds: [botId], navigateToChannel: false });
+    return typeof id === "string" ? id : ChannelStore.getDMFromUserId(botId) ?? null;
 }
 
 // Discord only lets you DM a bot you share a server with.
@@ -128,7 +128,7 @@ export const NO_SHARED_SERVER = "Discord won't let you message Callie. You need 
 export const DMS_OFF_IN_SERVER = "Your privacy settings block DMs from o2cord server members, so Callie can't get your request. Allow them below (only for the o2cord server), then send again.";
 
 // Waits for Callie's answer in the DM.
-function waitForReply(channelId: string) {
+function waitForReply(channelId: string, botId = CALLIE_ID, botName = "Callie") {
     return new Promise<RequestResult>(resolve => {
         let done = false;
         const finish = (result: RequestResult) => {
@@ -139,9 +139,9 @@ function waitForReply(channelId: string) {
             resolve(result);
         };
         const onCreate = ({ channelId: cid, message }: any) => {
-            if (cid === channelId && message?.author?.id === CALLIE_ID && message.content) finish({ ok: true, text: message.content });
+            if (cid === channelId && message?.author?.id === botId && message.content) finish({ ok: true, text: message.content });
         };
-        const timer = setTimeout(() => finish({ ok: false, text: "Callie didn't answer. It might be offline right now - try again later." }), REPLY_TIMEOUT_MS);
+        const timer = setTimeout(() => finish({ ok: false, text: `${botName} didn't answer. It might be offline right now - try again later.` }), REPLY_TIMEOUT_MS);
         FluxDispatcher.subscribe("MESSAGE_CREATE", onCreate);
     });
 }
@@ -160,15 +160,15 @@ export async function stageUpload(file: File, channelId: string) {
     return { id: "0", filename: file.name, uploaded_filename: slot.upload_filename as string };
 }
 
-export async function sendRequest(kind: Kind | "clear-typing-phrase" | "custom-profile", payload: { file?: File; phrase?: string; }): Promise<RequestResult> {
+export async function sendRequest(kind: Kind | "clear-typing-phrase" | "custom-profile" | "share-plugin", payload: { file?: File; phrase?: string; }, bot: { id: string; name: string; } = { id: CALLIE_ID, name: "Callie" }): Promise<RequestResult> {
     try {
-        const channelId = await getCallieDm();
+        const channelId = await getCallieDm(bot.id);
         if (!channelId) return { ok: false, text: NO_SHARED_SERVER, joinUrl: O2CORD_INVITE };
 
         const content = payload.phrase != null ? ["o2cord-request: " + kind, payload.phrase].join(NL) : "o2cord-request: " + kind;
         const attachments = payload.file ? [await stageUpload(payload.file, channelId)] : undefined;
 
-        const reply = waitForReply(channelId);
+        const reply = waitForReply(channelId, bot.id, bot.name);
         // Sent over Discord's normal message endpoint through its own request
         // helper (which adds the login itself - no token is ever visible here).
         // Not through the in-app send queue: that waits for the chat to be open.
