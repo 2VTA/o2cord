@@ -16,7 +16,8 @@ import { Margins } from "@utils/margins";
 import { isDebugOwner } from "@utils/o2Debug";
 import definePlugin, { OptionType, StartAt } from "@utils/types";
 import { chooseFile, saveFile } from "@utils/web";
-import { Button, Forms, React, Slider, showToast, TextInput, Toasts, UserStore } from "@webpack/common";
+import { cleanFrame, FRAME_CARD_H, FRAME_CARD_W, frameCss, frameToJson, getImageDims, openFrameEditor, parseFrame, ThemeFrame } from "./frame";
+import { Button, Forms, GuildStore, React, RestAPI, SearchableSelect, SelectedGuildStore, Slider, showToast, SnowflakeUtils, TextInput, Toasts, UserStore } from "@webpack/common";
 
 const PUBLISH_CODE_PREFIX = "O2PROFILE_PUBLISH:";
 
@@ -57,6 +58,9 @@ const TALL_CARD_ATTR = "data-o2-profile-theme-tall";
 const TALL_CARD_HEIGHT_PX = 1400;
 const MAX_LOCAL_IMAGE_BYTES = 8 * 1024 * 1024;
 const RYDER_USER_ID = "719085334989897750";
+// #callie in the o2cord server: Marie (Ryder's owner bot) publishes the profiletheme-<id>.json posted there
+const MARIE_CHANNEL_ID = "1538034368751083550";
+const NO_SERVER = "__none__";
 const DISCORD_ID_RE = /^\d{17,20}$/;
 const REGISTRY_REFRESH_MS = 30_000;
 const REACT_SCAN_LIMIT = 220;
@@ -104,6 +108,8 @@ type ProfileThemeTarget = {
     element: HTMLElement;
     userId: string;
     imageUrl: string;
+    // how the picture sits in the card (null = the normal cover look)
+    frame: ThemeFrame | null;
 };
 // Ryder's own personal, local-only reference list of who he's added an
 // image for - lives in this machine's DataStore, never synced anywhere.
@@ -113,6 +119,11 @@ type LocalProfileThemeEntry = {
     id: string;
     userId: string;
     imageUrl: string;
+    // a second picture that replaces imageUrl only while that server is the open one
+    guildId?: string;
+    guildImageUrl?: string;
+    frame?: ThemeFrame | null;
+    guildFrame?: ThemeFrame | null;
 };
 
 let observer: MutationObserver | null = null;
@@ -124,6 +135,12 @@ let registryRefreshTimer: number | undefined;
 let lastRegistryRefresh = 0;
 let registryRefreshPromise: Promise<void> | null = null;
 let remoteProfileThemes: ProfileThemes = {};
+// userId -> { serverId -> picture }, from profile-theme-servers.json: inside that server this picture replaces the public one
+let remoteProfileThemeServers: Record<string, Record<string, string>> = {};
+let localProfileThemeServerPics: Record<string, { guildId: string; imageUrl: string; frame: ThemeFrame | null; }> = {};
+let localProfileThemeFramesById: Record<string, ThemeFrame | null> = {};
+// from profile-theme-frames.json: { userId: frame, "userId@serverId": frame }
+let remoteProfileThemeFrames: Record<string, ThemeFrame> = {};
 let styleElement: HTMLStyleElement | null = null;
 let lifecycleListenersActive = false;
 let applyingTargets = false;
@@ -359,6 +376,58 @@ function getProfileThemeRegistryUrl() {
     }
 }
 
+function getProfileThemeServersUrl() {
+    const registryUrl = getProfileThemeRegistryUrl();
+    if (!registryUrl) return "";
+
+    try {
+        return new URL("profile-theme-servers.json", registryUrl).href;
+    } catch {
+        return "";
+    }
+}
+
+// { userId: { serverId: pictureUrl } }
+function cleanProfileThemeServers(raw: unknown): Record<string, Record<string, string>> {
+    if (!raw || typeof raw !== "object" || Array.isArray(raw)) return {};
+
+    const servers: Record<string, Record<string, string>> = {};
+    for (const [rawUserId, rawPics] of Object.entries(raw as Record<string, unknown>)) {
+        const userId = cleanUserId(rawUserId);
+        if (!userId || !rawPics || typeof rawPics !== "object" || Array.isArray(rawPics)) continue;
+        for (const [rawGuildId, rawUrl] of Object.entries(rawPics as Record<string, unknown>)) {
+            const guildId = cleanUserId(rawGuildId);
+            const imageUrl = cleanImageUrl(typeof rawUrl === "string" ? rawUrl : "");
+            if (guildId && imageUrl) (servers[userId] ??= {})[guildId] = imageUrl;
+        }
+    }
+    return servers;
+}
+
+function getProfileThemeFramesUrl() {
+    const registryUrl = getProfileThemeRegistryUrl();
+    if (!registryUrl) return "";
+
+    try {
+        return new URL("profile-theme-frames.json", registryUrl).href;
+    } catch {
+        return "";
+    }
+}
+
+function cleanProfileThemeFrames(raw: unknown): Record<string, ThemeFrame> {
+    if (!raw || typeof raw !== "object" || Array.isArray(raw)) return {};
+
+    const frames: Record<string, ThemeFrame> = {};
+    for (const [key, value] of Object.entries(raw as Record<string, unknown>)) {
+        const [userId, guildId, ...rest] = key.split("@");
+        if (rest.length || !cleanUserId(userId) || (guildId !== undefined && !cleanUserId(guildId))) continue;
+        const frame = cleanFrame(value);
+        if (frame) frames[key] = frame;
+    }
+    return frames;
+}
+
 function hasLocalProfileThemeEntries() {
     return Object.keys(localProfileThemesById).length > 0;
 }
@@ -418,6 +487,7 @@ function preloadProfileThemeImages() {
     const urls = new Set<string>([
         ...Object.values(remoteProfileThemes),
         ...Object.values(localProfileThemesById),
+        ...Object.values(remoteProfileThemeServers).flatMap(pics => Object.values(pics)),
         getAnyConfiguredImageUrl()
     ]);
 
@@ -451,6 +521,24 @@ async function refreshProfileThemeRegistry(force = false) {
             // same root cause already found and fixed this way in
             // ussro2Public's own registry refresh.
             remoteProfileThemes = { ...remoteProfileThemes, ...cleanProfileThemes(await res.json()) };
+
+            // which pictures are limited to one server (the file may not exist yet: then there are none)
+            const serversUrl = getProfileThemeServersUrl();
+            if (serversUrl) {
+                try {
+                    const serversRes = await fetchWithGithubFallback(`${serversUrl}?t=${now}`, { cache: "no-store" });
+                    if (serversRes.ok) remoteProfileThemeServers = cleanProfileThemeServers(await serversRes.json());
+                } catch { /* keep what we had */ }
+            }
+
+            // how the pictures sit in the card (the file may not exist yet: then every picture has the normal look)
+            const framesUrl = getProfileThemeFramesUrl();
+            if (framesUrl) {
+                try {
+                    const framesRes = await fetchWithGithubFallback(`${framesUrl}?t=${now}`, { cache: "no-store" });
+                    if (framesRes.ok) remoteProfileThemeFrames = cleanProfileThemeFrames(await framesRes.json());
+                } catch { /* keep what we had */ }
+            }
             lastRegistryRefresh = Date.now();
             preloadProfileThemeImages();
             scheduleProfileScans();
@@ -467,12 +555,19 @@ async function refreshProfileThemeRegistry(force = false) {
 
 function rebuildLocalProfileThemesIndex() {
     const next: ProfileThemes = {};
+    const nextServerPics: Record<string, { guildId: string; imageUrl: string; frame: ThemeFrame | null; }> = {};
+    const nextFrames: Record<string, ThemeFrame | null> = {};
     for (const entry of localProfileThemeEntries) {
         const userId = cleanUserId(entry.userId);
         const imageUrl = cleanImageUrl(entry.imageUrl);
-        if (userId && imageUrl) next[userId] = imageUrl;
+        const guildId = cleanUserId(entry.guildId);
+        const guildImageUrl = cleanImageUrl(entry.guildImageUrl);
+        if (userId && imageUrl) { next[userId] = imageUrl; nextFrames[userId] = cleanFrame(entry.frame); }
+        if (userId && guildId && guildImageUrl) nextServerPics[userId] = { guildId, imageUrl: guildImageUrl, frame: cleanFrame(entry.guildFrame) };
     }
     localProfileThemesById = next;
+    localProfileThemeServerPics = nextServerPics;
+    localProfileThemeFramesById = nextFrames;
 }
 
 async function loadLocalProfileThemeEntries() {
@@ -527,15 +622,53 @@ function getRemoteProfileThemeUrl(userId?: string | null) {
     return remoteProfileThemes[cleanId] ?? "";
 }
 
-function getImageUrlForUser(userId: string) {
+type ResolvedTheme = { imageUrl: string; frame: ThemeFrame | null; };
+
+// Inside a server that has its own picture for this user, that one shows; everywhere else the public one.
+// anyServer: settings screens always show the public picture.
+function getServerThemeForUser(userId: string, guildId: string): ResolvedTheme | null {
+    if (userId === getTargetUserId() && cleanUserId(settings.store.targetGuildId) === guildId) {
+        const own = cleanImageUrl(settings.store.guildImageUrl);
+        if (own) return { imageUrl: own, frame: parseFrame(settings.store.guildFrame) };
+    }
+    const saved = localProfileThemeServerPics[userId];
+    if (saved && saved.guildId === guildId) return { imageUrl: saved.imageUrl, frame: saved.frame };
+
+    void refreshProfileThemeRegistry();
+    const remote = remoteProfileThemeServers[userId]?.[guildId];
+    return remote ? { imageUrl: remote, frame: remoteProfileThemeFrames[`${userId}@${guildId}`] ?? null } : null;
+}
+
+function getThemeForUser(userId: string, anyServer = false): ResolvedTheme {
+    if (!anyServer) {
+        const guildId = SelectedGuildStore?.getGuildId?.();
+        if (guildId) {
+            const serverTheme = getServerThemeForUser(userId, guildId);
+            if (serverTheme) return serverTheme;
+        }
+    }
+
     const publicImageUrl = cleanImageUrl(settings.store.publicImageUrl);
-    const localImageUrl = cleanImageUrl(settings.store.imageUrl);
+    // once a server has its own picture, the local "Image" (your own preview) must not cover the public one outside it
+    const hasOwnServerPicture = Boolean(cleanUserId(settings.store.targetGuildId) && cleanImageUrl(settings.store.guildImageUrl));
+    const localImageUrl = hasOwnServerPicture ? "" : cleanImageUrl(settings.store.imageUrl);
     const savedImageUrl = cleanImageUrl(localProfileThemesById[userId]);
+    const remoteFrame = () => remoteProfileThemeFrames[userId] ?? null;
 
-    if (userId === getTargetUserId())
-        return publicImageUrl || localImageUrl || savedImageUrl || getRemoteProfileThemeUrl(userId);
+    if (userId === getTargetUserId()) {
+        const own = publicImageUrl || localImageUrl;
+        if (own) return { imageUrl: own, frame: parseFrame(settings.store.frame) };
+    }
+    if (savedImageUrl) return { imageUrl: savedImageUrl, frame: localProfileThemeFramesById[userId] ?? null };
 
-    return savedImageUrl || getRemoteProfileThemeUrl(userId);
+    // the published picture: for the target, a position set in the editor is previewed before it is published
+    const remote = getRemoteProfileThemeUrl(userId);
+    const ownFrame = userId === getTargetUserId() ? parseFrame(settings.store.frame) : null;
+    return { imageUrl: remote, frame: remote ? (ownFrame ?? remoteFrame()) : null };
+}
+
+function getImageUrlForUser(userId: string, anyServer = false) {
+    return getThemeForUser(userId, anyServer).imageUrl;
 }
 
 function getElementReactData(element: Element) {
@@ -702,16 +835,17 @@ function getTargetForShell(shell: HTMLElement): ProfileThemeTarget | null {
     const userId = getProfileUserId(shell);
 
     if (userId) {
-        const imageUrl = getImageUrlForUser(userId);
-        return imageUrl ? { element: shell, userId, imageUrl } : null;
+        const { imageUrl, frame } = getThemeForUser(userId);
+        return imageUrl ? { element: shell, userId, imageUrl, frame } : null;
     }
 
     // Only preview on Ryder's own account. Otherwise this would fire for
     // whatever Discord account happens to be logged in (alts included),
     // stamping Ryder's image onto profiles that never asked for it.
     if (isCurrentUserProfileShell(shell) && UserStore.getCurrentUser()?.id === RYDER_USER_ID) {
-        const imageUrl = getImageUrlForUser(RYDER_USER_ID) || getAnyConfiguredImageUrl();
-        return imageUrl ? { element: shell, userId: RYDER_USER_ID, imageUrl } : null;
+        const theme = getThemeForUser(RYDER_USER_ID);
+        const imageUrl = theme.imageUrl || getAnyConfiguredImageUrl();
+        return imageUrl ? { element: shell, userId: RYDER_USER_ID, imageUrl, frame: theme.imageUrl ? theme.frame : null } : null;
     }
 
     return null;
@@ -791,7 +925,31 @@ function getProfileThemeKind(element: HTMLElement): ProfileThemeKind {
     return "popout";
 }
 
-function applyTargetFallback({ element, userId, imageUrl }: ProfileThemeTarget) {
+const FRAME_SIZE_VAR = "--o2-profile-theme-background-size";
+const FRAME_POSITION_VAR = "--o2-profile-theme-background-position";
+
+// zoom + position of the picture. Inline with !important so it also beats the "tall card" rule in styles.css.
+function applyFrame(element: HTMLElement, imageUrl: string, frame: ThemeFrame | null) {
+    const dims = frame ? getImageDims(imageUrl, scheduleProfileScans) : null;
+    const rect = element.getBoundingClientRect();
+
+    if (!frame || !dims || !rect.width || !rect.height) {
+        // no frame (or its picture is still loading): the normal cover look
+        if (element.style.getPropertyValue(FRAME_SIZE_VAR)) element.style.removeProperty(FRAME_SIZE_VAR);
+        if (element.style.getPropertyValue(FRAME_POSITION_VAR)) element.style.removeProperty(FRAME_POSITION_VAR);
+        return;
+    }
+
+    // a very tall card (lots of badges) is measured as a normal one, so the zoom doesn't blow up to fill the extra height
+    const height = rect.height > TALL_CARD_HEIGHT_PX ? rect.width * FRAME_CARD_H / FRAME_CARD_W : rect.height;
+    const css = frameCss(frame, rect.width, height, dims.w, dims.h);
+    if (element.style.getPropertyValue(FRAME_SIZE_VAR) !== css.size)
+        element.style.setProperty(FRAME_SIZE_VAR, css.size, "important");
+    if (element.style.getPropertyValue(FRAME_POSITION_VAR) !== css.position)
+        element.style.setProperty(FRAME_POSITION_VAR, css.position, "important");
+}
+
+function applyTargetFallback({ element, userId, imageUrl, frame }: ProfileThemeTarget) {
     const kind = getProfileThemeKind(element);
     const imageValue = `url("${cssString(imageUrl)}")`;
 
@@ -838,6 +996,8 @@ function applyTargetFallback({ element, userId, imageUrl }: ProfileThemeTarget) 
             layer.style.setProperty("background-image", combinedImage, "important");
     }
 
+    applyFrame(element, imageUrl, frame);
+
     if (element.style.getPropertyValue("background-color") !== "transparent")
         element.style.setProperty("background-color", "transparent", "important");
     applyChildFallbacks(element);
@@ -873,6 +1033,8 @@ function applyChildFallbacks(element: HTMLElement) {
 
 function clearTargetFallback(element: Element) {
     element.classList.remove(TARGET_CLASS);
+    (element as HTMLElement).style?.removeProperty(FRAME_SIZE_VAR);
+    (element as HTMLElement).style?.removeProperty(FRAME_POSITION_VAR);
     element.removeAttribute(TARGET_ATTR);
     element.removeAttribute(TARGET_KIND_ATTR);
     element.removeAttribute("data-o2-profile-theme-user-id");
@@ -1181,6 +1343,9 @@ function removeProfileTheme() {
 function clearProfileTheme() {
     settings.store.imageUrl = "";
     settings.store.publicImageUrl = "";
+    settings.store.guildImageUrl = "";
+    settings.store.frame = "";
+    settings.store.guildFrame = "";
     removeProfileTheme();
 }
 
@@ -1217,13 +1382,13 @@ export function PublicProfileThemeSettings() {
     // bumping this remounts the slider so "Reset" visibly moves it
     const [sliderKey, setSliderKey] = React.useState(0);
     const myId = UserStore.getCurrentUser()?.id ?? "";
-    const [myImage, setMyImage] = React.useState(() => (myId ? getImageUrlForUser(myId) : ""));
+    const [myImage, setMyImage] = React.useState(() => (myId ? getImageUrlForUser(myId, true) : ""));
 
     React.useEffect(() => {
         if (!myId) return;
         let cancelled = false;
         void refreshProfileThemeRegistry(true).then(() => {
-            if (!cancelled) setMyImage(getImageUrlForUser(myId));
+            if (!cancelled) setMyImage(getImageUrlForUser(myId, true));
         });
         return () => { cancelled = true; };
     }, [myId]);
@@ -1281,6 +1446,12 @@ export function DebugProfileThemeSettings() {
     const [imageUrl, setImageUrl] = React.useState(settings.store.imageUrl);
     const [publicImageUrl, setPublicImageUrl] = React.useState(settings.store.publicImageUrl);
     const [targetUserId, setTargetUserId] = React.useState(settings.store.targetUserId || RYDER_USER_ID);
+    // the server that gets its own picture ("" = none) and that picture
+    const [guildId, setGuildId] = React.useState(settings.store.targetGuildId || "");
+    const [guildImageUrl, setGuildImageUrl] = React.useState(settings.store.guildImageUrl || "");
+    // how each picture sits in the card (null = normal)
+    const [frame, setFrame] = React.useState<ThemeFrame | null>(() => parseFrame(settings.store.frame));
+    const [guildFrame, setGuildFrame] = React.useState<ThemeFrame | null>(() => parseFrame(settings.store.guildFrame));
     const [brightness, setBrightness] = React.useState(settings.store.brightness ?? 0.6);
     const [savedTargets, setSavedTargets] = React.useState<LocalProfileThemeEntry[]>(localProfileThemeEntries);
     const previewImageRef = React.useRef<HTMLDivElement | null>(null);
@@ -1316,8 +1487,16 @@ export function DebugProfileThemeSettings() {
     const save = (
         nextImageUrl = imageUrl,
         nextTargetUserId = targetUserId,
-        nextPublicImageUrl = publicImageUrl
+        nextPublicImageUrl = publicImageUrl,
+        nextGuildId = guildId,
+        nextGuildImageUrl = guildImageUrl,
+        nextFrame = frame,
+        nextGuildFrame = guildFrame
     ) => {
+        settings.store.frame = frameToJson(nextFrame);
+        settings.store.guildFrame = frameToJson(nextGuildFrame);
+        settings.store.targetGuildId = cleanUserId(nextGuildId);
+        settings.store.guildImageUrl = cleanImageUrl(nextGuildImageUrl);
         settings.store.imageUrl = cleanImageUrl(nextImageUrl);
         settings.store.publicImageUrl = cleanImageUrl(nextPublicImageUrl);
         settings.store.targetUserId = cleanUserId(nextTargetUserId) || RYDER_USER_ID;
@@ -1330,20 +1509,24 @@ export function DebugProfileThemeSettings() {
         if (!picked) return;
 
         setImageUrl(picked);
+        setFrame(null);
         if (!publicImageUrl)
             setPublicImageUrl(picked);
-        save(picked, targetUserId, publicImageUrl || picked);
+        save(picked, targetUserId, publicImageUrl || picked, guildId, guildImageUrl, null, guildFrame);
     };
 
     const clear = () => {
         setImageUrl("");
         setPublicImageUrl("");
+        setGuildImageUrl("");
+        setFrame(null);
+        setGuildFrame(null);
         clearProfileTheme();
         showToast("ProfileTheme cleared.", Toasts.Type.MESSAGE);
     };
 
-    const downloadPublishCode = (userId: string, imageUrl: string) => {
-        const code = `${PUBLISH_CODE_PREFIX}${JSON.stringify({ userId, imageUrl })}`;
+    const downloadPublishCode = (userId: string, imageUrl: string, entryGuildId = "", entryGuildImageUrl = "", entryFrame: ThemeFrame | null = null, entryGuildFrame: ThemeFrame | null = null) => {
+        const code = `${PUBLISH_CODE_PREFIX}${JSON.stringify({ userId, imageUrl, ...(entryFrame ? { frame: entryFrame } : {}), ...(entryGuildId && entryGuildImageUrl ? { guildId: entryGuildId, guildImageUrl: entryGuildImageUrl, ...(entryGuildFrame ? { guildFrame: entryGuildFrame } : {}) } : {}) })}`;
         saveFile(new File([code], `o2cord-profile-${userId}.txt`, { type: "text/plain" }));
         showToast("Publish code saved to your Downloads folder. Attach that file to Claude.", Toasts.Type.SUCCESS);
     };
@@ -1357,7 +1540,58 @@ export function DebugProfileThemeSettings() {
             return;
         }
 
-        downloadPublishCode(userId, publishImageUrl);
+        downloadPublishCode(userId, publishImageUrl, cleanUserId(guildId), cleanImageUrl(guildImageUrl), frame, guildFrame);
+    };
+
+    // Sends the picture (and the server it is limited to, if any) to Marie in #callie; she publishes it for everyone
+    const [publishing, setPublishing] = React.useState(false);
+    const publishViaMarie = async (userId: string, imageUrl: string, entryGuildId = "", entryGuildImageUrl = "", entryFrame: ThemeFrame | null = null, entryGuildFrame: ThemeFrame | null = null) => {
+        const withServer = Boolean(entryGuildId && entryGuildImageUrl);
+        if (!imageUrl && !withServer && !entryFrame) {
+            showToast("Set an image first.", Toasts.Type.FAILURE);
+            return;
+        }
+        setPublishing(true);
+        try {
+            const file = new File(
+                // a picture published without a frame resets its framing (frame: null); a frame alone only moves the already published picture
+                [JSON.stringify({
+                    userId,
+                    ...(imageUrl ? { imageUrl, frame: entryFrame } : entryFrame ? { frame: entryFrame } : {}),
+                    ...(withServer ? { guildId: entryGuildId, guildImageUrl: entryGuildImageUrl, guildFrame: entryGuildFrame } : {})
+                })],
+                `profiletheme-${userId}.json`,
+                { type: "application/json" }
+            );
+            if (file.size > 9.5 * 1024 * 1024) throw new Error("the pictures are too big to send together (about 7 MB in total, or send them one at a time)");
+            const { body } = await RestAPI.post({
+                url: `/channels/${MARIE_CHANNEL_ID}/attachments`,
+                body: { files: [{ filename: file.name, file_size: file.size, id: "0" }] }
+            });
+            const slot = body?.attachments?.[0];
+            if (!slot?.upload_url) throw new Error("no upload slot");
+            const put = await fetch(slot.upload_url, { method: "PUT", body: file });
+            if (!put.ok) throw new Error(`upload ${put.status}`);
+            await RestAPI.post({
+                url: `/channels/${MARIE_CHANNEL_ID}/messages`,
+                body: {
+                    content: "",
+                    nonce: SnowflakeUtils.fromTimestamp(Date.now()),
+                    attachments: [{ id: "0", filename: file.name, uploaded_filename: slot.upload_filename }]
+                }
+            });
+            showToast("Sent to Marie - she answers in #callie and everyone sees it in a minute or so.", Toasts.Type.SUCCESS);
+        } catch (e) {
+            console.error("[ProfileTheme] couldn't send to Marie", e);
+            showToast(`Couldn't reach Marie: ${String((e as Error)?.message ?? e)}`, Toasts.Type.FAILURE);
+        } finally {
+            setPublishing(false);
+        }
+    };
+
+    const publishCurrentViaMarie = () => {
+        const userId = cleanUserId(targetUserId) || RYDER_USER_ID;
+        return publishViaMarie(userId, cleanImageUrl(publicImageUrl) || cleanImageUrl(imageUrl), cleanUserId(guildId), cleanImageUrl(guildImageUrl), frame, guildFrame);
     };
 
     const saveCurrentToList = async () => {
@@ -1368,12 +1602,16 @@ export function DebugProfileThemeSettings() {
             showToast("Set an image first.", Toasts.Type.FAILURE);
             return;
         }
+        const entryGuildId = cleanUserId(guildId);
+        const entryGuildImageUrl = cleanImageUrl(guildImageUrl);
 
         const existing = savedTargets.find(entry => entry.userId === userId);
         const nextEntry: LocalProfileThemeEntry = {
             id: existing?.id ?? `profile-theme-${Date.now().toString(36)}`,
             userId,
-            imageUrl: entryImageUrl
+            imageUrl: entryImageUrl,
+            ...(frame ? { frame } : {}),
+            ...(entryGuildId && entryGuildImageUrl ? { guildId: entryGuildId, guildImageUrl: entryGuildImageUrl, ...(guildFrame ? { guildFrame } : {}) } : {})
         };
         const next = existing
             ? savedTargets.map(entry => entry.id === existing.id ? nextEntry : entry)
@@ -1388,6 +1626,10 @@ export function DebugProfileThemeSettings() {
         setTargetUserId(entry.userId);
         setPublicImageUrl(entry.imageUrl);
         setImageUrl(entry.imageUrl);
+        setGuildId(entry.guildId ?? "");
+        setGuildImageUrl(entry.guildImageUrl ?? "");
+        setFrame(cleanFrame(entry.frame));
+        setGuildFrame(cleanFrame(entry.guildFrame));
     };
 
     const deleteSavedEntry = async (id: string) => {
@@ -1398,12 +1640,59 @@ export function DebugProfileThemeSettings() {
     };
 
     const copySavedEntryPublishCode = async (entry: LocalProfileThemeEntry) => {
-        downloadPublishCode(entry.userId, entry.imageUrl);
+        downloadPublishCode(entry.userId, entry.imageUrl, entry.guildId ?? "", entry.guildImageUrl ?? "", cleanFrame(entry.frame), cleanFrame(entry.guildFrame));
     };
 
     const previewVars = {
         "--o2-profile-theme-settings-preview-opacity": brightness
     } as React.CSSProperties;
+
+    // the zoom / position editor (drag the picture, zoom with the slider)
+    const adjustPublic = () => {
+        const url = cleanImageUrl(publicImageUrl) || cleanImageUrl(imageUrl) || getRemoteProfileThemeUrl(cleanUserId(targetUserId) || RYDER_USER_ID);
+        if (!url) {
+            showToast("Set an image first.", Toasts.Type.FAILURE);
+            return;
+        }
+        openFrameEditor({
+            title: "Adjust the public picture",
+            imageUrl: url,
+            frame,
+            brightness,
+            onSave: next => {
+                setFrame(next);
+                settings.store.frame = frameToJson(next);
+                applyProfileTheme();
+                showToast("Picture position saved.", Toasts.Type.SUCCESS);
+            }
+        });
+    };
+    const adjustServer = () => {
+        const url = cleanImageUrl(guildImageUrl);
+        if (!url) {
+            showToast("Set the server image first.", Toasts.Type.FAILURE);
+            return;
+        }
+        openFrameEditor({
+            title: "Adjust the server picture",
+            imageUrl: url,
+            frame: guildFrame,
+            brightness,
+            onSave: next => {
+                setGuildFrame(next);
+                settings.store.guildFrame = frameToJson(next);
+                applyProfileTheme();
+                showToast("Picture position saved.", Toasts.Type.SUCCESS);
+            }
+        });
+    };
+
+    const guildOptions = React.useMemo(() => [
+        { label: "No server picture", value: NO_SERVER },
+        ...Object.values(GuildStore.getGuilds() as Record<string, { id: string; name: string; }>)
+            .sort((a, b) => a.name.localeCompare(b.name))
+            .map(g => ({ label: g.name, value: g.id }))
+    ], []);
 
     return (
         <Forms.FormSection className="o2-profile-theme-settings">
@@ -1412,15 +1701,20 @@ export function DebugProfileThemeSettings() {
                 Set a 300x466-style profile background image or GIF for selected Discord profiles. Cards can grow much taller than that (lots of role badges, etc) - the image pins to the top instead of stretching.
             </Forms.FormText>
 
-            <Forms.FormTitle tag="h5">Image</Forms.FormTitle>
-            <div className="o2-profile-theme-row">
-                <TextInput
-                    value={imageUrl}
-                    onChange={setImageUrl}
-                    placeholder="Image or GIF URL"
-                />
-                <Button onClick={chooseImage}>Choose Image</Button>
-            </div>
+            {/* with a server picked, the picture for it is the Server Image below; this local preview would only get in the way */}
+            {!guildId && (
+                <>
+                    <Forms.FormTitle tag="h5">Image</Forms.FormTitle>
+                    <div className="o2-profile-theme-row">
+                        <TextInput
+                            value={imageUrl}
+                            onChange={setImageUrl}
+                            placeholder="Image or GIF URL"
+                        />
+                        <Button onClick={chooseImage}>Choose Image</Button>
+                    </div>
+                </>
+            )}
 
             <Forms.FormTitle tag="h5">Public Target</Forms.FormTitle>
             <div className="o2-profile-theme-row">
@@ -1445,7 +1739,7 @@ export function DebugProfileThemeSettings() {
                 <TextInput
                     value={publicImageUrl}
                     onChange={setPublicImageUrl}
-                    placeholder="Image or GIF URL for the target ID"
+                    placeholder={guildId ? "Public picture (leave empty to keep the published one)" : "Image or GIF URL for the target ID"}
                 />
                 <Button
                     onClick={() => {
@@ -1455,9 +1749,50 @@ export function DebugProfileThemeSettings() {
                 >
                     Use Image
                 </Button>
+                <Button onClick={adjustPublic}>Adjust</Button>
             </div>
 
-            <Forms.FormTitle tag="h5">Brightness (your own preview)</Forms.FormTitle>
+            <Forms.FormTitle tag="h5">Server</Forms.FormTitle>
+            <SearchableSelect
+                placeholder="No server picture"
+                maxVisibleItems={7}
+                options={guildOptions}
+                value={guildId || NO_SERVER}
+                onChange={(v: string) => setGuildId(v === NO_SERVER ? "" : v)}
+                closeOnSelect
+            />
+
+            {guildId && (
+                <>
+                    <Forms.FormTitle tag="h5" className={Margins.top16}>Server Image</Forms.FormTitle>
+                    <div className="o2-profile-theme-row">
+                        <TextInput
+                            value={guildImageUrl}
+                            onChange={setGuildImageUrl}
+                            placeholder="Image or GIF URL, only for this server"
+                        />
+                        <Button
+                            onClick={async () => {
+                                const picked = await pickLocalImage();
+                                if (!picked) return;
+                                setGuildImageUrl(picked);
+                                setGuildFrame(null);
+                                save(imageUrl, targetUserId, publicImageUrl, guildId, picked, frame, null);
+                            }}
+                        >
+                            Choose Image
+                        </Button>
+                        <Button onClick={adjustServer}>Adjust</Button>
+                    </div>
+                </>
+            )}
+            <Forms.FormText className={Margins.top8}>
+                {guildId
+                    ? "Inside this server the Server Image shows; in every other server (and DMs) the Public Image shows - or the one already published for you if the Public Image is empty."
+                    : "Pick a server to give it a picture of its own. Without one, the Public Image shows everywhere."}
+            </Forms.FormText>
+
+            <Forms.FormTitle tag="h5" className={Margins.top16}>Brightness (your own preview)</Forms.FormTitle>
             <Slider
                 initialValue={brightness}
                 minValue={0.1}
@@ -1474,6 +1809,7 @@ export function DebugProfileThemeSettings() {
 
             <div className="o2-profile-theme-actions">
                 <Button onClick={() => save()}>Apply</Button>
+                <Button color={Button.Colors.BRAND} disabled={publishing} onClick={publishCurrentViaMarie}>Publish via Marie</Button>
                 <Button onClick={copyPublishCode}>Copy Publish Code</Button>
                 <Button color={Button.Colors.GREEN} onClick={saveCurrentToList}>Save to List</Button>
                 <Button color={Button.Colors.RED} onClick={clear}>Clear</Button>
@@ -1505,7 +1841,9 @@ export function DebugProfileThemeSettings() {
                         <img src={entry.imageUrl} alt="" />
                         <div className="o2-profile-theme-saved-meta">
                             <strong>{entry.userId}</strong>
+                            {entry.guildId && entry.guildImageUrl && <span> · + {GuildStore.getGuild?.(entry.guildId)?.name ?? entry.guildId}</span>}
                         </div>
+                        <Button size={Button.Sizes.SMALL} color={Button.Colors.BRAND} onClick={() => publishViaMarie(entry.userId, entry.imageUrl, entry.guildId ?? "", entry.guildImageUrl ?? "", cleanFrame(entry.frame), cleanFrame(entry.guildFrame))}>Publish</Button>
                         <Button size={Button.Sizes.SMALL} onClick={() => loadEntryIntoForm(entry)}>Load</Button>
                         <Button size={Button.Sizes.SMALL} onClick={() => copySavedEntryPublishCode(entry)}>Copy Code</Button>
                         <Button size={Button.Sizes.SMALL} color={Button.Colors.RED} onClick={() => deleteSavedEntry(entry.id)}>Delete</Button>
@@ -1525,6 +1863,34 @@ const settings = definePluginSettings({
         type: OptionType.STRING,
         description: "Discord user ID that receives the public ProfileTheme image",
         default: RYDER_USER_ID,
+        hidden: true,
+        onChange: applyProfileTheme
+    },
+    targetGuildId: {
+        type: OptionType.STRING,
+        description: "Server that gets its own ProfileTheme image for the target ID (empty = none)",
+        default: "",
+        hidden: true,
+        onChange: applyProfileTheme
+    },
+    guildImageUrl: {
+        type: OptionType.STRING,
+        description: "ProfileTheme image that replaces the public one inside that server",
+        default: "",
+        hidden: true,
+        onChange: applyProfileTheme
+    },
+    frame: {
+        type: OptionType.STRING,
+        description: "Zoom / position of the public ProfileTheme image (JSON, empty = normal)",
+        default: "",
+        hidden: true,
+        onChange: applyProfileTheme
+    },
+    guildFrame: {
+        type: OptionType.STRING,
+        description: "Zoom / position of the server ProfileTheme image (JSON, empty = normal)",
+        default: "",
         hidden: true,
         onChange: applyProfileTheme
     },

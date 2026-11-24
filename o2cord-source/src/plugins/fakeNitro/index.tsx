@@ -294,9 +294,25 @@ export default definePlugin({
         {
             find: '"SENDABLE"',
             predicate: () => settings.store.enableStickerBypass,
+            replacement: [
+                {
+                    match: /\i\.available\?/,
+                    replace: "true?"
+                },
+                {
+                    // a sticker from another server stays sendable in channels without "use external stickers" (it is sent as a link then)
+                    match: /(?<=null==\i\.guild_id\|\|)\i\.\i\(\{permission:\i\.\i\.USE_EXTERNAL_STICKERS,user:\i,context:\i\}\)/,
+                    replace: "true||$&"
+                }
+            ]
+        },
+        // The sticker picker hides other servers' stickers in channels without "use external emojis": show them anyway
+        {
+            find: /stickerFrecencyWithoutFetchingLatest.{0,1500}USE_EXTERNAL_EMOJIS/,
+            predicate: () => settings.store.enableStickerBypass,
             replacement: {
-                match: /\i\.available\?/,
-                replace: "true?"
+                match: /(?<=USE_EXTERNAL_EMOJIS,user:\i,context:\i\}\)\|\|)\(\i=\i\.filter\(\i=>\i\.id===\i\.getGuildId\(\)\)\)/,
+                replace: "0"
             }
         },
         // Remove boost requirements to stream with high quality

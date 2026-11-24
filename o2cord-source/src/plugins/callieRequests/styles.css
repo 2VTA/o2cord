@@ -272,3 +272,9 @@
 .o2-callie-join:active {
     transform: scale(0.97);
 }
+
+/* the framed picture: the whole profile card shape, centred */
+.o2-callie-framed {
+    display: flex;
+    justify-content: center;
+}

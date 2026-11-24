@@ -24,6 +24,7 @@ import { chooseFile } from "@utils/web";
 import { RenderModalProps } from "@vencord/discord-types";
 import { ChannelActionCreators, ChannelStore, FluxDispatcher, Forms, GuildStore, IconUtils, Modal, openModal, PresenceStore, ReactDOM, RestAPI, SnowflakeUtils, Text, TextInput, useEffect, useRef, UserStore, UserUtils, useState, useStateFromStores } from "@webpack/common";
 
+import { frameToJson, FramePreview, openFrameEditor, ThemeFrame } from "../profileTheme/frame";
 import { CALLIE_ART } from "./art";
 
 export const CALLIE_ID = "1538029895601623100";
@@ -44,6 +45,9 @@ interface KindInfo {
     // Preview box shape, matching where the picture ends up.
     aspect?: string;
 }
+
+// pictures whose position in the card the person can set before sending (the others are cut to a strip, not framed yet)
+const FRAMEABLE: Kind[] = ["profile-theme"];
 
 const KINDS: Record<Kind, KindInfo> = {
     "nameplate": {
@@ -160,12 +164,15 @@ export async function stageUpload(file: File, channelId: string) {
     return { id: "0", filename: file.name, uploaded_filename: slot.upload_filename as string };
 }
 
-export async function sendRequest(kind: Kind | "clear-typing-phrase" | "custom-profile" | "share-plugin", payload: { file?: File; phrase?: string; }, bot: { id: string; name: string; } = { id: CALLIE_ID, name: "Callie" }): Promise<RequestResult> {
+export async function sendRequest(kind: Kind | "clear-typing-phrase" | "custom-profile" | "share-plugin", payload: { file?: File; phrase?: string; frame?: ThemeFrame | null; }, bot: { id: string; name: string; } = { id: CALLIE_ID, name: "Callie" }): Promise<RequestResult> {
     try {
         const channelId = await getCallieDm(bot.id);
         if (!channelId) return { ok: false, text: NO_SHARED_SERVER, joinUrl: O2CORD_INVITE };
 
-        const content = payload.phrase != null ? ["o2cord-request: " + kind, payload.phrase].join(NL) : "o2cord-request: " + kind;
+        // a picture can come with where the person put it in the card (zoom + position): one more line, "frame: {...}"
+        const content = payload.phrase != null
+            ? ["o2cord-request: " + kind, payload.phrase].join(NL)
+            : payload.frame ? ["o2cord-request: " + kind, "frame: " + frameToJson(payload.frame)].join(NL) : "o2cord-request: " + kind;
         const attachments = payload.file ? [await stageUpload(payload.file, channelId)] : undefined;
 
         const reply = waitForReply(channelId, bot.id, bot.name);
@@ -292,11 +299,22 @@ function CallieModal({ transitionState, onClose }: RenderModalProps) {
     const contentRef = useRef<HTMLDivElement>(null);
     const [kind, setKind] = useState<Kind>("nameplate");
     const [file, setFile] = useState<File | null>(null);
+    const [frame, setFrame] = useState<ThemeFrame | null>(null);
+    const [fileUrl, setFileUrl] = useState<string | null>(null);
     const [phrase, setPhrase] = useState("");
     const [status, setStatus] = useState<Status>({ state: "idle" });
     const inServer = useStateFromStores([GuildStore], () => !!GuildStore.getGuild(O2CORD_GUILD_ID));
 
+    // an address for the picked picture, for the position editor and the preview
+    useEffect(() => {
+        if (!file || file.type.startsWith("video/")) { setFileUrl(null); return; }
+        const u = URL.createObjectURL(file);
+        setFileUrl(u);
+        return () => URL.revokeObjectURL(u);
+    }, [file]);
+
     const info = KINDS[kind];
+    const canFrame = FRAMEABLE.includes(kind) && !!fileUrl;
     const busy = status.state === "sending";
     const isPhrase = kind === "typing-phrase";
     const canSend = !busy && (isPhrase ? !!phrase.trim() : !!file);
@@ -305,6 +323,7 @@ function CallieModal({ transitionState, onClose }: RenderModalProps) {
         if (busy) return;
         setKind(next);
         setFile(null);
+        setFrame(null);
         setStatus({ state: "idle" });
     }
 
@@ -316,7 +335,19 @@ function CallieModal({ transitionState, onClose }: RenderModalProps) {
             return;
         }
         setFile(picked);
+        setFrame(null);
         setStatus({ state: "idle" });
+    }
+
+    function adjust() {
+        if (!fileUrl) return;
+        openFrameEditor({
+            title: "Position your picture",
+            imageUrl: fileUrl,
+            frame,
+            brightness: 0.6,
+            onSave: setFrame
+        });
     }
 
     async function send(what: Kind | "clear-typing-phrase") {
@@ -325,10 +356,11 @@ function CallieModal({ transitionState, onClose }: RenderModalProps) {
             ? await sendRequest(what, { phrase: phrase.trim().slice(0, PHRASE_MAX) })
             : what === "clear-typing-phrase"
                 ? await sendRequest(what, {})
-                : await sendRequest(what, { file: file! });
+                : await sendRequest(what, { file: file!, frame: FRAMEABLE.includes(what) ? frame : null });
         setStatus({ state: "done", ok: result.ok, text: plain(result.text), joinUrl: result.joinUrl, fixDms: result.fixDms });
         if (result.ok && what !== "clear-typing-phrase") {
             setFile(null);
+            setFrame(null);
             setPhrase("");
         }
     }
@@ -393,11 +425,14 @@ function CallieModal({ transitionState, onClose }: RenderModalProps) {
                         </Forms.FormText>
                         {file ? (
                             <>
-                                <Preview file={file} aspect={info.aspect} />
+                                {canFrame
+                                    ? <div className="o2-callie-framed"><FramePreview imageUrl={fileUrl!} frame={frame} height={300} /></div>
+                                    : <Preview file={file} aspect={info.aspect} />}
                                 <div className={classes("o2-callie-row", Margins.top8)}>
                                     <span className="o2-callie-filename">{file.name}</span>
+                                    {canFrame && <Button variant="secondary" size="small" disabled={busy} onClick={adjust}>{frame ? "Adjust again" : "Adjust position"}</Button>}
                                     <Button variant="secondary" size="small" disabled={busy} onClick={pickFile}>Change</Button>
-                                    <Button variant="secondary" size="small" disabled={busy} onClick={() => setFile(null)}>Remove</Button>
+                                    <Button variant="secondary" size="small" disabled={busy} onClick={() => { setFile(null); setFrame(null); }}>Remove</Button>
                                 </div>
                             </>
                         ) : (

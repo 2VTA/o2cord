@@ -11,6 +11,11 @@
     align-items: center;
 }
 
+/* a row with a second button (Adjust) */
+.o2-profile-theme-row:has(> :nth-child(3)) {
+    grid-template-columns: minmax(220px, 1fr) auto auto;
+}
+
 .o2-profile-theme-actions {
     display: flex;
     flex-wrap: wrap;

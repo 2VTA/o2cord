@@ -182,7 +182,7 @@ function Tools() {
                 <div className="o2s-advanced">
                     <div className="o2s-card">
                         <Row title="Use custom CSS" sub="Your own CSS from the Custom CSS editor"><SettingSwitch k="useQuickCss" /></Row>
-                        {!IS_WEB && <Row title="React developer tools" sub="For developers"><SettingSwitch k="enableReactDevtools" restart /></Row>}
+                        {!IS_WEB && <Row title="React developer tools" sub="For developers only - makes Discord noticeably slower while it is on"><SettingSwitch k="enableReactDevtools" restart /></Row>}
                         {!IS_WEB && <Row title="See-through window" sub="Needs a theme made for it; the window can't be resized while it's on"><SettingSwitch k="transparent" restart /></Row>}
                         {!IS_WEB && (!IS_DISCORD_DESKTOP || !IS_WINDOWS) && <Row title="No window frame"><SettingSwitch k="frameless" restart /></Row>}
                         <Row title="o2cord notifications" sub="Pop-ups from o2cord itself, not Discord messages">

@@ -31,6 +31,25 @@ export interface Release {
 
 export const RELEASES: Release[] = [
     {
+        version: "1.3.103",
+        date: "November 25, 2026",
+        features: [
+            {
+                plugin: "ProfileTheme",
+                title: "Move and zoom your profile picture",
+                text: "Pick where your profile theme picture sits in the card: drag it, zoom with the wheel or the slider, and watch it on a real profile card. The same \"Adjust position\" button is in the Callie requests window, so the picture you send for review keeps the position you chose."
+            },
+            {
+                plugin: "ProfileTheme",
+                title: "A different picture for one server",
+                text: "Besides your public picture you can set a second one that replaces it only inside one server you pick. Everywhere else people still see the first one."
+            }
+        ],
+        fixes: [
+            { plugin: "FakeNitro", text: "Stickers from other servers are no longer locked in channels that don't allow external stickers or emojis. They show in the sticker picker and are sent as a link (animated ones as a file)." }
+        ]
+    },
+    {
         version: "1.3.102",
         date: "November 23, 2026",
         features: [],
