@@ -69,7 +69,7 @@ const KINDS: Record<Kind, KindInfo> = {
         changeType: "USSRO2 Background",
         description: "Replaces the banner at the top of your profile.",
         accept: "image/png,image/jpeg,image/webp,image/gif",
-        aspect: "5 / 2"
+        aspect: "20 / 7"
     },
     "typing-phrase": {
         label: "Typing Phrase",

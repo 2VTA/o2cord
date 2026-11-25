@@ -130,3 +130,20 @@
     background: #111214;
     box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.08);
 }
+
+/* wide shapes (nameplate strip, banner): the controls go under the picture */
+.o2pt-frame-wide {
+    flex-direction: column;
+    align-items: stretch;
+}
+
+.o2pt-frame-wide .o2pt-frame-card {
+    align-self: center;
+}
+
+.o2pt-frame-fadeleft {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: linear-gradient(90deg, #111214 0%, rgba(17, 18, 20, 0) 35%);
+}

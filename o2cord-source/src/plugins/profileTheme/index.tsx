@@ -127,6 +127,10 @@ type LocalProfileThemeEntry = {
 };
 
 let observer: MutationObserver | null = null;
+// Discord rewrites the <html> class list whenever the window loses/gets focus (Windows key, Win+Shift+S, alt-tab) and that
+// dropped our "o2-profile-theme-active" class - every rule of the theme hangs on it, so the picture vanished until the next
+// keep-alive tick. This puts the class straight back.
+let rootClassObserver: MutationObserver | null = null;
 let scanFrame: number | null = null;
 let scanDebounceTimer: ReturnType<typeof setTimeout> | null = null;
 let scanTimeouts: ReturnType<typeof setTimeout>[] = [];
@@ -937,16 +941,45 @@ function applyFrame(element: HTMLElement, imageUrl: string, frame: ThemeFrame | 
         // no frame (or its picture is still loading): the normal cover look
         if (element.style.getPropertyValue(FRAME_SIZE_VAR)) element.style.removeProperty(FRAME_SIZE_VAR);
         if (element.style.getPropertyValue(FRAME_POSITION_VAR)) element.style.removeProperty(FRAME_POSITION_VAR);
-        return;
+        element.querySelector<HTMLElement>(`[${IMAGE_LAYER_ATTR}]`)?.style.removeProperty("mask-image");
+        return false;
     }
 
-    // a very tall card (lots of badges) is measured as a normal one, so the zoom doesn't blow up to fill the extra height
-    const height = rect.height > TALL_CARD_HEIGHT_PX ? rect.width * FRAME_CARD_H / FRAME_CARD_W : rect.height;
-    const css = frameCss(frame, rect.width, height, dims.w, dims.h);
+    // a very tall card (lots of badges): the picture is placed as on the editor's card (300 x 640 scaled to this width) and
+    // ends where it ends, its lower edge fading into a plain dark base (returns true = needs the base).
+    const refHeight = rect.width * FRAME_CARD_H / FRAME_CARD_W;
+    if (rect.height <= TALL_CARD_HEIGHT_PX) {
+        // a normal card (also the taller one with Discord's menu): the picture always covers the whole card, with the zoom
+        // and position from the editor (it is only enlarged as far as needed to fill the extra height)
+        const full = frameCss(frame, rect.width, refHeight, dims.w, dims.h, rect.height);
+        const fullPosition = `${frame.x}% ${frame.y}%`;
+        element.querySelector<HTMLElement>(`[${IMAGE_LAYER_ATTR}]`)?.style.removeProperty("mask-image");
+        if (element.style.getPropertyValue(FRAME_SIZE_VAR) !== full.size)
+            element.style.setProperty(FRAME_SIZE_VAR, full.size, "important");
+        if (element.style.getPropertyValue(FRAME_POSITION_VAR) !== fullPosition)
+            element.style.setProperty(FRAME_POSITION_VAR, fullPosition, "important");
+        return false;
+    }
+    const css = frameCss(frame, rect.width, refHeight, dims.w, dims.h);
+    const imgW = rect.width * parseFloat(css.size) / 100;
+    const imgH = imgW * dims.h / dims.w;
+    const offsetY = Math.min(0, (refHeight - imgH) * frame.y / 100);
+    const position = `${frame.x}% ${Math.round(offsetY * 100) / 100}px`;
+    const bottom = Math.round(offsetY + imgH);
+    const gap = bottom < rect.height - 2;
+    const layer = element.querySelector<HTMLElement>(`[${IMAGE_LAYER_ATTR}]`);
+    if (layer) {
+        const mask = gap ? `linear-gradient(to bottom, #000 ${Math.max(0, bottom - 90)}px, transparent ${bottom}px)` : "";
+        if (layer.style.getPropertyValue("mask-image") !== mask) {
+            if (mask) layer.style.setProperty("mask-image", mask, "important");
+            else layer.style.removeProperty("mask-image");
+        }
+    }
     if (element.style.getPropertyValue(FRAME_SIZE_VAR) !== css.size)
         element.style.setProperty(FRAME_SIZE_VAR, css.size, "important");
-    if (element.style.getPropertyValue(FRAME_POSITION_VAR) !== css.position)
-        element.style.setProperty(FRAME_POSITION_VAR, css.position, "important");
+    if (element.style.getPropertyValue(FRAME_POSITION_VAR) !== position)
+        element.style.setProperty(FRAME_POSITION_VAR, position, "important");
+    return gap;
 }
 
 function applyTargetFallback({ element, userId, imageUrl, frame }: ProfileThemeTarget) {
@@ -996,10 +1029,11 @@ function applyTargetFallback({ element, userId, imageUrl, frame }: ProfileThemeT
             layer.style.setProperty("background-image", combinedImage, "important");
     }
 
-    applyFrame(element, imageUrl, frame);
-
-    if (element.style.getPropertyValue("background-color") !== "transparent")
-        element.style.setProperty("background-color", "transparent", "important");
+    // a card taller than the picture has a plain dark base below it (it must not be see-through - the server's channel list
+    // showed through the faded bottom of the card)
+    const baseColor = applyFrame(element, imageUrl, frame) ? "#0d0d12" : "transparent";
+    if (element.style.getPropertyValue("background-color") !== baseColor)
+        element.style.setProperty("background-color", baseColor, "important");
     applyChildFallbacks(element);
 }
 
@@ -1183,6 +1217,12 @@ function startProfileWatcher() {
         childList: true,
         subtree: true
     });
+    rootClassObserver = new MutationObserver(() => {
+        const root = document.documentElement;
+        if (!root.classList.contains("o2-profile-theme-active") && hasProfileThemeSource())
+            root.classList.add("o2-profile-theme-active");
+    });
+    rootClassObserver.observe(document.documentElement, { attributes: true, attributeFilter: ["class"] });
     addLifecycleListeners();
     startKeepAlive();
 }
@@ -1257,6 +1297,8 @@ function removeLifecycleListeners() {
 function stopProfileWatcher(clearTargets = true) {
     observer?.disconnect();
     observer = null;
+    rootClassObserver?.disconnect();
+    rootClassObserver = null;
     removeLifecycleListeners();
 
     if (scanFrame != null) {
@@ -1462,8 +1504,8 @@ export function DebugProfileThemeSettings() {
     // through a CSS custom property.
     React.useEffect(() => {
         if (previewImageRef.current)
-            previewImageRef.current.style.backgroundImage = imageUrl ? `url("${cssString(imageUrl)}")` : "none";
-    }, [imageUrl]);
+            previewImageRef.current.style.backgroundImage = (imageUrl || guildImageUrl) ? `url("${cssString(imageUrl || guildImageUrl)}")` : "none";
+    }, [imageUrl, guildImageUrl]);
 
     React.useEffect(() => {
         let cancelled = false;
@@ -1535,7 +1577,7 @@ export function DebugProfileThemeSettings() {
         const userId = cleanUserId(targetUserId) || RYDER_USER_ID;
         const publishImageUrl = cleanImageUrl(publicImageUrl) || cleanImageUrl(imageUrl);
 
-        if (!publishImageUrl) {
+        if (!publishImageUrl && !(cleanUserId(guildId) && cleanImageUrl(guildImageUrl))) {
             showToast("Set an image first.", Toasts.Type.FAILURE);
             return;
         }
@@ -1598,12 +1640,14 @@ export function DebugProfileThemeSettings() {
         const userId = cleanUserId(targetUserId) || RYDER_USER_ID;
         const entryImageUrl = cleanImageUrl(publicImageUrl) || cleanImageUrl(imageUrl);
 
-        if (!entryImageUrl) {
+        const entryGuildId = cleanUserId(guildId);
+        const entryGuildImageUrl = cleanImageUrl(guildImageUrl);
+
+        // a picture for one server alone is a valid entry (the public picture stays as published)
+        if (!entryImageUrl && !(entryGuildId && entryGuildImageUrl)) {
             showToast("Set an image first.", Toasts.Type.FAILURE);
             return;
         }
-        const entryGuildId = cleanUserId(guildId);
-        const entryGuildImageUrl = cleanImageUrl(guildImageUrl);
 
         const existing = savedTargets.find(entry => entry.userId === userId);
         const nextEntry: LocalProfileThemeEntry = {
@@ -1818,7 +1862,7 @@ export function DebugProfileThemeSettings() {
             <Forms.FormTitle tag="h5" className={Margins.top8}>Preview 300x466</Forms.FormTitle>
             <div className="o2-profile-theme-preview" style={previewVars}>
                 <div className="o2-profile-theme-preview-image" ref={previewImageRef} />
-                {!imageUrl && <div className="o2-profile-theme-preview-empty">No image selected</div>}
+                {!imageUrl && !guildImageUrl && <div className="o2-profile-theme-preview-empty">No image selected</div>}
                 <div className="o2-profile-theme-preview-card">
                     <div className="o2-profile-theme-preview-name">o2 Profile</div>
                     <div className="o2-profile-theme-preview-subtitle">
@@ -1838,7 +1882,7 @@ export function DebugProfileThemeSettings() {
                 )}
                 {savedTargets.map(entry => (
                     <div className="o2-profile-theme-saved-item" key={entry.id}>
-                        <img src={entry.imageUrl} alt="" />
+                        <img src={entry.imageUrl || entry.guildImageUrl} alt="" />
                         <div className="o2-profile-theme-saved-meta">
                             <strong>{entry.userId}</strong>
                             {entry.guildId && entry.guildImageUrl && <span> · + {GuildStore.getGuild?.(entry.guildId)?.name ?? entry.guildId}</span>}

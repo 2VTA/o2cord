@@ -13,7 +13,7 @@ import { fetchWithGithubFallback } from "@utils/githubFallbackFetch";
 import { O2_LOCAL_NAMEPLATES_KEY, O2_LOCAL_NAMEPLATES_UPDATED_EVENT, O2LocalNameplate } from "@utils/o2NameplatePresets";
 import definePlugin from "@utils/types";
 import { filters, mapMangledModuleLazy } from "@webpack";
-import { React } from "@webpack/common";
+import { React, SelectedGuildStore } from "@webpack/common";
 
 // Discord's own nameplate system (Collectibles) has a "preview" bypass meant
 // for the shop's try-before-you-buy flow: if a nameplate object carries a
@@ -35,10 +35,14 @@ const NameplateImgCacheModule = mapMangledModuleLazy("toolsCache:{}", {
 const primedImgCacheUrls = new Map<string, string>();
 
 function primeImgCache(key: string, url: string) {
-    if (primedImgCacheUrls.get(key) === url) return;
-
     try {
-        const { setImgCache } = NameplateImgCacheModule.useImgCacheApi();
+        const { setImgCache, getImgCache } = NameplateImgCacheModule.useImgCacheApi();
+        // The "already primed" note alone isn't enough: Discord's own cache can lose the entry (a reset of that store,
+        // a collectibles refresh) while the note still says it is there - the nameplate then vanished and only came back
+        // when a different one was set. So the real cache is asked every time, and the entry is put back when it is gone.
+        const cached = getImgCache?.(key);
+        if (primedImgCacheUrls.get(key) === url && cached?.staticUrl === url) return;
+
         const animatedUrl = isGifSource(url) ? url : undefined;
         setImgCache(key, animatedUrl, url);
         primedImgCacheUrls.set(key, url);
@@ -48,6 +52,8 @@ function primeImgCache(key: string, url: string) {
 const REGISTRY_REFRESH_MS = 30_000;
 
 let remoteNameplates: Record<string, string> = {};
+// a nameplate that only shows inside one server: { userId: { serverId: url } } (nameplates-servers.json)
+let remoteServerNameplates: Record<string, Record<string, string>> = {};
 let lastRegistryRefresh = 0;
 let registryRefreshPromise: Promise<void> | null = null;
 let registryRefreshTimer: number | undefined;
@@ -125,8 +131,31 @@ function isGifSource(url: string) {
     return /\.gif(\?.*)?$/i.test(url);
 }
 
+function cleanServerNameplates(value: unknown) {
+    const out: Record<string, Record<string, string>> = {};
+    if (!value || typeof value !== "object" || Array.isArray(value)) return out;
+    for (const [userId, servers] of Object.entries(value as Record<string, unknown>)) {
+        if (!/^\d{5,25}$/.test(userId) || !servers || typeof servers !== "object" || Array.isArray(servers)) continue;
+        for (const [guildId, url] of Object.entries(servers as Record<string, unknown>)) {
+            if (/^\d{5,25}$/.test(guildId) && typeof url === "string" && /^https:\/\//.test(url)) (out[userId] ??= {})[guildId] = url;
+        }
+    }
+    return out;
+}
+
+// the server whose member list / profile is open - a nameplate made for that server wins over the public one
+function currentGuildId(): string | null {
+    try { return SelectedGuildStore.getGuildId?.() ?? null; } catch { return null; }
+}
+
+function getServerNameplateUrl(userId: string): { url: string; guildId: string; } | null {
+    const guildId = currentGuildId();
+    const url = guildId ? remoteServerNameplates[userId]?.[guildId] : null;
+    return url && guildId ? { url, guildId } : null;
+}
+
 function getNameplateSourceUrl(userId: string): string | null {
-    return localNameplatesById[userId] || remoteNameplates[userId] || null;
+    return localNameplatesById[userId] || getServerNameplateUrl(userId)?.url || remoteNameplates[userId] || null;
 }
 
 function getNameplateRegistryUrl() {
@@ -153,7 +182,13 @@ async function refreshNameplateRegistry(force = false) {
     })
         .then(async res => {
             if (!res.ok) throw new Error(`Nameplate registry returned ${res.status}`);
-            remoteNameplates = cleanNameplates(await res.json());
+            // merged, not replaced: one stale/incomplete copy from the CDN used to wipe a known-good entry until the next refresh
+            remoteNameplates = { ...remoteNameplates, ...cleanNameplates(await res.json()) };
+            // nameplates limited to one server (the file may not exist yet: then there are none)
+            try {
+                const serversRes = await fetchWithGithubFallback(`${new URL("nameplates-servers.json", registryUrl).href}?t=${now}`, { cache: "no-store" });
+                if (serversRes.ok) remoteServerNameplates = cleanServerNameplates(await serversRes.json());
+            } catch { /* keep what we had */ }
             lastRegistryRefresh = Date.now();
         })
         .catch(() => {
@@ -260,11 +295,13 @@ export default definePlugin({
         const url = getNameplateSourceUrl(userId);
         if (!url || isVideoSource(url)) return null;
 
-        const key = `o2cord-${userId}`;
+        // a server's own nameplate has its own cache key, so it never mixes with the public one
+        const guildId = localNameplatesById[userId] ? null : getServerNameplateUrl(userId)?.guildId;
+        const key = guildId ? `o2cord-${userId}-${guildId}` : `o2cord-${userId}`;
         primeImgCache(key, url);
 
         return {
-            skuId: `o2cord-${userId}`,
+            skuId: key,
             label: "o2cord Nameplate",
             palette: "crimson",
             previewToolKey: key

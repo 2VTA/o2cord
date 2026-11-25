@@ -1,8 +1,8 @@
 {
-    "version":  "1.3.103",
-    "hash":  "public-20261125021103",
+    "version":  "1.3.104",
+    "hash":  "public-20261126020021",
     "author":  "o2cord",
-    "message":  "o2cord 1.3.103",
+    "message":  "o2cord 1.3.104",
     "notes":  [
                   "Public o2cord update package",
                   "ussro2 backgrounds are loaded from backgrounds.json beside this manifest",

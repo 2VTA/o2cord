@@ -31,6 +31,24 @@ export interface Release {
 
 export const RELEASES: Release[] = [
     {
+        version: "1.3.104",
+        date: "November 26, 2026",
+        features: [
+            {
+                plugin: "Nameplate",
+                title: "A nameplate or background for one server",
+                text: "Like the profile picture, a nameplate or a profile background can now be made for one server only. Inside that server people see it instead of the public one, everywhere else they still see the public one."
+            }
+        ],
+        fixes: [
+            { plugin: "ProfileTheme", text: "The picture no longer disappears for a moment when you press the Windows key or take a screenshot with Win+Shift+S." },
+            { plugin: "ProfileTheme", text: "A picture now sits the same way on your profile card as in the position editor, and covers the whole card without a faded bottom." },
+            { plugin: "ProfileTheme", text: "A picture made for one server only can now be saved to your list, and it shows in the preview." },
+            { plugin: "Nameplate", text: "A nameplate that vanished and only came back after setting another one now comes back on its own." },
+            { plugin: "ussro2", text: "Profile backgrounds are cut to Discord's real banner shape, so what you position is what everyone sees." }
+        ]
+    },
+    {
         version: "1.3.103",
         date: "November 25, 2026",
         features: [

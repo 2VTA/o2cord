@@ -8,6 +8,7 @@ import { definePluginSettings } from "@api/Settings";
 import { Devs } from "@utils/constants";
 import { fetchWithGithubFallback } from "@utils/githubFallbackFetch";
 import definePlugin, { OptionType } from "@utils/types";
+import { ChannelStore, SelectedChannelStore, SelectedGuildStore } from "@webpack/common";
 
 import { PUBLIC_BACKGROUNDS, PUBLIC_REGISTRY_URL } from "./publicBackgrounds";
 
@@ -15,6 +16,8 @@ type Backgrounds = Record<string, string>;
 const REGISTRY_REFRESH_MS = 30_000;
 
 let remoteBackgrounds: Backgrounds = {};
+// a background that only shows inside one server: { userId: { serverId: url } } (backgrounds-servers.json)
+let remoteServerBackgrounds: Record<string, Record<string, string>> = {};
 let lastRegistryRefresh = 0;
 let registryRefreshPromise: Promise<void> | null = null;
 let registryRefreshTimer: number | undefined;
@@ -76,6 +79,31 @@ function cleanBackgrounds(raw: unknown): Backgrounds {
     return backgrounds;
 }
 
+function cleanServerBackgrounds(raw: unknown) {
+    const out: Record<string, Record<string, string>> = {};
+    if (!raw || typeof raw !== "object" || Array.isArray(raw)) return out;
+    for (const [rawUserId, servers] of Object.entries(raw as Record<string, unknown>)) {
+        const userId = normalizeUserId(rawUserId);
+        if (!userId || !servers || typeof servers !== "object" || Array.isArray(servers)) continue;
+        for (const [rawGuildId, rawUrl] of Object.entries(servers as Record<string, unknown>)) {
+            const guildId = normalizeUserId(rawGuildId);
+            const url = normalizeImageUrl(rawUrl);
+            if (guildId && /^https:\/\//.test(url)) (out[userId] ??= {})[guildId] = url;
+        }
+    }
+    return out;
+}
+
+function getServersUrl() {
+    const registryUrl = getRegistryUrl();
+    if (!registryUrl) return "";
+    try {
+        return new URL("backgrounds-servers.json", registryUrl).href;
+    } catch {
+        return "";
+    }
+}
+
 function getRegistryUrl() {
     const explicitRegistryUrl = normalizeImageUrl(PUBLIC_REGISTRY_URL);
     if (explicitRegistryUrl) return explicitRegistryUrl;
@@ -114,6 +142,17 @@ async function refreshRegistry(force = false) {
             const fresh = cleanBackgrounds(await res.json());
             remoteBackgrounds = { ...remoteBackgrounds, ...fresh };
             preloadBackgrounds(fresh);
+            // pictures limited to one server (the file may not exist yet: then there are none)
+            const serversUrl = getServersUrl();
+            if (serversUrl) {
+                try {
+                    const serversRes = await fetchWithGithubFallback(`${serversUrl}?t=${now}`, { cache: "no-store" });
+                    if (serversRes.ok) {
+                        remoteServerBackgrounds = cleanServerBackgrounds(await serversRes.json());
+                        for (const byServer of Object.values(remoteServerBackgrounds)) preloadBackgrounds(byServer);
+                    }
+                } catch { /* keep what we had */ }
+            }
             lastRegistryRefresh = Date.now();
         })
         .catch(() => {
@@ -126,12 +165,24 @@ async function refreshRegistry(force = false) {
     return registryRefreshPromise;
 }
 
-function getBackgroundUrl(userId?: string | null) {
+// guildId: the server the profile / tile is shown in - a picture made for that server wins over the public one
+function getBackgroundUrl(userId?: string | null, guildId?: string | null) {
     if (!userId) return null;
 
     void refreshRegistry();
 
-    return remoteBackgrounds[userId] ?? bundledBackgrounds[userId] ?? null;
+    const forServer = guildId ? remoteServerBackgrounds[userId]?.[guildId] : null;
+    return forServer ?? remoteBackgrounds[userId] ?? bundledBackgrounds[userId] ?? null;
+}
+
+// the server a voice tile belongs to: the one of the voice channel, else the one that is open
+function tileGuildId() {
+    try {
+        const voiceChannel = SelectedChannelStore.getVoiceChannelId?.();
+        return (voiceChannel && ChannelStore.getChannel(voiceChannel)?.guild_id) || SelectedGuildStore.getGuildId?.() || null;
+    } catch {
+        return null;
+    }
 }
 
 export default definePlugin({
@@ -199,7 +250,7 @@ export default definePlugin({
     ],
 
     getVoiceBackgroundStyles({ className, participantUserId }: any) {
-        const imageUrl = getBackgroundUrl(participantUserId);
+        const imageUrl = getBackgroundUrl(participantUserId, tileGuildId());
         if (!className?.includes?.("tile") || !imageUrl) return;
 
         return {
@@ -213,10 +264,10 @@ export default definePlugin({
     patchBannerUrl({ displayProfile }: any) {
         if (displayProfile?.banner && settings.store.nitroFirst) return;
 
-        return getBackgroundUrl(displayProfile?.userId);
+        return getBackgroundUrl(displayProfile?.userId, displayProfile?.guildId ?? SelectedGuildStore.getGuildId?.());
     },
 
     userHasBackground(userId: string) {
-        return Boolean(getBackgroundUrl(userId));
+        return Boolean(getBackgroundUrl(userId, tileGuildId()));
     }
 });

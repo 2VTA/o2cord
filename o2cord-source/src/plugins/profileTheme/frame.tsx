@@ -46,10 +46,14 @@ export const frameToJson = (frame: ThemeFrame | null) => frame ? JSON.stringify(
 
 // CSS for a card of width W x height H holding a picture of iw x ih. Percentages of the card width keep it right when the
 // card is resized (popout -> big profile window) without redoing anything.
-export function frameCss(frame: ThemeFrame, W: number, H: number, iw: number, ih: number) {
+// W x H is the card the picture was positioned on (the editor's card); `realH` is the card's real height - when the real
+// card is taller than the editor's, the picture is only enlarged as much as it needs to still cover it (not by the
+// whole extra height), so the zoom the person chose stays the same on every card.
+export function frameCss(frame: ThemeFrame, W: number, H: number, iw: number, ih: number, realH = 0) {
     const coverWidth = Math.max(W, H * iw / ih);
+    const width = Math.max(coverWidth * frame.z, realH * iw / ih);
     return {
-        size: `${round(coverWidth * frame.z / W * 100)}% auto`,
+        size: `${round(width / W * 100)}% auto`,
         position: `${frame.x}% ${frame.y}%`
     };
 }
@@ -82,10 +86,20 @@ type EditorProps = RenderModalProps & {
     imageUrl: string;
     frame: ThemeFrame | null;
     brightness: number;
+    /** width / height of the place the picture goes (a nameplate strip, a banner). Left out = the profile card. */
+    aspect?: number;
+    /** the left side of a nameplate fades out, so the editor shows that too */
+    fadeLeft?: boolean;
     onSave(frame: ThemeFrame | null): void;
 };
 
-function FrameEditor({ transitionState, onClose, title, imageUrl, frame, brightness, onSave }: EditorProps) {
+// the editor's box for a wide place: 420 px wide, as tall as the shape needs
+const WIDE_W = 420;
+export const boxFor = (aspect?: number) => aspect ? { w: WIDE_W, h: Math.max(24, Math.round(WIDE_W / aspect)) } : { w: CARD_W, h: CARD_H };
+
+function FrameEditor({ transitionState, onClose, title, imageUrl, frame, brightness, aspect, fadeLeft, onSave }: EditorProps) {
+    const { w: CARD_W, h: CARD_H } = boxFor(aspect);
+    const wide = !!aspect;
     const [z, setZ] = React.useState(frame?.z ?? 1);
     const [x, setX] = React.useState(frame?.x ?? 50);
     const [y, setY] = React.useState(frame?.y ?? 50);
@@ -126,7 +140,7 @@ function FrameEditor({ transitionState, onClose, title, imageUrl, frame, brightn
 
     return (
         <Modal transitionState={transitionState} onClose={onClose} size="md" title={title} subtitle="Drag the picture to move it, use the slider or the mouse wheel to zoom.">
-            <div className="o2pt-frame">
+            <div className={wide ? "o2pt-frame o2pt-frame-wide" : "o2pt-frame"}>
                 <div
                     className="o2pt-frame-card"
                     style={{ width: CARD_W, height: CARD_H }}
@@ -140,8 +154,9 @@ function FrameEditor({ transitionState, onClose, title, imageUrl, frame, brightn
                         className="o2pt-frame-picture"
                         style={{ backgroundImage: cssUrl(imageUrl), backgroundSize: css.size, backgroundPosition: css.position, opacity: brightness }}
                     />
-                    <div className="o2pt-frame-scrim" />
-                    {guides && (
+                    {!wide && <div className="o2pt-frame-scrim" />}
+                    {wide && fadeLeft && <div className="o2pt-frame-fadeleft" />}
+                    {!wide && guides && (
                         <div className="o2pt-frame-guides">
                             <div className="o2pt-frame-avatar" />
                             <div className="o2pt-frame-line o2pt-frame-line-name" />
@@ -168,12 +183,12 @@ function FrameEditor({ transitionState, onClose, title, imageUrl, frame, brightn
 
                 <div className="o2pt-frame-actions">
                     <Button variant="secondary" size="small" onClick={reset}>Reset</Button>
-                    <Button variant="secondary" size="small" onClick={() => setGuides(g => !g)}>{guides ? "Hide guides" : "Show guides"}</Button>
+                    {!wide && <Button variant="secondary" size="small" onClick={() => setGuides(g => !g)}>{guides ? "Hide guides" : "Show guides"}</Button>}
                     <span className="o2pt-frame-spacer" />
                     <Button variant="secondary" size="small" onClick={onClose}>Cancel</Button>
                     <Button size="small" onClick={() => { onSave(cleanFrame({ z, x, y })); onClose(); }}>Save</Button>
                 </div>
-                <Text variant="text-xs/normal" className="o2pt-frame-hint">The dashed circle and boxes show where the avatar, name and Discord's panels sit on the real card.</Text>
+                <Text variant="text-xs/normal" className="o2pt-frame-hint">{wide ? "This is the exact shape that gets published." : "The dashed circle and boxes show where the avatar, name and Discord's panels sit on the real card."}</Text>
                 </div>
             </div>
         </Modal>
@@ -186,15 +201,17 @@ export function openFrameEditor(props: Omit<EditorProps, keyof RenderModalProps>
 
 // The picture the way it will sit in the card, for places that only show it (the Callie window). The card keeps the
 // editor's proportions, so the same zoom / position looks the same here.
-export function FramePreview({ imageUrl, frame, height = 300, brightness = 0.6 }: { imageUrl: string; frame: ThemeFrame | null; height?: number; brightness?: number; }) {
+export function FramePreview({ imageUrl, frame, height = 300, brightness = 0.6, aspect, fadeLeft }: { imageUrl: string; frame: ThemeFrame | null; height?: number; brightness?: number; aspect?: number; fadeLeft?: boolean; }) {
+    const box = boxFor(aspect);
     const [dims, setDims] = React.useState(() => getImageDims(imageUrl, () => setDims(getImageDims(imageUrl))));
     React.useEffect(() => { setDims(getImageDims(imageUrl, () => setDims(getImageDims(imageUrl)))); }, [imageUrl]);
 
-    const css = dims ? frameCss(frame ?? { z: 1, x: 50, y: 50 }, FRAME_CARD_W, FRAME_CARD_H, dims.w, dims.h) : { size: "cover", position: "center" };
+    const css = dims ? frameCss(frame ?? { z: 1, x: 50, y: 50 }, box.w, box.h, dims.w, dims.h) : { size: "cover", position: "center" };
     return (
-        <div className="o2pt-frame-mini" style={{ height, aspectRatio: `${FRAME_CARD_W} / ${FRAME_CARD_H}` }}>
-            <div className="o2pt-frame-picture" style={{ backgroundImage: cssUrl(imageUrl), backgroundSize: css.size, backgroundPosition: css.position, opacity: brightness }} />
-            <div className="o2pt-frame-scrim" />
+        <div className="o2pt-frame-mini" style={aspect ? { width: "100%", aspectRatio: `${box.w} / ${box.h}` } : { height, aspectRatio: `${box.w} / ${box.h}` }}>
+            <div className="o2pt-frame-picture" style={{ backgroundImage: cssUrl(imageUrl), backgroundSize: css.size, backgroundPosition: css.position, opacity: aspect ? 1 : brightness }} />
+            {!aspect && <div className="o2pt-frame-scrim" />}
+            {aspect && fadeLeft && <div className="o2pt-frame-fadeleft" />}
         </div>
     );
 }
