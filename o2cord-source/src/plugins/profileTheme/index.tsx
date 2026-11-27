@@ -16,7 +16,7 @@ import { Margins } from "@utils/margins";
 import { isDebugOwner } from "@utils/o2Debug";
 import definePlugin, { OptionType, StartAt } from "@utils/types";
 import { chooseFile, saveFile } from "@utils/web";
-import { cleanFrame, FRAME_CARD_H, FRAME_CARD_W, frameCss, frameToJson, getImageDims, openFrameEditor, parseFrame, ThemeFrame } from "./frame";
+import { cleanFrame, FRAME_CARD_H, FRAME_CARD_W, frameCss, framePlacement, frameToJson, getImageDims, openFrameEditor, parseFrame, ThemeFrame } from "./frame";
 import { Button, Forms, GuildStore, React, RestAPI, SearchableSelect, SelectedGuildStore, Slider, showToast, SnowflakeUtils, TextInput, Toasts, UserStore } from "@webpack/common";
 
 const PUBLISH_CODE_PREFIX = "O2PROFILE_PUBLISH:";
@@ -935,7 +935,8 @@ const FRAME_POSITION_VAR = "--o2-profile-theme-background-position";
 // zoom + position of the picture. Inline with !important so it also beats the "tall card" rule in styles.css.
 function applyFrame(element: HTMLElement, imageUrl: string, frame: ThemeFrame | null) {
     const dims = frame ? getImageDims(imageUrl, scheduleProfileScans) : null;
-    const rect = element.getBoundingClientRect();
+    // the layout size: getBoundingClientRect() is smaller while the popout is still animating open
+    const rect = { width: element.offsetWidth, height: element.offsetHeight };
 
     if (!frame || !dims || !rect.width || !rect.height) {
         // no frame (or its picture is still loading): the normal cover look
@@ -949,15 +950,14 @@ function applyFrame(element: HTMLElement, imageUrl: string, frame: ThemeFrame | 
     // ends where it ends, its lower edge fading into a plain dark base (returns true = needs the base).
     const refHeight = rect.width * FRAME_CARD_H / FRAME_CARD_W;
     if (rect.height <= TALL_CARD_HEIGHT_PX) {
-        // a normal card (also the taller one with Discord's menu): the picture always covers the whole card, with the zoom
-        // and position from the editor (it is only enlarged as far as needed to fill the extra height)
-        const full = frameCss(frame, rect.width, refHeight, dims.w, dims.h, rect.height);
-        const fullPosition = `${frame.x}% ${frame.y}%`;
+        // a normal card (also the taller one with Discord's menu): the picture always covers the whole card, the way it
+        // was set in the editor, counted from the top
+        const placed = framePlacement(frame, rect.width, refHeight, dims.w, dims.h, rect.height);
         element.querySelector<HTMLElement>(`[${IMAGE_LAYER_ATTR}]`)?.style.removeProperty("mask-image");
-        if (element.style.getPropertyValue(FRAME_SIZE_VAR) !== full.size)
-            element.style.setProperty(FRAME_SIZE_VAR, full.size, "important");
-        if (element.style.getPropertyValue(FRAME_POSITION_VAR) !== fullPosition)
-            element.style.setProperty(FRAME_POSITION_VAR, fullPosition, "important");
+        if (element.style.getPropertyValue(FRAME_SIZE_VAR) !== placed.size)
+            element.style.setProperty(FRAME_SIZE_VAR, placed.size, "important");
+        if (element.style.getPropertyValue(FRAME_POSITION_VAR) !== placed.position)
+            element.style.setProperty(FRAME_POSITION_VAR, placed.position, "important");
         return false;
     }
     const css = frameCss(frame, rect.width, refHeight, dims.w, dims.h);
@@ -980,6 +980,28 @@ function applyFrame(element: HTMLElement, imageUrl: string, frame: ThemeFrame | 
     if (element.style.getPropertyValue(FRAME_POSITION_VAR) !== position)
         element.style.setProperty(FRAME_POSITION_VAR, position, "important");
     return gap;
+}
+
+// The big profile window: the picture fills it edge to edge. A picture close to the window's shape is stretched to it,
+// so all of it shows; a much taller or wider one would be badly deformed, so it covers the window and loses the rest.
+const MAX_FULL_STRETCH = 1.35;
+
+function applyFullWindowPicture(element: HTMLElement, layer: HTMLElement, imageUrl: string, isFull: boolean) {
+    if (!isFull) {
+        if (layer.style.getPropertyValue("background-size")) layer.style.removeProperty("background-size");
+        if (layer.style.getPropertyValue("background-position")) layer.style.removeProperty("background-position");
+        return;
+    }
+
+    const dims = getImageDims(imageUrl, scheduleProfileScans);
+    const { offsetWidth: width, offsetHeight: height } = element;
+    const stretch = dims && width && height ? (width / height) / (dims.w / dims.h) : Infinity;
+    // two values each: the dark layer first, then the picture
+    const size = Math.max(stretch, 1 / stretch) <= MAX_FULL_STRETCH ? "cover, 100% 100%" : "cover, cover";
+    if (layer.style.getPropertyValue("background-size") !== size)
+        layer.style.setProperty("background-size", size, "important");
+    // a covering picture keeps its top (where the face usually is)
+    layer.style.setProperty("background-position", "center, center top", "important");
 }
 
 function applyTargetFallback({ element, userId, imageUrl, frame }: ProfileThemeTarget) {
@@ -1027,11 +1049,14 @@ function applyTargetFallback({ element, userId, imageUrl, frame }: ProfileThemeT
         const combinedImage = `${kind === "full" ? FULL_IMAGE_SCRIM_GRADIENT : IMAGE_SCRIM_GRADIENT}, ${imageValue}`;
         if (layer.style.getPropertyValue("background-image") !== combinedImage)
             layer.style.setProperty("background-image", combinedImage, "important");
+        applyFullWindowPicture(element, layer, imageUrl, kind === "full");
     }
 
+    // the editor's position is for the small card only, the big window fills itself with the picture;
     // a card taller than the picture has a plain dark base below it (it must not be see-through - the server's channel list
     // showed through the faded bottom of the card)
-    const baseColor = applyFrame(element, imageUrl, frame) ? "#0d0d12" : "transparent";
+    const needsBase = applyFrame(element, imageUrl, kind === "full" ? null : frame);
+    const baseColor = needsBase || kind === "full" ? "#0d0d12" : "transparent";
     if (element.style.getPropertyValue("background-color") !== baseColor)
         element.style.setProperty("background-color", baseColor, "important");
     applyChildFallbacks(element);

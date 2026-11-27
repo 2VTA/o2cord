@@ -58,6 +58,24 @@ export function frameCss(frame: ThemeFrame, W: number, H: number, iw: number, ih
     };
 }
 
+// Where the picture goes on a real card, in px. It is placed as on the editor's card (W x H) and measured from the TOP,
+// so what was put next to the avatar stays there: a shorter card only loses its bottom. A card taller than the picture
+// reaches is filled by enlarging it just enough, around the top centre.
+export function framePlacement(frame: ThemeFrame, W: number, H: number, iw: number, ih: number, realH: number) {
+    let width = Math.max(W, H * iw / ih) * frame.z;
+    let height = width * ih / iw;
+    let left = (W - width) * frame.x / 100;
+    let top = (H - height) * frame.y / 100;
+    if (top + height < realH) {
+        const k = realH / (top + height);
+        left = clamp(W / 2 + (left - W / 2) * k, W - width * k, 0);
+        width *= k;
+        height *= k;
+        top *= k;
+    }
+    return { size: `${round(width)}px auto`, position: `${round(left)}px ${round(top)}px` };
+}
+
 // ---- picture sizes (needed to know how big "cover" is)
 const dimsCache = new Map<string, { w: number; h: number; }>();
 const dimsLoading = new Set<string>();
@@ -188,7 +206,7 @@ function FrameEditor({ transitionState, onClose, title, imageUrl, frame, brightn
                     <Button variant="secondary" size="small" onClick={onClose}>Cancel</Button>
                     <Button size="small" onClick={() => { onSave(cleanFrame({ z, x, y })); onClose(); }}>Save</Button>
                 </div>
-                <Text variant="text-xs/normal" className="o2pt-frame-hint">{wide ? "This is the exact shape that gets published." : "The dashed circle and boxes show where the avatar, name and Discord's panels sit on the real card."}</Text>
+                <Text variant="text-xs/normal" className="o2pt-frame-hint">{wide ? "This is the exact shape that gets published." : "The dashed circle and boxes show where the avatar, name and Discord's panels sit on the small card. The big profile window fills itself with the picture and does not use this position."}</Text>
                 </div>
             </div>
         </Modal>

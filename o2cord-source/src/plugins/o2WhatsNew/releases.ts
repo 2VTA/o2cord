@@ -31,6 +31,15 @@ export interface Release {
 
 export const RELEASES: Release[] = [
     {
+        version: "1.3.105",
+        date: "November 28, 2026",
+        features: [],
+        fixes: [
+            { plugin: "ProfileTheme", text: "The big profile window no longer zooms into one part of the picture: it fills the window edge to edge, and a square or near-square picture shows completely." },
+            { plugin: "ProfileTheme", text: "On the small profile card the picture now starts exactly where you put it in the position editor, on short and tall cards." }
+        ]
+    },
+    {
         version: "1.3.104",
         date: "November 26, 2026",
         features: [
