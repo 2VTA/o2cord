@@ -173,6 +173,15 @@
             "size": 23,
             "enabled": true,
             "rarity": "mythic"
+        },
+        {
+            "id": "badge-mwzrghtwhwqm",
+            "userId": "1542531988727140477",
+            "name": "testing marie web",
+            "image": "https://raw.githubusercontent.com/2VTA/o2cord/main/update-package/public/assets/badges/badge-mwzrghtwhwqm.png",
+            "size": 23,
+            "enabled": true,
+            "rarity": "mythic"
         }
     ]
 }
