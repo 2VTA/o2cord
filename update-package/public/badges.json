@@ -173,6 +173,15 @@
             "size": 23,
             "enabled": true,
             "rarity": "mythic"
+        },
+        {
+            "id": "badge-mx0490go3un2",
+            "userId": "619494728622407704",
+            "name": "💀",
+            "image": "https://raw.githubusercontent.com/2VTA/o2cord/main/update-package/public/assets/badges/badge-mx0490go3un2.png",
+            "size": 23,
+            "enabled": true,
+            "rarity": "mythic"
         }
     ]
 }
