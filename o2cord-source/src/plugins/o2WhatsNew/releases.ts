@@ -31,6 +31,14 @@ export interface Release {
 
 export const RELEASES: Release[] = [
     {
+        version: "1.3.106",
+        date: "November 28, 2026",
+        features: [
+            { plugin: "CallieRequests", title: "Pick which part of your picture shows", text: "Adjust position now works for all three pictures in the Callie window: profile theme, nameplate and background. Drag the picture and zoom, and the preview shows what you will get." }
+        ],
+        fixes: []
+    },
+    {
         version: "1.3.105",
         date: "November 28, 2026",
         features: [],

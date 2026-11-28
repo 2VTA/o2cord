@@ -44,10 +44,12 @@ interface KindInfo {
     accept?: string;
     // Preview box shape, matching where the picture ends up.
     aspect?: string;
+    // width / height of the place the picture is cut to; left out = the profile card
+    shape?: number;
 }
 
-// pictures whose position in the card the person can set before sending (the others are cut to a strip, not framed yet)
-const FRAMEABLE: Kind[] = ["profile-theme"];
+// pictures whose position the person can set before sending
+const FRAMEABLE: Kind[] = ["nameplate", "profile-theme", "background"];
 
 const KINDS: Record<Kind, KindInfo> = {
     "nameplate": {
@@ -55,7 +57,8 @@ const KINDS: Record<Kind, KindInfo> = {
         changeType: "Nameplate",
         description: "The strip behind your name in the member list.",
         accept: "image/png,image/jpeg,image/webp,image/gif,video/webm,video/mp4",
-        aspect: "320 / 60"
+        aspect: "320 / 60",
+        shape: 320 / 60
     },
     "profile-theme": {
         label: "Profile Theme",
@@ -67,9 +70,10 @@ const KINDS: Record<Kind, KindInfo> = {
     "background": {
         label: "Background",
         changeType: "USSRO2 Background",
-        description: "Replaces the banner at the top of your profile.",
+        description: "Your picture in voice rooms and at the top of your profile.",
         accept: "image/png,image/jpeg,image/webp,image/gif",
-        aspect: "20 / 7"
+        aspect: "16 / 9",
+        shape: 16 / 9
     },
     "typing-phrase": {
         label: "Typing Phrase",
@@ -345,7 +349,9 @@ function CallieModal({ transitionState, onClose }: RenderModalProps) {
             title: "Position your picture",
             imageUrl: fileUrl,
             frame,
-            brightness: 0.6,
+            brightness: info.shape ? 1 : 0.6,
+            aspect: info.shape,
+            fadeLeft: kind === "nameplate",
             onSave: setFrame
         });
     }
@@ -426,7 +432,7 @@ function CallieModal({ transitionState, onClose }: RenderModalProps) {
                         {file ? (
                             <>
                                 {canFrame
-                                    ? <div className="o2-callie-framed"><FramePreview imageUrl={fileUrl!} frame={frame} height={300} /></div>
+                                    ? <div className={info.shape ? undefined : "o2-callie-framed"}><FramePreview imageUrl={fileUrl!} frame={frame} height={300} aspect={info.shape} fadeLeft={kind === "nameplate"} /></div>
                                     : <Preview file={file} aspect={info.aspect} />}
                                 <div className={classes("o2-callie-row", Margins.top8)}>
                                     <span className="o2-callie-filename">{file.name}</span>
